@@ -1,0 +1,14 @@
+public
+static
+build
+dist
+env
+node_modules
+examples/local_config.py
+.idea
+.venv
+.cache
+.tox
+*.pyc
+*.egg-info
+.pytest_cache

@@ -1,0 +1,184 @@
+- !Image
+  name: env
+  from: !DockerImage python:3.7.3-slim
+  repository: registry.evo.dev/service/featureflags/py-env
+  tasks:
+  - run: apt-get update
+  - run: apt-get install -y build-essential
+  - run: pip3 install --no-cache-dir --no-deps --disable-pip-version-check -r {{req}}
+    req: !File server/setup.txt
+  - run: apt-get purge -y build-essential
+  - run: apt-get autoremove -y
+  - run: rm -rf /var/lib/apt/lists/*
+  - run: cp {{bin}} /usr/local/bin/grpc_health_probe && chmod +x /usr/local/bin/grpc_health_probe
+    bin: !Download "https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.2.0/grpc_health_probe-linux-amd64"
+
+- !Image
+  name: node
+  from: !DockerImage node:12.4.0-alpine
+  repository: registry.evo.dev/service/featureflags/js-env
+  tasks:
+  - run: cp {{pkg}} /package.json
+    pkg: !File "package.json"
+  - run: cp {{lock}} /package-lock.json
+    lock: !File "package-lock.json"
+  - run: npm ci
+
+- !Image
+  name: app
+  from: env
+  repository: registry.evo.dev/service/featureflags/server
+  tasks:
+  - run: pip3 install --no-deps {{src}}
+    src: !Bundle "server"
+  - run: cp {{exe}} /tini
+    exe: !Download "https://github.com/krallin/tini/releases/download/v0.18.0/tini"
+  - run: chmod +x /tini
+  - run: cp {{ver}} /checksum.txt
+    ver: !File "checksum.txt"
+
+- !Image
+  name: test
+  from: env
+  repository: registry.evo.dev/service/featureflags/py-test
+  tasks:
+  - run: pip3 install --no-cache-dir --no-deps --disable-pip-version-check -r {{req}}
+    req: !File requirements-tests.txt
+
+- !Image
+  name: docs
+  from: env
+  repository: registry.evo.dev/service/featureflags/py-doc
+  tasks:
+  - run: pip3 install --no-cache-dir --no-deps --disable-pip-version-check -r {{req}}
+    req: !File requirements-docs.txt
+
+- !Image
+  name: protoc
+  from: env
+  repository: localhost/featureflags/protoc
+  tasks:
+  - run: pip3 install --no-cache-dir --no-deps grpcio-tools==1.18.0
+
+- !Service
+  name: pg
+  network-name: postgres
+  image: !DockerImage timescale/timescaledb:0.9.1-pg10
+  ports:
+  - !Expose { port: 5432, as: 5432, addr: 0.0.0.0 }
+
+- !Command
+  name: psql
+  description: Run PostgreSQL console
+  image: !DockerImage postgres:10.1-alpine
+  run: psql -U postgres -h postgres {{database}}
+  params:
+  - !Argument {name: database, default: featureflags}
+
+- !Command
+  name: test
+  description: Run py.test
+  image: test
+  params:
+  - !Argument {name: tests, default: ''}
+  run: py.test {{tests}}
+  environ:
+    LANG: C.UTF-8
+    LC_ALL: C.UTF-8
+    PYTHONIOENCODING: UTF-8
+    PYTHONPATH: server:client
+
+- !Command
+  name: migration generate
+  description: Autogenerate migration
+  image: env
+  params:
+  - !Argument {name: message}
+  run: python3 -m featureflags.server config.yaml@local alembic -- revision --autogenerate -m {{message}}
+  environ:
+    LANG: C.UTF-8
+    LC_ALL: C.UTF-8
+    PYTHONIOENCODING: UTF-8
+    PYTHONPATH: server
+
+- !Command
+  name: migration proceed
+  description: Apply migrations
+  image: env
+  run: python3 -m featureflags.server config.yaml@local alembic -- upgrade head
+  environ:
+    LANG: C.UTF-8
+    LC_ALL: C.UTF-8
+    PYTHONIOENCODING: UTF-8
+    PYTHONPATH: server
+
+- !Command
+  name: web
+  description: Run Web application
+  image: env
+  requires: [pg]
+  run: python3 -m featureflags.server config.yaml@local web --port 8000 --prometheus-port=9000
+  environ:
+    LANG: C.UTF-8
+    LC_ALL: C.UTF-8
+    PYTHONIOENCODING: UTF-8
+    PYTHONPATH: server
+  ports:
+  - !Expose {port: 8000, as: 8000, addr: 0.0.0.0}
+  - !Expose {port: 9000, as: 9000, addr: 0.0.0.0}
+
+- !Command
+  name: rpc
+  network-name: grpc.featureflags.svc
+  description: Run gRPC server
+  image: env
+  requires: [pg]
+  run: python3 -m featureflags.server config.yaml@local rpc --port 50051
+  environ:
+    LANG: C.UTF-8
+    LC_ALL: C.UTF-8
+    PYTHONIOENCODING: UTF-8
+    PYTHONPATH: server
+
+- !Command
+  name: examples sanic-app
+  description: Run example app with Sanic and AsyncIOManager
+  image: env
+  run: python3 examples/sanic_app.py
+  environ:
+    LANG: C.UTF-8
+    LC_ALL: C.UTF-8
+    PYTHONIOENCODING: UTF-8
+    PYTHONPATH: client
+  ports:
+  - !Expose {port: 5000, as: 5000, addr: 0.0.0.0}
+
+- !Command
+  name: build docs
+  image: docs
+  run: sphinx-build -a -b html docs public
+  environ:
+    PYTHONPATH: client:server:protobuf
+
+- !Command
+  name: webpack build
+  image: node
+  run: /node_modules/.bin/webpack --config webpack.prod.js
+
+- !Command
+  name: webpack watch
+  image: node
+  run: /node_modules/.bin/webpack --config webpack.dev.js --watch
+
+- !Command
+  name: build proto
+  image: protoc
+  run: |
+    python3 -m grpc_tools.protoc -Iprotobuf --python_out=protobuf protobuf/featureflags/protobuf/backend.proto
+    python3 -m grpc_tools.protoc -Iprotobuf --python_out=protobuf protobuf/featureflags/protobuf/graph.proto
+    python3 -m grpc_tools.protoc -Iprotobuf --python_out=protobuf --python_grpc_out=protobuf --grpc_python_out=protobuf protobuf/featureflags/protobuf/service.proto
+
+- !Command
+  name: health-check rpc
+  image: env
+  run: grpc_health_probe -addr grpc.featureflags.svc:50051
