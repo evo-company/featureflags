@@ -1,0 +1,27 @@
+dev.true:
+  logging-level-app: debug
+  logging-level-libs: info
+  logging-handlers: [console]
+
+  logging-syslog-app: null
+  logging-syslog-facility: null
+  logging-syslog-mapping: null
+  logging-syslog-defaults: null
+
+main.local:
+  debug: true
+  secret: 023517f06f444118986877e636b4a226
+
+  dsn: postgres://postgres:postgres@postgres:5432/featureflags
+
+  ldap-host: null
+  ldap-base-dn: cn=$user,ou=People,dc=acme,dc=com
+
+  known-as: rpc.featureflags:50051
+
+  taskqueue-host: rpc.taskqueue
+  taskqueue-port: 50051
+
+compose.local:
+  dev: "true"
+  main: local

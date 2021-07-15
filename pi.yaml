@@ -68,8 +68,16 @@
   - !Expose { port: 5432, as: 5432, addr: 0.0.0.0 }
 
 - !Command
-  name: psql
+  name: pg init
   description: Run PostgreSQL console
+  image: !DockerImage postgres:10.1-alpine
+  run: psql -U postgres -h postgres -c "CREATE DATABASE {{database}}"
+  params:
+  - !Argument {name: database, default: featureflags}
+
+- !Command
+  name: psql
+  description: init posgres database
   image: !DockerImage postgres:10.1-alpine
   run: psql -U postgres -h postgres {{database}}
   params:

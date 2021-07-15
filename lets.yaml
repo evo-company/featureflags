@@ -1,0 +1,23 @@
+shell: bash
+
+env:
+  DOCKER_BUILDKIT: "1"
+
+eval_env: {}
+
+commands:
+
+  build-server:
+    description: build server with embedded frontend
+    options: |
+      Usage: lets build-server [--tag=<tag>] [--webpack-config=<config>]
+
+      Options:
+        --tag=<tag>, -t                 Set container tag [default: dev]
+        --webpack-config=<config>        Set webpack config file [default: webpack.dev.js]
+    cmd: |
+      docker build \
+        -f docker/Dockerfile.server \
+        -t featureflags-server:${LETSOPT_TAG} \
+        --build-arg WEBPACK_CONFIG=${LETSOPT_WEBPACK_CONFIG} \
+        .
