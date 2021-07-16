@@ -42,7 +42,7 @@
     export default class Layout extends Vue {
         type: string;
         time: string = '';
-        _interval: number;
+        _interval: null | ReturnType<typeof setInterval> = null
 
         created () {
             let format = '%Y-%m-%d %H:%M %Z';
