@@ -13,7 +13,7 @@
             <Col span="8" style="display: flex; justify-content: flex-end;">
                 <ButtonGroup style="padding: 0 4px;">
                     <Button size="small" type="warning" :disabled="!flag.overridden.value" v-on:click="reset">reset</Button>
-                    <Button size="small" type="info" :disabled="dirty === false" v-on:click="save">make it so</Button>
+                    <Button size="small" type="info" :disabled="dirty === false" v-on:click="save">apply</Button>
                     <Button size="small" type="error" :disabled="dirty === false" v-on:click="cancel">cancel</Button>
                 </ButtonGroup>
             </Col>
