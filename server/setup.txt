@@ -18,6 +18,7 @@ grpclib==0.3.3rc1         # via featureflags-server (server/setup.py), taskqueue
 h11==0.8.1                # via httpx
 h2==3.2.0                 # via grpclib, httpx
 hiku==0.6.0               # via featureflags-server (server/setup.py)
+GraphQL-core-next==1.0.2  # via hiku
 hpack==3.0.0              # via h2
 hstspreload==2020.3.31    # via httpx
 httptools==0.1.1          # via sanic

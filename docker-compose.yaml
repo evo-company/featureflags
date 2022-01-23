@@ -1,0 +1,43 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: timescale/timescaledb:0.9.1-pg10
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: featureflags
+    volumes:
+      - "db-data:/var/lib/postgresql/data"
+    networks:
+      - main
+
+  web: &base
+    image: featureflags-server:dev
+    depends_on:
+      - postgres
+    environment:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      PYTHONIOENCODING: UTF-8
+      PYTHONPATH: server
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.server
+      args:
+        WEBPACK_CONFIG: webpack.dev.js
+    ports:
+      - "8000:8000"
+    networks:
+      - main
+    command: python3 -m featureflags.server config.yaml@local web --port 8000 --prometheus-port 9000
+
+volumes:
+    db-data:
+        driver: local
+
+networks:
+  main:
+    driver: bridge

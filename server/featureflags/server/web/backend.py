@@ -6,11 +6,13 @@ import contextlib
 
 from sanic import Sanic
 from grpclib.utils import graceful_exit
-from sanic.response import html, raw, text
+from sanic.response import html, raw, text, json
 from sanic.exceptions import NotFound, Unauthorized
 
 from hiku.engine import Engine
+from hiku.readers.graphql import read
 from hiku.readers.protobuf import transform
+from hiku.result import denormalize
 from hiku.executors.asyncio import AsyncIOExecutor
 
 from featureflags.protobuf.backend_pb2 import Request, Reply
@@ -19,7 +21,7 @@ from .. import metrics
 from ..auth import get_session
 from ..actions import dispatch_ops, AccessError
 from ..services.db import get_db
-from ..graph.graph import pull
+from ..graph.graph import pull, GRAPH
 from ..graph.proto import populate
 from ..services.ldap import get_ldap
 
@@ -83,6 +85,40 @@ async def call(request):
                content_type='application/x-protobuf')
 
 
+async def graphql(request):
+    json_body = request.json
+
+    if isinstance(json_body, list):
+        futures = []
+        for q in json_body:
+            query = read(
+                q.get('query'),
+                q.get('variables'),
+            )
+            futures.append(pull(
+                request.app.hiku_engine,
+                query,
+                sa=request.app.sa_engine,
+                session=request['session'],
+            ))
+        results = asyncio.gather(*futures)
+        denormalized_results = [denormalize(GRAPH, res) for res in results]
+        return json(denormalized_results)
+
+    else:
+        query = read(
+            json_body.get('query'),
+            json_body.get('variables'),
+        )
+        query_res = await pull(
+            request.app.hiku_engine,
+            query,
+            sa=request.app.sa_engine,
+            session=request['session'],
+        )
+        return json(denormalize(GRAPH, query_res))
+
+
 async def health(_):
     return text('OK')
 
@@ -100,6 +136,7 @@ def create_app(*, cfg, sa_engine, hiku_engine, ldap):
     app.router.add('/static/fuse.js.map', {'GET'}, ignore_404)
 
     app.router.add('/featureflags.backend.Backend/Call', {'POST'}, call)
+    app.router.add('/graphql', {'POST'}, graphql)
 
     app.static('/static', os.path.join(os.path.dirname(__file__), 'static'))
     if not cfg.main.debug:

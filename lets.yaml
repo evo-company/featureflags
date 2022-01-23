@@ -2,6 +2,7 @@ shell: bash
 
 env:
   DOCKER_BUILDKIT: "1"
+  COMPOSE_DOCKER_CLI_BUILD: "1"
 
 commands:
 
@@ -19,3 +20,20 @@ commands:
         -t featureflags-server:${LETSOPT_TAG} \
         --build-arg WEBPACK_CONFIG=${LETSOPT_WEBPACK_CONFIG} \
         .
+
+  run:
+    description: run whole application
+    cmd: docker-compose up
+
+  apply-migration-dev:
+    description: Apply migrations to local postgres
+    cmd: docker-compose run --rm web python3 -m featureflags.server config.yaml@local alembic -- upgrade head
+
+  rollback-migration-dev:
+    description: Rollback migrations to local postgres
+    cmd: docker-compose run --rm web python3 -m featureflags.server config.yaml@local alembic -- downgrade -1
+
+  create-migration:
+    description: Create new migration file
+    cmd:
+      - docker-compose run --rm web  python3 -m featureflags.server config.yaml@local alembic -- revision --autogenerate -m
