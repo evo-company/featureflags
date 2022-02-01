@@ -58,7 +58,7 @@
   from: env
   repository: localhost/featureflags/protoc
   tasks:
-  - run: pip3 install --no-cache-dir --no-deps grpcio-tools==1.18.0
+  - run: pip3 install --no-cache-dir --no-deps grpcio-tools==1.43.0
 
 - !Service
   name: pg
