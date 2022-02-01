@@ -95,14 +95,14 @@ class AsyncIOManager(AbstractManager):
                 await self._exchange(self._exchange_timeout)
                 interval = self._int_gen.send(True)
                 log.debug('Exchange complete, next will be in %ss', interval)
-                await asyncio.sleep(interval, loop=self._loop)
+                await asyncio.sleep(interval)
             except asyncio.CancelledError:
                 log.info('Exchange task exits')
                 break
             except Exception as exc:
                 interval = self._int_gen.send(False)
                 log.error('Failed to exchange: %r, retry in %ss', exc, interval)
-                await asyncio.sleep(interval, loop=self._loop)
+                await asyncio.sleep(interval)
                 continue
 
     async def _exchange(self, timeout):
