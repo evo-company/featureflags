@@ -78,7 +78,7 @@ class AsyncIOManager(AbstractManager):
         self._exchange_task.cancel()
 
     async def wait_closed(self):
-        await asyncio.wait([self._exchange_task], loop=self._loop)
+        await asyncio.wait([self._exchange_task])
         if self._exchange_task.done():
             try:
                 error = self._exchange_task.exception()
