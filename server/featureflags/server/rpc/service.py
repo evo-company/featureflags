@@ -20,12 +20,10 @@ from featureflags.protobuf.service_grpc import FeatureFlagsBase
 from .. import metrics
 from ..auth import InternalSession
 from ..schema import Project
-from ..feedback import add_statistics, yield_store_stats_tasks
-from ..feedback import store_statistics
+from ..feedback import add_statistics
 from ..graph.graph import pull
 from ..graph.proto import populate
 from ..services.db import get_db
-from ..services.tq import get_tq
 
 from ..utils import MC, ACC
 
@@ -57,11 +55,10 @@ def debug_cancellation(func):
 class FeatureFlags(FeatureFlagsBase):
     _store_stats_timeout = 1
 
-    def __init__(self, *, sa_engine, queue, loop):
+    def __init__(self, *, sa_engine, loop):
         self._mc = MC()
         self._acc = ACC()
         self._sa_engine = sa_engine
-        self._queue = queue
         self._lock = asyncio.Lock(loop=loop)
         self._engine = Engine(AsyncIOExecutor(loop=loop))
 
@@ -116,29 +113,17 @@ class FeatureFlags(FeatureFlagsBase):
         await stream.send_message(reply)
         await stream.send_trailing_metadata()
 
-        if not self._lock.locked():
-            async with self._lock:
-                for task in yield_store_stats_tasks(acc=self._acc):
-                    await asyncio.shield(self._queue.StoreStats.add(
-                        task, timeout=self._store_stats_timeout,
-                    ))
-                    log.info('Queued StoreStats task: %r', task)
-
     async def store_stats(self, stream):
         # backward compatibility
         await self.StoreStats(stream)
 
     async def StoreStats(self, stream):
-        task: service_pb2.StoreStatsTask = await stream.recv_message()
-        async with self._sa_engine.acquire() as db:
-            await store_statistics(task, db=db)
         await stream.send_message(Empty())
 
 
-def create_server(*, sa_engine, queue, loop):
+def create_server(*, sa_engine, loop):
     ff = FeatureFlags(
         sa_engine=sa_engine,
-        queue=queue,
         loop=loop,
     )
     health = Health()
@@ -160,7 +145,6 @@ async def main(cfg, *, host=None, port=None, prometheus_port=None):
 
         server = create_server(
             sa_engine=sa_engine,
-            queue=get_tq(cfg, loop=loop),
             loop=loop,
         )
         stack.enter_context(graceful_exit([server], loop=loop))
