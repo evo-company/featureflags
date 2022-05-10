@@ -1,0 +1,13 @@
+name: Test
+on: [ push, pull_request ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install lets
+        uses: lets-cli/lets-action@v1.1
+      - name: Run test
+        run: lets test

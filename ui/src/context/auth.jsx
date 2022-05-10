@@ -1,0 +1,71 @@
+import { createContext } from 'react';
+import { gql, useMutation, useQuery } from '@apollo/client';
+import { useNavigate } from 'react-router-dom';
+
+// {auth, loading, actions}
+export const AuthContext = createContext({});
+
+const AUTH_QUERY = gql`
+  query Auth {
+    authenticated
+  }
+`;
+
+const SIGN_IN_MUTATION = gql`
+  mutation SignIn($username: String!, $password: String!) {
+    signIn(username: $username, password: $password) {
+        error
+    }
+  }
+`;
+
+const SIGN_OUT_MUTATION = gql`
+  mutation SignOut {
+    signOut {
+        error
+    }
+  }
+`;
+
+
+export function AuthProvider({ children }) {
+  const navigate = useNavigate();
+  const { data, loading, refetch } = useQuery(AUTH_QUERY);
+  const [signInMutation, signInInfo] = useMutation(SIGN_IN_MUTATION, {
+    onCompleted: () => {
+      refetch().then(() => {
+        navigate('/');
+      });
+    }
+  });
+  const [signOutMutation, signOutInfo] = useMutation(SIGN_OUT_MUTATION, {
+    onCompleted: () => {
+      navigate('/sign-in');
+    }
+  });
+  const authenticated = loading ? false : data.authenticated;
+
+  const auth = {
+    authenticated,
+  };
+
+  const actions = {
+    signIn: [
+      (username, password) => {
+        signInMutation({ variables: { username, password } });
+      },
+      signInInfo.error,
+    ],
+    signOut: [
+      () => {
+        signOutMutation();
+      },
+      signOutInfo.error
+    ]
+  }
+  return (
+      <AuthContext.Provider value={{auth, loading, actions}}>
+        {children}
+      </AuthContext.Provider>
+  );
+}

@@ -1,4 +1,4 @@
-from uuid import UUID, uuid4
+from uuid import UUID
 from typing import Optional
 from dataclasses import dataclass
 
@@ -7,16 +7,24 @@ import aiopg.sa
 import hiku.engine
 
 from sqlalchemy import select
-from hiku.builder import build, Q
 from sanic.exceptions import Unauthorized
-from hiku.export.protobuf import export
 
-from featureflags.protobuf import backend_pb2
 from featureflags.server.auth import TestSession
 from featureflags.server.schema import Flag
-from featureflags.server.web.backend import call
+from featureflags.server.graph.graph import (
+    GRAPH,
+    MUTATION_GRAPH,
+)
+from featureflags.server.web.backend import (
+    AsyncGraphQLEndpoint,
+    graph_context,
+)
 
-from state import mk_flag, mk_auth_user
+from featureflags.server import auth
+from state import (
+    mk_flag,
+    mk_auth_user,
+)
 
 
 @dataclass
@@ -46,45 +54,80 @@ async def check_flag(flag, *, db):
     return await result.scalar()
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize('user', [uuid4(), None])
-async def test_query(user, sa, hiku_engine):
-    pb_request = backend_pb2.Request(query=export(build([Q.authenticated])))
-
-    app = AppStub(sa_engine=sa, hiku_engine=hiku_engine)
-    response = await call(RequestStub(app=app,
-                                      body=pb_request.SerializeToString(),
-                                      user=user))
-
-    pb_response = backend_pb2.Reply.FromString(response.body)
-    assert pb_response.result.Root.authenticated is (user is not None)
+async def get_flag(flag, *, db):
+    result = await db.execute(
+        select([Flag.id]).where(Flag.id == flag)
+    )
+    return await result.scalar()
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('authenticated', [True, False])
-async def test_operations(authenticated, sa, db, hiku_engine):
+async def test_reset_flag_graph(authenticated, sa, db, hiku_engine):
     flag = await mk_flag(db, enabled=True)
 
-    pb_request = backend_pb2.Request(operations=[
-        backend_pb2.Operation(
-            disable_flag=backend_pb2.DisableFlag(
-                flag_id=backend_pb2.Id(value=flag.id.hex),
-            )
-        ),
-    ])
+    query = {
+        'query': """
+            mutation ResetFlag($id: String!) { 
+                resetFlag(id: $id) { error } 
+            }
+        """,
+        'variables': {'id': str(flag.id)}
+    }
+    graphql_endpoint = AsyncGraphQLEndpoint(
+        hiku_engine,
+        GRAPH,
+        MUTATION_GRAPH,
+        ctx=None
+    )
 
-    app = AppStub(sa_engine=sa, hiku_engine=hiku_engine)
+    async def make_call(*, user=None):
+        session = auth.TestSession()
+        if user:
+            session = auth.TestSession(user)
 
-    async def make_call(*, user):
-        return await call(RequestStub(
-            app=app,
-            body=pb_request.SerializeToString(),
-            user=user,
-        ))
+        ctx = graph_context(
+            sa,
+            session,
+            None,
+        )
+        graphql_endpoint.with_context(ctx)
+        return await graphql_endpoint.dispatch_ext(query)
 
     if authenticated:
         await make_call(user=(await mk_auth_user(db)).id)
-        assert await check_flag(flag.id, db=db) is False
+        assert await check_flag(flag.id, db=db) is None
     else:
         with pytest.raises(Unauthorized):
             await make_call(user=None)
+
+
+@pytest.mark.asyncio
+async def test_delete_flag_graph(sa, db, hiku_engine):
+    flag = await mk_flag(db, enabled=True)
+
+    query = {
+        'query': """
+            mutation DeleteFlag($id: String!) { 
+                deleteFlag(id: $id) { error } 
+            }
+        """,
+        'variables': {'id': str(flag.id)}
+    }
+    user = await mk_auth_user(db)
+
+    graphql_endpoint = AsyncGraphQLEndpoint(
+        hiku_engine,
+        GRAPH,
+        MUTATION_GRAPH,
+        ctx=graph_context(
+            sa,
+            auth.TestSession(user.id),
+            None,
+        )
+    )
+
+    res = await graphql_endpoint.dispatch_ext(query)
+    assert res['data']['deleteFlag']['error'] is None
+
+    assert await get_flag(flag.id, db=db) is None

@@ -5,35 +5,98 @@ env:
   COMPOSE_DOCKER_CLI_BUILD: "1"
 
 commands:
-
-  build-server:
-    description: build server with embedded frontend
+  build-prod:
+    description: build server image with embeded frontend
     options: |
-      Usage: lets build-server [--tag=<tag>] [--webpack-config=<config>]
+      Usage: lets build-prod [--tag=<tag>]
 
       Options:
         --tag=<tag>, -t                 Set container tag [default: dev]
-        --webpack-config=<config>        Set webpack config file [default: webpack.dev.js]
     cmd: |
       docker build \
-        -f docker/Dockerfile.server \
+        -f Dockerfile \
         -t featureflags-server:${LETSOPT_TAG} \
-        --build-arg WEBPACK_CONFIG=${LETSOPT_WEBPACK_CONFIG} \
+        --target prd \
+        .
+
+  build-dev:
+    description: build dev server image
+    cmd: |
+      docker build \
+        -f Dockerfile \
+        -t featureflags-server \
+        --target dev \
+        .
+
+  build-test:
+    description: build test server image
+    cmd: |
+      docker build \
+        -f Dockerfile \
+        -t featureflags-server-test \
+        --target test \
+        .
+
+  build-ui:
+    description: build ui image
+    cmd: |
+      # TODO rename dockerfile to Dockerfile
+      docker build \
+        -f Dockerfile \
+        -t featureflags-assets \
+        --target assets-dev \
         .
 
   run:
     description: run whole application
-    cmd: docker-compose up
+    depends:
+      - build-dev
+    cmd: docker-compose up server postgres
+
+  web:
+    description: run web server
+    depends:
+      - build-dev
+    cmd: docker-compose up web
+
+  rpc:
+    description: run grpc server
+    depends:
+      - build-dev
+    cmd: docker-compose up rpc
+
+  test:
+    description: run tests
+    depends:
+      - build-test
+    cmd: docker-compose run --rm test
+
+  postgres:
+    description: run postgres
+    cmd: docker-compose up postgres
 
   apply-migration-dev:
     description: Apply migrations to local postgres
-    cmd: docker-compose run --rm web python3 -m featureflags.server config.yaml@local alembic -- upgrade head
+    depends:
+      - build-dev
+    cmd: docker-compose run --rm backend python3 -m featureflags.server config.yaml@local alembic -- upgrade head
 
   rollback-migration-dev:
     description: Rollback migrations to local postgres
-    cmd: docker-compose run --rm web python3 -m featureflags.server config.yaml@local alembic -- downgrade -1
+    depends:
+      - build-dev
+    cmd: docker-compose run --rm backend python3 -m featureflags.server config.yaml@local alembic -- downgrade -1
 
   create-migration:
-    description: Create new migration file
+    description: |
+      Create new migration file
+      Example: lets create-migration add_date_created_column_to_user_table
+    depends:
+      - build-dev
     cmd:
-      - docker-compose run --rm web  python3 -m featureflags.server config.yaml@local alembic -- revision --autogenerate -m
+      - docker-compose run --rm backend python3 -m featureflags.server config.yaml@local alembic -- revision --autogenerate -m
+
+  ui:
+    description: Build and run ui local
+    work_dir: ./ui
+    cmd: npm run dev

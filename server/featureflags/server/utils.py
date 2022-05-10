@@ -5,13 +5,6 @@ from sqlalchemy import cast
 from sqlalchemy.dialects.postgresql import ARRAY
 
 
-def requires(func):
-    sign = inspect.signature(func)
-    func.__requires__ = {p.name for p in sign.parameters.values()
-                         if p.kind is inspect.Parameter.KEYWORD_ONLY}
-    return func
-
-
 class MC:
     """
     Caches entity ids during request
