@@ -2,10 +2,10 @@ FROM python:3.7.13-slim-bullseye as base
 
 WORKDIR /app
 
-COPY server/setup.txt /app/server/setup.txt
-
 RUN apt-get update \
     && apt-get install -y build-essential
+
+COPY server/setup.txt /app/server/setup.txt
 
 RUN pip3 install --no-cache-dir --no-deps --disable-pip-version-check -r "server/setup.txt"
 
