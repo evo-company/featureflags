@@ -51,13 +51,18 @@ services:
     <<: *backend
     image: featureflags-server-test
     init: true
+    depends_on:
+      - postgres
     environment:
       <<: *env
       PYTHONPATH: server:client
     volumes:
       - ./:/app
-    command: py.test
-
+    command: |
+      bash -c '
+        /app/scripts/wait-for-it.sh -h postgres -p 5432;
+        py.test
+      '
 volumes:
   db-data:
     driver: local
