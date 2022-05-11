@@ -7,6 +7,7 @@ import json
 from datetime import datetime
 from enum import Enum
 from functools import partial
+from typing import Optional
 
 from uuid import UUID
 
@@ -80,9 +81,9 @@ def graph_context(
     sa_engine,
     session,
     ldap,
-    ctx=None
+    ctx_override: Optional[dict] = None
 ):
-    ctx_ = {
+    ctx = {
         SA_ENGINE: sa_engine,
         SESSION: session,
         LDAP: ldap,
@@ -91,35 +92,21 @@ def graph_context(
         IDS: dict(),
     }
 
-    if ctx is not None:
-        ctx_.update(ctx)
+    if ctx_override is not None:
+        ctx.update(ctx_override)
 
-    return ctx_
+    return ctx
 
 
 class AsyncGraphQLEndpoint(AsyncBatchGraphQLEndpoint):
-    def __init__(
-        self,
-        *args,
-        ctx: dict,
-        **kwargs,
-    ):
-        self.__ctx = ctx
-        super().__init__(*args, **kwargs)
-
-    def with_context(self, ctx):
-        self.__ctx = ctx
-
-    @contextlib.contextmanager
-    def context(self, op):
-        yield self.__ctx
+    __ctx = None
 
     async def execute(self, graph, op, ctx):
-        with self.context(op) as ctx_values:
-            ctx.update(ctx_values)
-            return await super().execute(graph, op, ctx)
+        ctx.update(self.__ctx or {})
+        return await super().execute(graph, op, ctx)
 
-    async def dispatch_ext(self, json_body: dict) -> dict:
+    async def dispatch_ext(self, json_body: dict, ctx: dict) -> dict:
+        self.__ctx = ctx
         try:
             res = await super().dispatch(json_body)
         except AccessError as e:
@@ -147,14 +134,15 @@ async def graphql(request):
         request.app.hiku_engine,
         GRAPH,
         MUTATION_GRAPH,
-        ctx=graph_context(
-            request.app.sa_engine,
-            request['session'],
-            request.app.ldap,
-        )
     )
 
-    result = await graphql_endpoint.dispatch_ext(request.json)
+    ctx = graph_context(
+        request.app.sa_engine,
+        request['session'],
+        request.app.ldap,
+    )
+
+    result = await graphql_endpoint.dispatch_ext(request.json, ctx)
 
     return json_response(result, dumps=json_dumps)
 

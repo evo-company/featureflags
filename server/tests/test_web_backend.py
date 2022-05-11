@@ -78,7 +78,6 @@ async def test_reset_flag_graph(authenticated, sa, db, hiku_engine):
         hiku_engine,
         GRAPH,
         MUTATION_GRAPH,
-        ctx=None
     )
 
     async def make_call(*, user=None):
@@ -91,8 +90,7 @@ async def test_reset_flag_graph(authenticated, sa, db, hiku_engine):
             session,
             None,
         )
-        graphql_endpoint.with_context(ctx)
-        return await graphql_endpoint.dispatch_ext(query)
+        return await graphql_endpoint.dispatch_ext(query, ctx)
 
     if authenticated:
         await make_call(user=(await mk_auth_user(db)).id)
@@ -120,14 +118,14 @@ async def test_delete_flag_graph(sa, db, hiku_engine):
         hiku_engine,
         GRAPH,
         MUTATION_GRAPH,
-        ctx=graph_context(
-            sa,
-            auth.TestSession(user.id),
-            None,
-        )
+    )
+    ctx = graph_context(
+        sa,
+        auth.TestSession(user.id),
+        None,
     )
 
-    res = await graphql_endpoint.dispatch_ext(query)
+    res = await graphql_endpoint.dispatch_ext(query, ctx)
     assert res['data']['deleteFlag']['error'] is None
 
     assert await get_flag(flag.id, db=db) is None
