@@ -1,7 +1,14 @@
+import contextlib
+from contextvars import ContextVar
+from dataclasses import dataclass
 from uuid import uuid4, UUID
-from typing import List, Dict
+from typing import (
+    List,
+    Dict,
+    Optional,
+    Union,
+)
 from datetime import datetime, timedelta
-from itertools import chain
 from collections import defaultdict
 
 from aiopg.sa import SAConnection
@@ -9,10 +16,8 @@ from sqlalchemy import select, and_, update, or_
 from prometheus_client import Histogram, Counter
 from sqlalchemy.dialects.postgresql import insert
 
-from featureflags.protobuf import backend_pb2
-
 from . import metrics
-from .utils import MC, requires, sel_scalar
+from .utils import sel_scalar
 from .schema import Operator, Project, Variable, AuthSession, AuthUser
 from .schema import Flag, Check, LocalIdMap, Condition, Action, Changelog
 
@@ -47,16 +52,25 @@ class AccessError(Exception):
     pass
 
 
-def auth_required(func):
+session_var = ContextVar('session')
 
+
+@contextlib.asynccontextmanager
+async def with_session(session):
+    try:
+        session_var.set(session)
+        yield
+    finally:
+        session_var.set(None)
+
+
+def auth_required(func):
     async def wrapper(*args, **kwargs):
-        session = kwargs['session']
+        session = session_var.get()
         if not session.is_authenticated:
             raise AccessError('User is not authenticated')
-        kwargs = {k: v for k, v in kwargs.items() if k in func.__requires__}
         return await func(*args, **kwargs)
 
-    wrapper.__requires__ = func.__requires__.union({'session'})
     return wrapper
 
 
@@ -80,7 +94,16 @@ class Changes:
         return list(self._data.items())
 
 
-async def gen_id(local_id: backend_pb2.LocalId, *, db: SAConnection):
+@dataclass
+class LocalId:
+    scope: str
+    value: str
+
+    def __hash__(self):
+        return hash((self.scope, self.value))
+
+
+async def gen_id(local_id: LocalId, *, db: SAConnection):
     assert local_id.scope and local_id.value, local_id
 
     id_ = await sel_scalar(db, (
@@ -123,14 +146,20 @@ async def get_auth_user(username, *, db):
     return user_id
 
 
-@requires
 @measure_action
-async def sign_in(op: backend_pb2.SignIn, *, db, session, ldap):
-    assert op.username and op.password, op
-    if not await ldap.check_credentials(op.username, op.password):
-        return
+async def sign_in(
+    username: str,
+    password: str,
+    *,
+    db,
+    session,
+    ldap
+) -> bool:
+    assert username and password, "Username and password are required"
+    if not await ldap.check_credentials(username, password):
+        return False
 
-    user_id = await get_auth_user(op.username, db=db)
+    user_id = await get_auth_user(username, db=db)
 
     now = datetime.utcnow()
     exp = now + SESSION_TTL
@@ -152,11 +181,11 @@ async def sign_in(op: backend_pb2.SignIn, *, db, session, ldap):
         )
     )
     session.associate_user(user_id, exp)
+    return True
 
 
-@requires
 @measure_action
-async def sign_out(_: backend_pb2.SignOut, *, db, session):
+async def sign_out(*, db, session):
     if session.ident:
         await db.execute(
             AuthSession.__table__.delete()
@@ -165,12 +194,12 @@ async def sign_out(_: backend_pb2.SignOut, *, db, session):
         session.disassociate_user()
 
 
-@requires
+@auth_required
 @measure_action
-async def enable_flag(op: backend_pb2.EnableFlag, *, db, dirty, changes):
-    assert op.flag_id, op
+async def enable_flag(flag_id, *, db, dirty, changes):
+    assert flag_id, "Flag id is required"
 
-    flag_id = UUID(hex=op.flag_id.value)
+    flag_id = UUID(hex=flag_id)
     await db.execute(
         Flag.__table__.update()
         .where(Flag.id == flag_id)
@@ -180,12 +209,12 @@ async def enable_flag(op: backend_pb2.EnableFlag, *, db, dirty, changes):
     changes.add(flag_id, Action.ENABLE_FLAG)
 
 
-@requires
+@auth_required
 @measure_action
-async def disable_flag(op: backend_pb2.DisableFlag, *, db, dirty, changes):
-    assert op.flag_id, op
+async def disable_flag(flag_id, *, db, dirty, changes):
+    assert flag_id, "Flag id is required"
 
-    flag_id = UUID(hex=op.flag_id.value)
+    flag_id = UUID(hex=flag_id)
     await db.execute(
         Flag.__table__.update()
         .where(Flag.id == flag_id)
@@ -195,12 +224,12 @@ async def disable_flag(op: backend_pb2.DisableFlag, *, db, dirty, changes):
     changes.add(flag_id, Action.DISABLE_FLAG)
 
 
-@requires
+@auth_required
 @measure_action
-async def reset_flag(op: backend_pb2.ResetFlag, *, db, dirty, changes):
-    assert op.flag_id, op
+async def reset_flag(flag_id, *, db, dirty, changes):
+    assert flag_id, "Flag id is required"
 
-    flag_id = UUID(hex=op.flag_id.value)
+    flag_id = UUID(hex=flag_id)
     await db.execute(
         Flag.__table__.update()
         .where(Flag.id == flag_id)
@@ -214,35 +243,108 @@ async def reset_flag(op: backend_pb2.ResetFlag, *, db, dirty, changes):
     changes.add(flag_id, Action.RESET_FLAG)
 
 
-@requires
+@auth_required
 @measure_action
-async def add_check(op: backend_pb2.AddCheck, *, db, dirty):
+async def delete_flag(flag_id, *, db, changes):
+    assert flag_id, "Flag id is required"
+
+    flag_id = UUID(hex=flag_id)
+    await db.execute(
+        Condition.__table__.delete()
+            .where(Condition.flag == flag_id)
+    )
+    await db.execute(
+        Flag.__table__.delete()
+        .where(Flag.id == flag_id)
+    )
+
+    changes.add(flag_id, Action.DELETE_FLAG)
+
+
+@dataclass
+class AddCheckOp:
+    local_id: LocalId
+    variable: str
+    operator: int
+    kind: str
+    value_string: Optional[str]
+    value_number: Optional[Union[int, float]]
+    value_timestamp: Optional[str]
+    value_set: Optional[list]
+
+    def __init__(self, op: dict):
+        self.local_id = LocalId(
+            scope=op['local_id']['scope'],
+            value=op['local_id']['value'],
+        )
+        self.variable = op['variable']
+        self.operator = int(op['operator'])
+        self.kind = op['kind']
+        self.value_string = op.get('value_string')
+        self.value_number = op.get('value_number')
+        self.value_timestamp = op.get('value_timestamp')
+        self.value_set = op.get('value_set')
+
+
+@auth_required
+@measure_action
+async def add_check(op: AddCheckOp, *, db, dirty):
     id_ = await gen_id(op.local_id, db=db)
-    variable_id = UUID(hex=op.variable.value)
+    variable_id = UUID(hex=op.variable)
     values = {Check.id: id_,
               Check.variable: variable_id,
-              Check.operator: Operator.from_pb(op.operator)}
-    values.update(Check.value_from_pb(op))
+              Check.operator: Operator(op.operator)}
+    values.update(Check.value_from_op(op))
     await db.execute(
         insert(Check.__table__)
         .values(values)
         .on_conflict_do_nothing()
     )
     dirty.by_variable.add(variable_id)
-    return {(op.local_id.scope, op.local_id.value): id_}
+    return {op.local_id: id_}
 
 
-@requires
+@dataclass
+class AddConditionOp:
+    @dataclass
+    class Check:
+        local_id: Optional[LocalId]
+        id: Optional[str]
+
+    flag_id: str
+    local_id: LocalId
+    checks: List[Check]
+
+    def __init__(self, op: dict):
+        self.local_id = LocalId(
+            scope=op['local_id']['scope'],
+            value=op['local_id']['value'],
+        )
+        self.flag_id = op['flag_id']
+        self.checks = [
+            self.Check(
+                local_id=LocalId(
+                    scope=check['local_id']['scope'],
+                    value=check['local_id']['value'],
+                ) if 'local_id' in check else None,
+                id=check.get('id'),
+            )
+            for check in op['checks']
+        ]
+
+
+@auth_required
 @measure_action
-async def add_condition(op: backend_pb2.AddCondition, *, db, ids, dirty,
-                        changes):
+async def add_condition(op: AddConditionOp, *, db, ids, dirty, changes):
     id_ = await gen_id(op.local_id, db=db)
-    flag_id = UUID(hex=op.flag_id.value)
+
+    flag_id = UUID(hex=op.flag_id)
     checks = [
-        ids[(i.local_id.scope, i.local_id.value)]
-        if i.WhichOneof('kind') == 'local_id' else UUID(hex=i.id.value)
-        for i in op.checks
+        ids[check.local_id]
+        if check.local_id else UUID(hex=check.id)
+        for check in op.checks
     ]
+
     await db.execute(
         insert(Condition.__table__)
         .values({
@@ -254,15 +356,15 @@ async def add_condition(op: backend_pb2.AddCondition, *, db, ids, dirty,
     )
     dirty.by_flag.add(flag_id)
     changes.add(flag_id, Action.ADD_CONDITION)
-    return _update_ids_map(ids, {(op.local_id.scope, op.local_id.value): id_})
+    return _update_ids_map(ids, {op.local_id: id_})
 
 
-@requires
+@auth_required
 @measure_action
-async def disable_condition(op: backend_pb2.DisableCondition, *, db, dirty,
-                            changes):
-    assert op.condition_id, op
-    condition_id = UUID(hex=op.condition_id.value)
+async def disable_condition(condition_id, *, db, dirty, changes):
+    assert condition_id, "Condition id is required"
+
+    condition_id = UUID(hex=condition_id)
     flag_id = await sel_scalar(db, (
         Condition.__table__.delete()
         .where(Condition.id == condition_id)
@@ -273,19 +375,6 @@ async def disable_condition(op: backend_pb2.DisableCondition, *, db, dirty,
         changes.add(flag_id, Action.DISABLE_CONDITION)
 
 
-DISPATCH_TABLE = {
-    backend_pb2.SignIn: sign_in,
-    backend_pb2.SignOut: sign_out,
-    backend_pb2.EnableFlag: auth_required(enable_flag),
-    backend_pb2.DisableFlag: auth_required(disable_flag),
-    backend_pb2.AddCheck: auth_required(add_check),
-    backend_pb2.AddCondition: auth_required(add_condition),
-    backend_pb2.DisableCondition: auth_required(disable_condition),
-    backend_pb2.ResetFlag: auth_required(reset_flag),
-}
-
-
-@requires
 async def postprocess(*, db, dirty):
     selections = []
     for flag_id in dirty.by_flag:
@@ -306,7 +395,6 @@ async def postprocess(*, db, dirty):
         )
 
 
-@requires
 async def update_changelog(*, session, db, changes: Changes):
     actions = changes.get_actions()
     if actions:
@@ -322,49 +410,3 @@ async def update_changelog(*, session, db, changes: Changes):
                     Changelog.actions: flag_actions,
                 })
             )
-
-
-class DummyCtx:
-
-    def __aenter__(self):
-        pass
-
-    def __aexit__(self, exc_type, exc_val, exc_tb):
-        pass
-
-
-async def dispatch_ops(operations: List[backend_pb2.Operation], *,
-                       sa, session, ldap):
-    ops = [getattr(op, op.WhichOneof('op')) for op in operations]
-    fns = [DISPATCH_TABLE[type(action)] for action in ops]
-
-    reqs = set(chain(
-        postprocess.__requires__,
-        update_changelog.__requires__,
-        *[f.__requires__ for f in fns]
-    ))
-
-    ids = {}
-    reqs_map = {
-        'dirty': DirtyProjects(),
-        'session': session,
-        'ldap': ldap,
-    }
-    if 'mc' in reqs:
-        reqs_map['mc'] = MC()
-    if 'ids' in reqs:
-        reqs_map['ids'] = ids
-    if 'changes' in reqs:
-        reqs_map['changes'] = Changes()
-
-    db_ctx = sa.acquire() if 'db' in reqs else DummyCtx()
-    async with db_ctx as db:
-        reqs_map['db'] = db
-        for op, fn in zip(ops, fns):
-            new_ids = await fn(op, **{k: reqs_map[k] for k in fn.__requires__})
-            if new_ids is not None:
-                ids.update(new_ids)
-        await postprocess(**{k: reqs_map[k]
-                             for k in postprocess.__requires__})
-        await update_changelog(**{k: reqs_map[k]
-                                  for k in update_changelog.__requires__})

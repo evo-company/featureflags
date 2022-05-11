@@ -31,6 +31,17 @@ Server requires ``taskqueue`` service to operate. Data is stored in regular
 PostgreSQL database, to efficiently store time-series data timescale_ extension
 for PostgreSQL is required.
 
+Development
+~~~~~~~~~~~
+
+Run all this commands:
+
+- ``lets postgres``
+- ``lets apply-migrations-dev``
+- ``lets web`` # in separate terminal
+- ``lets rpc`` # in separate terminal, not required for web
+- ``lets ui`` # in separate terminal
+
 .. _sanic: https://github.com/channelcat/sanic/
 .. _hiku: https://github.com/vmagamedov/hiku
 .. _aiopg: https://github.com/aio-libs/aiopg

@@ -1,4 +1,5 @@
 import enum
+from datetime import datetime
 
 from sqlalchemy import Integer, UniqueConstraint, Index, DDL, func, select
 from sqlalchemy.event import listens_for
@@ -63,6 +64,7 @@ class Action(enum.Enum):
     ADD_CONDITION = 3
     DISABLE_CONDITION = 4
     RESET_FLAG = 5
+    DELETE_FLAG = 6
 
 
 class AuthUser(Base):
@@ -161,7 +163,7 @@ class Check(Base):
 
     variable = Column(ForeignKey('variable.id'), nullable=False)
 
-    __value_from_pb__ = {
+    __value_from_op__ = {
         'value_string': lambda m: {
             Check.value_string: m.value_string,
         },
@@ -169,17 +171,16 @@ class Check(Base):
             Check.value_number: m.value_number,
         },
         'value_timestamp': lambda m: {
-            Check.value_timestamp: m.value_timestamp.ToDatetime(),
+            Check.value_timestamp: datetime.fromtimestamp(m.value_timestamp),
         },
         'value_set': lambda m: {
-            Check.value_set: list(m.value_set.items),
+            Check.value_set: list(m.value_set),
         },
     }
 
     @classmethod
-    def value_from_pb(cls, message):
-        kind = message.WhichOneof('kind')
-        return cls.__value_from_pb__[kind](message)
+    def value_from_op(cls, check):
+        return cls.__value_from_op__[check.kind](check)
 
 
 class Changelog(Base):
@@ -189,7 +190,7 @@ class Changelog(Base):
 
     timestamp = Column(TIMESTAMP, nullable=False)
     auth_user = Column(ForeignKey('auth_user.id'), nullable=False)
-    flag = Column(ForeignKey('flag.id'), nullable=False)
+    flag = Column(ForeignKey('flag.id', ondelete='CASCADE'), nullable=False)
     actions = Column(ArrayOfEnum(Enum(Action, name='changelog_actions'),
                                  as_tuple=True))
 

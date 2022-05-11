@@ -1,24 +1,66 @@
 import re
-import logging
+from collections import namedtuple
 
 from uuid import UUID
 
 from sqlalchemy import select
-from prometheus_client import Histogram, Counter
+from prometheus_client import (
+    Histogram,
+    Counter,
+)
 
-from hiku.graph import Graph, Root, Link, Option, Node, Field, Nothing, apply
-from hiku.types import TypeRef, String, Sequence, Optional, Boolean
+from hiku.graph import (
+    Graph,
+    Root,
+    Link,
+    Option,
+    Node,
+    Field,
+    Nothing,
+    apply,
+)
+from hiku.types import (
+    TypeRef,
+    String,
+    Sequence,
+    Optional,
+    Boolean,
+    Record,
+    Any,
+)
 from hiku.engine import pass_context
-from hiku.expr.core import S, if_some
+from hiku.expr.core import (
+    S,
+    if_some,
+)
 from hiku.sources.graph import SubGraph
-from hiku.sources.aiopg import FieldsQuery, LinkQuery
+from hiku.sources.aiopg import (
+    FieldsQuery,
+    LinkQuery,
+)
 from hiku.telemetry.prometheus import AsyncGraphMetrics
 
 from .. import metrics
-from ..utils import exec_expr, exec_scalar
-from ..schema import Project, Variable, Flag, Condition, Check, Changelog
+from .. import actions
+from ..actions import (
+    AddCheckOp,
+    AddConditionOp,
+    postprocess,
+    update_changelog,
+)
+from ..utils import (
+    exec_expr,
+    exec_scalar,
+)
+from ..schema import (
+    Project,
+    Variable,
+    Flag,
+    Condition,
+    Check,
+    Changelog,
+)
 from ..schema import AuthUser
-
 
 graph_pull_time = Histogram(
     'graph_pull_time', 'Graph pull time (seconds)', [],
@@ -31,6 +73,10 @@ graph_pull_errors = Counter(
 
 SA_ENGINE = 'sa-engine'
 SESSION = 'session'
+LDAP = 'ldap'
+DIRTY = 'dirty'
+CHANGES = 'changes'
+IDS = 'ids'
 
 _UUID_RE = re.compile(
     '^'
@@ -134,7 +180,6 @@ async def flag_project(ids):
 
 ID_FIELD = Field('id', None, id_field)
 
-
 flag_fq = FieldsQuery(SA_ENGINE, Flag.__table__)
 
 _FlagNode = Node('Flag', [
@@ -144,14 +189,12 @@ _FlagNode = Node('Flag', [
     Field('enabled', None, flag_fq),
 ])
 
-
 condition_fq = FieldsQuery(SA_ENGINE, Condition.__table__)
 
 _ConditionNode = Node('Condition', [
     ID_FIELD,
     Field('checks', None, condition_fq),
 ])
-
 
 check_fq = FieldsQuery(SA_ENGINE, Check.__table__)
 
@@ -165,7 +208,6 @@ _CheckNode = Node('Check', [
     Field('value_set', None, check_fq),
 ])
 
-
 changelog_fq = FieldsQuery(SA_ENGINE, Changelog.__table__)
 
 _ChangeNode = Node('Change', [
@@ -175,7 +217,6 @@ _ChangeNode = Node('Change', [
     Field('flag', None, changelog_fq),
 ])
 
-
 _GRAPH = Graph([
     _FlagNode,
     _ConditionNode,
@@ -183,7 +224,6 @@ _GRAPH = Graph([
     _ChangeNode,
 ])
 _GRAPH = apply(_GRAPH, [AsyncGraphMetrics('source')])
-
 
 project_fq = FieldsQuery(SA_ENGINE, Project.__table__)
 
@@ -197,7 +237,6 @@ ProjectNode = Node('Project', [
     Link('variables', Sequence['Variable'], project_variables, requires='id'),
 ])
 
-
 variable_fq = FieldsQuery(SA_ENGINE, Variable.__table__)
 
 VariableNode = Node('Variable', [
@@ -205,7 +244,6 @@ VariableNode = Node('Variable', [
     Field('name', None, variable_fq),
     Field('type', None, variable_fq),
 ])
-
 
 flag_sg = SubGraph(_GRAPH, 'Flag')
 
@@ -226,7 +264,6 @@ FlagNode = Node('Flag', [
     )),
 ])
 
-
 condition_sg = SubGraph(_GRAPH, 'Condition')
 
 ConditionNode = Node('Condition', [
@@ -234,7 +271,6 @@ ConditionNode = Node('Condition', [
     Field('_checks', None, condition_sg.c(S.this.checks)),
     Link('checks', Sequence['Check'], direct_link, requires='_checks')
 ])
-
 
 check_sg = SubGraph(_GRAPH, 'Check')
 
@@ -249,14 +285,12 @@ CheckNode = Node('Check', [
     Field('value_set', None, check_sg),
 ])
 
-
 auth_user_fq = FieldsQuery(SA_ENGINE, AuthUser.__table__)
 
 UserNode = Node('User', [
     ID_FIELD,
     Field('username', None, auth_user_fq),
 ])
-
 
 change_sg = SubGraph(_GRAPH, 'Change')
 
@@ -286,6 +320,77 @@ RootNode = Root([
     Field('authenticated', Boolean, root_authenticated),
 ])
 
+
+async def auth_info(fields, auth_results):
+    [auth_result] = auth_results
+
+    def get_field(name):
+        if name == 'error':
+            return auth_result.error
+
+        raise ValueError(f'Unknown field: {name}')
+
+    return [[get_field(f.name)] for f in fields]
+
+
+SignInNode = Node('SignIn', [
+    Field('error', None, auth_info),
+])
+
+SignOutNode = Node('SignOut', [
+    Field('error', None, auth_info),
+])
+
+
+async def save_flag_info(fields, results):
+    [result] = results
+
+    def get_field(name):
+        if name == 'errors':
+            return result.errors
+
+        raise ValueError(f'Unknown field: {name}')
+
+    return [[get_field(f.name)] for f in fields]
+
+
+async def reset_flag_info(fields, results):
+    [result] = results
+
+    def get_field(name):
+        if name == 'error':
+            return result.error
+
+        raise ValueError(f'Unknown field: {name}')
+
+    return [[get_field(f.name)] for f in fields]
+
+
+SaveFlagNode = Node('SaveFlag', [
+    Field('errors', None, save_flag_info),
+])
+
+ResetFlagNode = Node('ResetFlag', [
+    Field('error', None, reset_flag_info),
+])
+
+
+async def delete_flag_info(fields, results):
+    [result] = results
+
+    def get_field(name):
+        if name == 'error':
+            return result.error
+
+        raise ValueError(f'Unknown field: {name}')
+
+    return [[get_field(f.name)] for f in fields]
+
+
+DeleteFlagNode = Node('DeleteFlag', [
+    Field('error', None, delete_flag_info),
+])
+
 GRAPH = Graph([
     ProjectNode,
     VariableNode,
@@ -296,7 +401,222 @@ GRAPH = Graph([
     ChangeNode,
     RootNode,
 ])
+
+AuthResult = namedtuple('AuthResult', ['error'])
+
+
+@pass_context
+async def sing_in(ctx, options):
+    if ctx[SESSION].is_authenticated:
+        return AuthResult(None)
+
+    username = options['username']
+    password = options['password']
+
+    if not username:
+        return AuthResult('Username is required')
+    if not password:
+        return AuthResult('Password is required')
+
+    async with ctx[SA_ENGINE].acquire() as conn:
+        success = await actions.sign_in(
+            username,
+            password,
+            db=conn,
+            session=ctx[SESSION],
+            ldap=ctx[LDAP],
+        )
+    error = None
+    if not success:
+        error = 'Invalid username or password'
+    return AuthResult(error)
+
+
+@pass_context
+async def sing_out(ctx):
+    if not ctx[SESSION].is_authenticated:
+        return AuthResult(None)
+    async with ctx[SA_ENGINE].acquire() as conn:
+        await actions.sign_out(
+            db=conn,
+            session=ctx[SESSION],
+        )
+    return AuthResult(None)
+
+
+SaveFlagResult = namedtuple('SaveFlagResult', ['errors'])
+
+
+class Operation:
+    disable_flag = 'disable_flag'
+    enable_flag = 'enable_flag'
+    add_check = 'add_check'
+    add_condition = 'add_condition'
+    disable_condition = 'disable_condition'
+
+
+@pass_context
+async def save_flag(ctx, options):
+    operations = options['operations']
+
+    if not operations:
+        return SaveFlagResult(None)
+
+    async with ctx[SA_ENGINE].acquire() as conn, \
+            actions.with_session(ctx[SESSION]):
+        for op in operations:
+            payload = op['payload']
+            type_ = op['type']
+
+            if type_ == Operation.enable_flag:
+                await actions.enable_flag(
+                    payload['flag_id'],
+                    db=conn,
+                    dirty=ctx[DIRTY],
+                    changes=ctx[CHANGES],
+                )
+            elif type_ == Operation.disable_flag:
+                await actions.disable_flag(
+                    payload['flag_id'],
+                    db=conn,
+                    dirty=ctx[DIRTY],
+                    changes=ctx[CHANGES],
+                )
+            elif type_ == Operation.add_check:
+                new_ids = await actions.add_check(
+                    AddCheckOp(payload),
+                    db=conn,
+                    dirty=ctx[DIRTY],
+                )
+                if new_ids is not None:
+                    ctx[IDS].update(new_ids)
+            elif type_ == Operation.add_condition:
+                new_ids = await actions.add_condition(
+                    AddConditionOp(payload),
+                    db=conn,
+                    ids=ctx[IDS],
+                    dirty=ctx[DIRTY],
+                    changes=ctx[CHANGES],
+                )
+                if new_ids is not None:
+                    ctx[IDS].update(new_ids)
+            elif type_ == Operation.disable_condition:
+                await actions.disable_condition(
+                    payload['condition_id'],
+                    db=conn,
+                    dirty=ctx[DIRTY],
+                    changes=ctx[CHANGES],
+                )
+            else:
+                raise ValueError(f'Unknown operation: {type_}')
+
+        await postprocess(db=conn, dirty=ctx[DIRTY])
+        await update_changelog(
+            session=ctx[SESSION],
+            db=conn,
+            changes=ctx[CHANGES]
+        )
+
+    return SaveFlagResult(None)
+
+
+ResetFlagResult = namedtuple('ResetFlagResult', ['error'])
+
+
+@pass_context
+async def reset_flag(ctx, options):
+    async with ctx[SA_ENGINE].acquire() as conn, \
+            actions.with_session(ctx[SESSION]):
+        await actions.reset_flag(
+            options['id'],
+            db=conn,
+            dirty=ctx[DIRTY],
+            changes=ctx[CHANGES],
+        )
+        await postprocess(db=conn, dirty=ctx[DIRTY])
+        await update_changelog(
+            session=ctx[SESSION],
+            db=conn,
+            changes=ctx[CHANGES]
+        )
+
+    return ResetFlagResult(None)
+
+
+DeleteFlagResult = namedtuple('DeleteFlagResult', ['error'])
+
+
+@pass_context
+async def delete_flag(ctx, options):
+    async with ctx[SA_ENGINE].acquire() as conn, \
+            actions.with_session(ctx[SESSION]):
+        await actions.delete_flag(
+            options['id'],
+            db=conn,
+            changes=ctx[CHANGES],
+        )
+
+    return DeleteFlagResult(None)
+
+
+mutation_data_types = {
+    'SaveFlagOperation': Record[{
+        'type': String,
+        'payload': Any
+    }],
+}
+
+MUTATION_GRAPH = Graph(GRAPH.nodes + [
+    SignInNode,
+    SignOutNode,
+    SaveFlagNode,
+    ResetFlagNode,
+    DeleteFlagNode,
+    Root([
+        Link(
+            'signIn',
+            TypeRef['SignIn'],
+            sing_in,
+            options=[
+                Option('username', String),
+                Option('password', String),
+            ], requires=None,
+        ),
+        Link(
+            'signOut',
+            TypeRef['SignOut'],
+            sing_out,
+            requires=None
+        ),
+        Link(
+            'saveFlag',
+            TypeRef['SaveFlag'],
+            save_flag,
+            options=[
+                Option('operations', Sequence[TypeRef['SaveFlagOperation']]),
+            ], requires=None,
+        ),
+        Link(
+            'resetFlag',
+            TypeRef['ResetFlag'],
+            reset_flag,
+            options=[
+                Option('id', String),
+            ], requires=None,
+        ),
+        Link(
+            'deleteFlag',
+            TypeRef['DeleteFlag'],
+            delete_flag,
+            options=[
+                Option('id', String),
+            ], requires=None,
+        ),
+    ])
+], data_types=mutation_data_types)
+
 GRAPH = apply(GRAPH, [AsyncGraphMetrics('public')])
+MUTATION_GRAPH = apply(MUTATION_GRAPH, [AsyncGraphMetrics('mutation')])
 
 
 @metrics.wrap(graph_pull_time.time())

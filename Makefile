@@ -2,13 +2,13 @@ __default__:
 	@echo "Please specify a target to make"
 
 setup.txt:
-	pip-compile --index-url https://pypi.evo.dev/root/pypi/ --extra-index-url https://pypi.evo.dev/platform/pypi/ server/setup.py
+	pip-compile server/setup.py --output-file server/setup.txt
 
 tests-reqs:
-	pip-compile --index-url https://pypi.evo.dev/root/pypi/ --extra-index-url https://pypi.evo.dev/platform/pypi/ requirements-tests.in
+	pip-compile requirements-tests.in
 
 docs-reqs:
-	pip-compile --index-url https://pypi.evo.dev/root/pypi/ --extra-index-url https://pypi.evo.dev/platform/pypi/ requirements-docs.in
+	pip-compile requirements-docs.in
 
 proto:
 	./scripts/protoc.sh

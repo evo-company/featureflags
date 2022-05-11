@@ -3,24 +3,43 @@ import logging
 import os.path
 import pkgutil
 import contextlib
+import json
+from datetime import datetime
+from enum import Enum
+from functools import partial
+from typing import Optional
+
+from uuid import UUID
 
 from sanic import Sanic
 from grpclib.utils import graceful_exit
-from sanic.response import html, raw, text
+from sanic.response import html, text, json as json_response
 from sanic.exceptions import NotFound, Unauthorized
 
 from hiku.engine import Engine
-from hiku.readers.protobuf import transform
 from hiku.executors.asyncio import AsyncIOExecutor
 
-from featureflags.protobuf.backend_pb2 import Request, Reply
+from hiku.endpoint.graphql import AsyncBatchGraphQLEndpoint
+
 
 from .. import metrics
 from ..auth import get_session
-from ..actions import dispatch_ops, AccessError
+from ..actions import (
+    AccessError,
+    DirtyProjects,
+    Changes,
+)
 from ..services.db import get_db
-from ..graph.graph import pull
-from ..graph.proto import populate
+from ..graph.graph import (
+    GRAPH,
+    SA_ENGINE,
+    SESSION,
+    MUTATION_GRAPH,
+    LDAP,
+    DIRTY,
+    CHANGES,
+    IDS,
+)
 from ..services.ldap import get_ldap
 
 
@@ -58,29 +77,74 @@ async def index(_):
                                  'static/index.html').decode('utf-8'))
 
 
-async def call(request):
-    request_proto = Request.FromString(request.body)
+def graph_context(
+    sa_engine,
+    session,
+    ldap,
+    ctx_override: Optional[dict] = None
+):
+    ctx = {
+        SA_ENGINE: sa_engine,
+        SESSION: session,
+        LDAP: ldap,
+        DIRTY: DirtyProjects(),
+        CHANGES: Changes(),
+        IDS: dict(),
+    }
 
-    if request_proto.operations:
+    if ctx_override is not None:
+        ctx.update(ctx_override)
+
+    return ctx
+
+
+class AsyncGraphQLEndpoint(AsyncBatchGraphQLEndpoint):
+    __ctx = None
+
+    async def execute(self, graph, op, ctx):
+        ctx.update(self.__ctx or {})
+        return await super().execute(graph, op, ctx)
+
+    async def dispatch_ext(self, json_body: dict, ctx: dict) -> dict:
+        self.__ctx = ctx
         try:
-            await dispatch_ops(request_proto.operations,
-                               sa=request.app.sa_engine,
-                               session=request['session'],
-                               ldap=request.app.ldap)
+            res = await super().dispatch(json_body)
         except AccessError as e:
             raise Unauthorized(*e.args) from e
+        else:
+            return res
 
-    reply = Reply()
 
-    query = transform(request_proto.query)
-    if query.fields:
-        result = await pull(request.app.hiku_engine, query,
-                            sa=request.app.sa_engine,
-                            session=request['session'])
-        populate(result, reply.result)
+class JSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, UUID):
+            return str(o)
+        if isinstance(o, Enum):
+            return o.value
+        if isinstance(o, datetime):
+            return o.isoformat()
+        return json.JSONEncoder.default(self, o)
 
-    return raw(reply.SerializeToString(),
-               content_type='application/x-protobuf')
+
+json_dumps = partial(json.dumps, cls=JSONEncoder)
+
+
+async def graphql(request):
+    graphql_endpoint = AsyncGraphQLEndpoint(
+        request.app.hiku_engine,
+        GRAPH,
+        MUTATION_GRAPH,
+    )
+
+    ctx = graph_context(
+        request.app.sa_engine,
+        request['session'],
+        request.app.ldap,
+    )
+
+    result = await graphql_endpoint.dispatch_ext(request.json, ctx)
+
+    return json_response(result, dumps=json_dumps)
 
 
 async def health(_):
@@ -99,7 +163,7 @@ def create_app(*, cfg, sa_engine, hiku_engine, ldap):
     app.router.add('/apple-touch-icon-precomposed.png', {'GET'}, ignore_404)
     app.router.add('/static/fuse.js.map', {'GET'}, ignore_404)
 
-    app.router.add('/featureflags.backend.Backend/Call', {'POST'}, call)
+    app.router.add('/graphql', {'POST'}, graphql)
 
     app.static('/static', os.path.join(os.path.dirname(__file__), 'static'))
     if not cfg.main.debug:

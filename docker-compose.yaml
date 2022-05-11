@@ -1,0 +1,69 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: timescale/timescaledb:0.9.1-pg10
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: featureflags
+    volumes:
+      - "db-data:/var/lib/postgresql/data"
+    networks:
+      - main
+
+  backend: &backend
+    image: featureflags-server
+    user: ${CURRENT_UID}
+    environment: &env
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      PYTHONIOENCODING: UTF-8
+      PYTHONPATH: server
+      PYTHONUNBUFFERED: 1
+    networks:
+      - main
+    volumes:
+      - ./:/app
+
+  web:
+    <<: *backend
+    init: true
+    depends_on:
+      - postgres
+    ports:
+      - "8000:8000"
+    command: watchexec --restart -w server --exts py -- python3 -m featureflags.server config.yaml@local web --port 8000
+
+  rpc:
+    <<: *backend
+    init: true
+    depends_on:
+      - postgres
+    ports:
+      - "50051:50051"
+    command: python3 -m featureflags.server config.yaml@local rpc --port 50051
+
+  test:
+    <<: *backend
+    image: featureflags-server-test
+    init: true
+    depends_on:
+      - postgres
+    environment:
+      <<: *env
+      PYTHONPATH: server:client
+    command: |
+      bash -c '
+        /app/scripts/wait-for-it.sh -h postgres -p 5432;
+        py.test
+      '
+volumes:
+  db-data:
+    driver: local
+
+networks:
+  main:
+    driver: bridge
