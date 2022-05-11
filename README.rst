@@ -21,15 +21,11 @@ Server consists of two services:
 - Web application:
 
   - sanic_ + hiku_ + aiopg_ on backend
-  - `vue.js`_ + `protobuf.js`_ on frontend
+  - `react.js`_ + `Apollo`_ on frontend
 
 - gRPC API handler:
 
   - grpclib_ + hiku_
-
-Server requires ``taskqueue`` service to operate. Data is stored in regular
-PostgreSQL database, to efficiently store time-series data timescale_ extension
-for PostgreSQL is required.
 
 Development
 ~~~~~~~~~~~
@@ -45,7 +41,4 @@ Run all this commands:
 .. _sanic: https://github.com/channelcat/sanic/
 .. _hiku: https://github.com/vmagamedov/hiku
 .. _aiopg: https://github.com/aio-libs/aiopg
-.. _vue.js: https://vuejs.org
 .. _grpclib: https://github.com/vmagamedov/grpclib
-.. _protobuf.js: https://github.com/dcodeIO/protobuf.js
-.. _timescale: https://www.timescale.com

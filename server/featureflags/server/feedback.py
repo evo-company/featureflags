@@ -1,18 +1,16 @@
 """
-    This module defines client -> server feedback, which is used to send
-    statistics and notify server about new projects/variables/flags
+    This module defines client -> server feedback, which is used to
+    notify server about new projects/variables/flags
 """
-from uuid import uuid4, UUID
-from datetime import datetime, timedelta
+from uuid import uuid4
 
-from google.protobuf.timestamp_pb2 import Timestamp
 from sqlalchemy import select, and_
 from sqlalchemy.dialects.postgresql import insert
 
 from featureflags.protobuf import service_pb2
 
 from .utils import MC, ACC
-from .schema import Type, Statistics
+from .schema import Type
 from .schema import Flag, Project, Variable
 
 

@@ -1,8 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Integer, UniqueConstraint, Index, DDL, func, select
-from sqlalchemy.event import listens_for
+from sqlalchemy import Integer, UniqueConstraint, Index
 from sqlalchemy.types import String, Boolean, Enum
 from sqlalchemy.schema import MetaData, Table, Column, ForeignKey
 from sqlalchemy.ext.declarative import as_declarative
@@ -193,37 +192,3 @@ class Changelog(Base):
     flag = Column(ForeignKey('flag.id', ondelete='CASCADE'), nullable=False)
     actions = Column(ArrayOfEnum(Enum(Action, name='changelog_actions'),
                                  as_tuple=True))
-
-
-class Statistics(Base):
-    __tablename__ = 'stats'
-
-    flag = Column(UUID(as_uuid=True), primary_key=True)
-    interval = Column(TIMESTAMP, primary_key=True)
-
-    positive_count = Column(Integer)
-    negative_count = Column(Integer)
-
-    __table_args__ = (
-        # reflecting index, which is automatically created by the "timescale"
-        # extension
-        Index('stats_interval_idx', interval.desc()),
-    )
-
-
-HYPERTABLE_EXT = DDL("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;")
-
-
-@listens_for(Table, 'before_create')
-def before_create(target, bind, **kwargs):
-    if target.name == Statistics.__tablename__:
-        HYPERTABLE_EXT(target, bind, **kwargs)
-
-
-@listens_for(Table, 'after_create')
-def after_create(target, bind, **_):
-    if target.name == Statistics.__tablename__:
-        bind.execute(select([
-            func.create_hypertable(Statistics.__tablename__,
-                                   Statistics.__table__.c.interval.name),
-        ]))

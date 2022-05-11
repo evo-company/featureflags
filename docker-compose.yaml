@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   postgres:
-    image: timescale/timescaledb:0.9.1-pg10
+    image: postgres:10
     ports:
       - "5432:5432"
     environment:
@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: featureflags
     volumes:
-      - "db-data:/var/lib/postgresql/data"
+      - "pg-data:/var/lib/postgresql/data"
     networks:
       - main
 
@@ -60,8 +60,17 @@ services:
         /app/scripts/wait-for-it.sh -h postgres -p 5432;
         py.test
       '
+
+  docs:
+    <<: *backend
+    image: featureflags-docs
+    environment:
+      <<: *env
+      PYTHONPATH: client:server:protobuf
+    command: sphinx-build -a -b html docs public
+
 volumes:
-  db-data:
+  pg-data:
     driver: local
 
 networks:
