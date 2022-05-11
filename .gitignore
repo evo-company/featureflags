@@ -12,3 +12,4 @@ examples/local_config.py
 *.pyc
 *.egg-info
 .pytest_cache
+.lets

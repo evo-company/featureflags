@@ -42,8 +42,14 @@ FROM base as dev
 
 ADD "https://github.com/watchexec/watchexec/releases/download/cli-v1.19.0/watchexec-1.19.0-x86_64-unknown-linux-gnu.deb" /opt/watchexec.deb
 RUN apt-get install /opt/watchexec.deb
+RUN pip install pip-tools && mkdir -p /.cache/pip-tools && chmod -R 777 /.cache/pip-tools
 
 FROM dev as test
 COPY requirements-tests.txt .
 
 RUN pip3 install --no-cache-dir --no-deps --disable-pip-version-check -r requirements-tests.txt
+
+FROM base as docs
+COPY requirements-docs.txt .
+
+RUN pip3 install --no-cache-dir --no-deps --disable-pip-version-check -r requirements-docs.txt

@@ -21,9 +21,6 @@ class Main(Section):
 
     known_as = Key('known-as', str)
 
-    taskqueue_host = Key('taskqueue-host', str)
-    taskqueue_port = Key('taskqueue-port', int)
-
     @key_property
     def dsn(self):
         return expandvars(self._dsn)
