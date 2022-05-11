@@ -6,10 +6,12 @@
 
 .search {
   color: #141414;
-  width: 250px;
+  width: 275px;
   padding-left: 25px;
+  position: fixed;
+  z-index: 90;
 }
 
-[data-theme="dark"] .site-layout .site-layout-background {
-  background: #141414;
+.site-layout .site-layout-background {
+  height: calc(100vh - 64px);
 }

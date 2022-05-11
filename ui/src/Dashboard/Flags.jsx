@@ -124,6 +124,7 @@ const Flags = ({ flags }) => {
         />
       </AutoComplete>
       <List
+        className="flags-list"
         itemLayout="horizontal"
         dataSource={listData}
         renderItem={(item) => (

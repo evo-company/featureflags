@@ -5,7 +5,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Layout,
   Menu,
-  Space,
   AutoComplete,
   Input,
 } from 'antd';
@@ -18,11 +17,12 @@ const { Content, Sider } = Layout;
 
 import { useQuery } from "@apollo/client";
 
+import './Dashboard.less';
+
 import { Base } from '../Base';
 import { CenteredSpinner } from '../components/Spinner';
 import { FlagsContainer } from './Flags';
 
-import './Dashboard.less';
 import { PROJECTS_QUERY } from './queries';
 
 
@@ -111,35 +111,31 @@ function Dashboard({ projects }) {
           className='sidebar'
           width={300}
         >
-          <Space
-            style={{ 'width': '100%' }}
-            size={'middle'}
-            direction="vertical"
+          <AutoComplete
+            className='search'
+            options={searchOptions}
+            onSelect={onSelect}
+            onSearch={onSearch}
           >
-            <AutoComplete
-              className='search'
-              options={searchOptions}
-              onSelect={onSelect}
-              onSearch={onSearch}
-            >
-              <Input
-                prefix={<SearchOutlined/>}
-                size="middle"
-                allowClear
-                placeholder="Filter projects"
-              />
-            </AutoComplete>
-            <Menu
-              theme="dark"
-              mode="inline"
-              items={menuItems}
-              onSelect={({ key }) => {
-                setSelected(key);
-                setProjectToUrl(key);
-              }}
-              selectedKeys={[selected]}
+            <Input
+              prefix={<SearchOutlined/>}
+              size="middle"
+              allowClear
+              placeholder="Filter projects"
             />
-          </Space>
+          </AutoComplete>
+          <br/>
+          <br/>
+          <Menu
+            theme="dark"
+            mode="inline"
+            items={menuItems}
+            onSelect={({ key }) => {
+              setSelected(key);
+              setProjectToUrl(key);
+            }}
+            selectedKeys={[selected]}
+          />
         </Sider>
         <Content
           style={{
