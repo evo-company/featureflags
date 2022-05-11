@@ -16,6 +16,7 @@ services:
 
   backend: &backend
     image: featureflags-server
+    user: ${CURRENT_UID}
     environment: &env
       LANG: C.UTF-8
       LC_ALL: C.UTF-8
@@ -24,6 +25,8 @@ services:
       PYTHONUNBUFFERED: 1
     networks:
       - main
+    volumes:
+      - ./:/app
 
   web:
     <<: *backend
@@ -32,8 +35,6 @@ services:
       - postgres
     ports:
       - "8000:8000"
-    volumes:
-      - ./:/app
     command: watchexec --restart -w server --exts py -- python3 -m featureflags.server config.yaml@local web --port 8000
 
   rpc:
@@ -43,8 +44,6 @@ services:
       - postgres
     ports:
       - "50051:50051"
-    volumes:
-      - ./:/app
     command: python3 -m featureflags.server config.yaml@local rpc --port 50051
 
   test:
@@ -56,8 +55,6 @@ services:
     environment:
       <<: *env
       PYTHONPATH: server:client
-    volumes:
-      - ./:/app
     command: |
       bash -c '
         /app/scripts/wait-for-it.sh -h postgres -p 5432;

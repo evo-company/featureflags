@@ -154,10 +154,10 @@ async def sign_in(
     db,
     session,
     ldap
-):
+) -> bool:
     assert username and password, "Username and password are required"
     if not await ldap.check_credentials(username, password):
-        return
+        return False
 
     user_id = await get_auth_user(username, db=db)
 
@@ -181,6 +181,7 @@ async def sign_in(
         )
     )
     session.associate_user(user_id, exp)
+    return True
 
 
 @measure_action

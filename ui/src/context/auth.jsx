@@ -1,4 +1,4 @@
-import { createContext } from 'react';
+import { createContext, useState } from 'react';
 import { gql, useMutation, useQuery } from '@apollo/client';
 import { useNavigate } from 'react-router-dom';
 
@@ -30,9 +30,14 @@ const SIGN_OUT_MUTATION = gql`
 
 export function AuthProvider({ children }) {
   const navigate = useNavigate();
+  const [signInError, setSignInError] = useState(null);
   const { data, loading, refetch } = useQuery(AUTH_QUERY);
   const [signInMutation, signInInfo] = useMutation(SIGN_IN_MUTATION, {
-    onCompleted: () => {
+    onCompleted: (data) => {
+      if (!!data.signIn.error) {
+        setSignInError(data.signIn.error);
+        return;
+      }
       refetch().then(() => {
         navigate('/');
       });
@@ -52,9 +57,10 @@ export function AuthProvider({ children }) {
   const actions = {
     signIn: [
       (username, password) => {
+        setSignInError(null);
         signInMutation({ variables: { username, password } });
       },
-      signInInfo.error,
+      signInError || signInInfo.error,
     ],
     signOut: [
       () => {

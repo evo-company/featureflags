@@ -190,7 +190,7 @@ class Changelog(Base):
 
     timestamp = Column(TIMESTAMP, nullable=False)
     auth_user = Column(ForeignKey('auth_user.id'), nullable=False)
-    flag = Column(ForeignKey('flag.id'), nullable=False)
+    flag = Column(ForeignKey('flag.id', ondelete='CASCADE'), nullable=False)
     actions = Column(ArrayOfEnum(Enum(Action, name='changelog_actions'),
                                  as_tuple=True))
 

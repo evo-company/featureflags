@@ -18,8 +18,9 @@ import {
 } from 'antd';
 import { useEffect, useState } from 'react';
 import {
-  FlagFilled,
+  CopyOutlined,
 } from '@ant-design/icons';
+
 import './Flag.less';
 
 import {
@@ -103,12 +104,27 @@ const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle }) => {
   );
 }
 
+function copyToClipboard(text, msg) {
+    navigator.clipboard.writeText(text).then(() => {
+      message.success(msg);
+    });
+}
+
 const FlagName = ({ name }) => {
+  const copyFlag = () => {
+    copyToClipboard(name, `Flag ${name} copied to clipboard`);
+  }
+
   return (
-    <Space size={8}>
-      <FlagFilled/>
-      {name}
-    </Space>
+    <div
+      className='flag-name'
+      onClick={copyFlag}
+    >
+      <Space size={8}>
+        <CopyOutlined />
+        {name}
+      </Space>
+    </div>
   )
 }
 

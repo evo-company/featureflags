@@ -3,6 +3,8 @@ shell: bash
 env:
   DOCKER_BUILDKIT: "1"
   COMPOSE_DOCKER_CLI_BUILD: "1"
+  CURRENT_UID:
+    sh: echo "`id -u`:`id -g`"
 
 commands:
   build-prod:

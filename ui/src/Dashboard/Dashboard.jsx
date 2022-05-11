@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react'
+import fuzzysearch from 'fuzzysearch';
+import { useLocation, useNavigate } from 'react-router-dom';
+
 import {
   Layout,
   Menu,
@@ -13,10 +16,7 @@ import {
 
 const { Content, Sider } = Layout;
 
-import {
-  useQuery,
-  gql
-} from "@apollo/client";
+import { useQuery } from "@apollo/client";
 
 import { Base } from '../Base';
 import { CenteredSpinner } from '../components/Spinner';
@@ -37,11 +37,35 @@ function menuItem(label, key, icon, children) {
 }
 
 
+const scrollToProject = (project) => {
+  const element = document.getElementById(project);
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
 function Dashboard({ projects }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const queryParams = new URLSearchParams(location.search);
+  const projectFromQuery = queryParams.get('project');
+
   const [menuItems, setMenuItems] = useState([]);
   const [selected, setSelected] = useState('');
   const [searchOptions, setSearchOptions] = useState([]);
   const [projectMap, setProjectMap] = useState({});
+
+  const setProjectToUrl = (project) => {
+    queryParams.set('project', project);
+    navigate(`/?${queryParams.toString()}`);
+  }
+
+  useEffect(() => {
+    if (projectFromQuery) {
+      setSelected(projectFromQuery);
+      scrollToProject(projectFromQuery);
+    }
+  }, [projectFromQuery]);
 
   useEffect(() => {
     const items = projects.map((project) => {
@@ -65,15 +89,19 @@ function Dashboard({ projects }) {
     ;
 
     const res = projects
-      .filter(({ name }) => name.includes(searchText))
+      .filter(({ name }) => fuzzysearch(
+        searchText.toLowerCase(), name.toLowerCase()
+      ))
       .map(({ name }) => ({ label: name, value: name }));
     setSearchOptions(res);
   };
 
   const onSelect = (data) => {
     setSelected(data);
-    // scroll to channel menu item
-    window.location.href = `/#${data}`;
+    setProjectToUrl(data);
+    if (data) {
+      scrollToProject(data);
+    }
   };
 
   return (
@@ -105,7 +133,10 @@ function Dashboard({ projects }) {
               theme="dark"
               mode="inline"
               items={menuItems}
-              onSelect={({ key }) => setSelected(key)}
+              onSelect={({ key }) => {
+                setSelected(key);
+                setProjectToUrl(key);
+              }}
               selectedKeys={[selected]}
             />
           </Space>
@@ -140,7 +171,8 @@ const DashboardContainer = () => {
     return <CenteredSpinner/>;
   }
 
-  return <Dashboard projects={data.projects}/>;
+  const projects = data.projects.sort((a, b) => a.name.localeCompare(b.name));
+  return <Dashboard projects={projects} />;
 }
 
 export { DashboardContainer as Dashboard };

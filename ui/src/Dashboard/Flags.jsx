@@ -1,11 +1,12 @@
 import fuzzysearch from 'fuzzysearch';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useMemo, useState, useEffect } from 'react';
 
 import {
   AutoComplete,
   Input,
   List,
 } from 'antd';
-import { useMemo, useState } from 'react';
 import { SearchOutlined } from '@ant-design/icons';
 import { useQuery } from '@apollo/client';
 
@@ -22,9 +23,30 @@ const getShowAllMatches = (count, searchText) => ({
 });
 
 const Flags = ({ flags }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const queryParams = new URLSearchParams(location.search);
+  const flagFromQuery = queryParams.get('flag');
+
   const [searchOptions, setSearchOptions] = useState([]);
   const [searchSet, setSearchSet] = useState(null);
   const [selected, setSelected] = useState('');
+
+  const setFlagToUrl = (flag) => {
+    if (!flag) {
+        queryParams.delete('flag');
+    } else {
+        queryParams.set('flag', flag);
+    }
+    navigate(`/?${queryParams.toString()}`);
+  }
+
+  useEffect(() => {
+    if (flagFromQuery) {
+      setSearchSet(new Set([flagFromQuery]));
+      setSelected(flagFromQuery);
+    }
+  }, [flagFromQuery]);
 
   const flagsMap = useMemo(() => flags.reduce((acc, flag) => {
     acc[flag.name] = flag;
@@ -53,8 +75,7 @@ const Flags = ({ flags }) => {
     if (!searchText) {
       setSearchOptions([]);
       return
-    }
-    ;
+    };
 
     const res = flags
       .filter(({ name }) => fuzzysearch(
@@ -68,12 +89,14 @@ const Flags = ({ flags }) => {
 
   const onSelect = (data) => {
     setSelected(data);
+    setFlagToUrl(data);
   };
 
   const onChange = (data) => {
     if (!data) {
       setSelected('');
       setSearchSet(null);
+      setFlagToUrl(null);
     }
   }
 
@@ -91,6 +114,7 @@ const Flags = ({ flags }) => {
         onSelect={onSelect}
         onSearch={onSearch}
         onChange={onChange}
+        defaultValue={flagFromQuery ? flagFromQuery : null}
       >
         <Input
           prefix={<SearchOutlined/>}

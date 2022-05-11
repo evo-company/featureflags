@@ -419,14 +419,17 @@ async def sing_in(ctx, options):
         return AuthResult('Password is required')
 
     async with ctx[SA_ENGINE].acquire() as conn:
-        await actions.sign_in(
+        success = await actions.sign_in(
             username,
             password,
             db=conn,
             session=ctx[SESSION],
             ldap=ctx[LDAP],
         )
-    return AuthResult(None)
+    error = None
+    if not success:
+        error = 'Invalid username or password'
+    return AuthResult(error)
 
 
 @pass_context

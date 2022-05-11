@@ -6,7 +6,7 @@
 #
 aiofiles==0.4.0
     # via sanic
-aiopg==1.3.3
+https://github.com/vmagamedov/aiopg/archive/fix332.zip
     # via featureflags-server (server/setup.py)
 alembic==1.4.2
     # via featureflags-server (server/setup.py)
