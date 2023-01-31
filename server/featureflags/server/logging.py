@@ -50,9 +50,21 @@ def configure_logging(package, section: LoggingSection):
     logging.captureWarnings(True)
     logging.root.setLevel(section.logging_level_libs.upper())
     logging.getLogger(package).setLevel(section.logging_level_app.upper())
+
+    if 'logevo' in section.logging_handlers:
+        if len(section.logging_handlers) > 1:
+            raise ValueError('logevo handler must be used alone')
+
+        try:
+            import logevo
+            logevo.configure_logging()
+        except ImportError:
+            raise ImportError("logevo handler is used but 'logevo' package is not installed")
+
     if 'console' in section.logging_handlers:
         logging.root.addHandler(create_console_handler())
     if 'syslog' in section.logging_handlers:
         logging.root.addHandler(create_syslog_handler(package, section))
+
     # Sanic-specific filtering
     logging.getLogger('root').addFilter(LoggingFilter())

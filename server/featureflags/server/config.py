@@ -19,8 +19,6 @@ class Main(Section):
     ldap_host = Key('ldap-host', Optional[str])
     ldap_base_dn = Key('ldap-base-dn', Optional[str])
 
-    known_as = Key('known-as', str)
-
     @key_property
     def dsn(self):
         return expandvars(self._dsn)

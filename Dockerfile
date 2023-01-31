@@ -3,7 +3,7 @@ FROM python:3.7.13-slim-bullseye as base
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y build-essential
+    && apt-get install -y build-essential libpq-dev
 
 COPY server/setup.txt /app/server/setup.txt
 
@@ -35,14 +35,12 @@ ADD "https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.2.
 
 ADD "https://github.com/krallin/tini/releases/download/v0.18.0/tini" "/tini"
 
-RUN chmod +x /usr/local/bin/grpc_health_probe \
-    && chmod +x /tini
+RUN chmod +x /usr/local/bin/grpc_health_probe && chmod +x /tini
 
 FROM base as dev
 
-ADD "https://github.com/watchexec/watchexec/releases/download/cli-v1.19.0/watchexec-1.19.0-x86_64-unknown-linux-gnu.deb" /opt/watchexec.deb
-RUN apt-get install /opt/watchexec.deb
-RUN pip install pip-tools && mkdir -p /.cache/pip-tools && chmod -R 777 /.cache/pip-tools
+RUN pip install pip-tools watchfiles \
+    && mkdir -p /.cache/pip-tools && chmod -R 777 /.cache/pip-tools
 
 FROM dev as test
 COPY requirements-tests.txt .

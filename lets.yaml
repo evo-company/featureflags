@@ -10,14 +10,15 @@ commands:
   build-prod:
     description: build server image with embeded frontend
     options: |
-      Usage: lets build-prod [--tag=<tag>]
+      Usage: lets build-prod --repo=<repo> --tag=<tag>
 
       Options:
-        --tag=<tag>, -t                 Set container tag [default: dev]
+        --repo=<repo>                Set container repo
+        --tag=<tag>                  Set container tag
     cmd: |
       docker build \
         -f Dockerfile \
-        -t featureflags-server:${LETSOPT_TAG} \
+        -t ${LETSOPT_REPO}:${LETSOPT_TAG} \
         --target prd \
         .
 
@@ -51,7 +52,6 @@ commands:
   build-ui:
     description: build ui image
     cmd: |
-      # TODO rename dockerfile to Dockerfile
       docker build \
         -f Dockerfile \
         -t featureflags-assets \
