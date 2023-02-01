@@ -17,6 +17,7 @@ from grpclib.reflection.service import ServerReflection
 from featureflags.protobuf import service_pb2
 from featureflags.protobuf.service_grpc import FeatureFlagsBase
 
+from .metrics import track
 from .. import metrics
 from ..auth import InternalSession
 from ..schema import Project
@@ -70,6 +71,7 @@ class FeatureFlags(FeatureFlagsBase):
         await self.Exchange(stream)
 
     @debug_cancellation
+    @track
     async def Exchange(self, stream):
         self._tasks.add(asyncio.current_task())
         try:
@@ -117,6 +119,7 @@ class FeatureFlags(FeatureFlagsBase):
         # backward compatibility
         await self.StoreStats(stream)
 
+    @track
     async def StoreStats(self, stream):
         await stream.send_message(Empty())
 
