@@ -175,7 +175,11 @@ async def get_session(access_token=None, *, db, secret):
             payload = jwt.decode(access_token, secret, algorithms=["HS256"])
         except jwt.ExpiredSignatureError:
             payload = jwt.decode(
-                access_token, secret, verify=False, algorithms=["HS256"]
+                access_token, secret,
+                options={
+                    'verify_signature': False,
+                },
+                algorithms=["HS256"],
             )
             session_key = payload["session"]
 
@@ -206,7 +210,11 @@ async def get_session(access_token=None, *, db, secret):
                 state = SignedOutSession(session_key, secret)
         except jwt.InvalidSignatureError:  # if secret key was changed
             payload = jwt.decode(
-                access_token, secret, verify=False, algorithms=["HS256"]
+                access_token, secret,
+                options={
+                    'verify_signature': False,
+                },
+                algorithms=["HS256"]
             )
             session_key = payload["session"]
             state = SignedOutSession(session_key, secret)
