@@ -171,7 +171,11 @@ def create_app(*, cfg):
     # not implemented
     app.add_route(ignore_404, "/favicon.ico", name="favicon")
     app.add_route(ignore_404, "/apple-touch-icon.png", name="apple-touch-icon")
-    app.add_route(ignore_404, "/apple-touch-icon-precomposed.png", name="apple-touch-icon-precomposed")
+    app.add_route(
+        ignore_404,
+        "/apple-touch-icon-precomposed.png",
+        name="apple-touch-icon-precomposed",
+    )
     app.add_route(ignore_404, "/static/fuse.js.map", name="fuse.js.map")
 
     app.add_route(graphql, "/graphql", {"POST"})
