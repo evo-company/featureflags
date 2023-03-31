@@ -14,3 +14,4 @@ examples/local_config.py
 .pytest_cache
 .lets
 .pdm.toml
+__pypackages__

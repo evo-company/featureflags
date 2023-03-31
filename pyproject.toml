@@ -1,9 +1,10 @@
 [project]
-name = ""
-version = ""
-description = ""
+name = "evo-featureflags"
+version = "0.0.1"
+description = "Feature flags"
 authors = [
     {name = "m.kindritskiy", email = "m.kindritskiy@smartweb.com.ua"},
+    {name = "Vladimir Magamedov",email = "vladimir@magamedov.com"},
 ]
 dependencies = [
     "evo-featureflags-protobuf",
@@ -44,7 +45,6 @@ version = {use_scm = true}
 [tool.pdm.scripts]
 test = "python -m pytest"
 docs = "sphinx-build -a -b html docs public"
-#docs = "sphinx-build -b html docs docs/_build"  # from concierge
 fmt = "black server"
 
 [tool.pdm.dev-dependencies]
@@ -52,7 +52,8 @@ fmt = "black server"
 test = [
     "pytest~=7.1",
     "pytest-asyncio~=0.18",
-    "faker"
+    "faker",
+    "tox-pdm"
 ]
 lint = [
     "black",
@@ -76,7 +77,6 @@ filterwarnings = [
 log_cli = true
 testpaths = [
     "server/tests",
-    "client/tests"
 ]
 asyncio_mode = "auto"
 
