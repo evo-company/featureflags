@@ -21,12 +21,16 @@ services:
       LANG: C.UTF-8
       LC_ALL: C.UTF-8
       PYTHONIOENCODING: UTF-8
-      PYTHONPATH: server
+      PYTHONPATH: server:client:protobuf
       PYTHONUNBUFFERED: 1
     networks:
       - main
     volumes:
-      - ./:/app
+      - ./server:/app/server
+      - ./client:/app/client
+      - ./protobuf:/app/protobuf
+      - ./scripts:/app/scripts
+      - ./config.yaml:/app/config.yaml
 
   web:
     <<: *backend
@@ -35,7 +39,12 @@ services:
       - postgres
     ports:
       - "8000:8000"
-    command: watchfiles --filter python "python3 -m featureflags.server config.yaml@local web --port 8000" server
+    command:
+    - bash
+    - c
+    - |
+      if [[ ! -d server/
+      pdm run watchfiles --filter python "python3 -m featureflags.server config.yaml web --port 8000" server
 
   rpc:
     <<: *backend
@@ -44,7 +53,7 @@ services:
       - postgres
     ports:
       - "50051:50051"
-    command: watchfiles --filter python "python3 -m featureflags.server config.yaml@local rpc --port 50051" server
+    command: pdm run watchfiles --filter python "python3 -m featureflags.server config.yaml rpc --port 50051" server
 
   test:
     <<: *backend
@@ -54,13 +63,13 @@ services:
       - postgres
     environment:
       <<: *env
-      PYTHONPATH: server:client
+      PYTHONPATH: "server:client:protobuf"
     command:
       - sh
       - -c
       - |
         /app/scripts/wait-for-it.sh -h postgres -p 5432;
-        py.test
+        pdm run test ${ARGS}
 
   docs:
     <<: *backend

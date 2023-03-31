@@ -3,6 +3,6 @@ from ..config import Config
 
 
 def get_ldap(cfg: Config):
-    if not cfg.main.ldap_host:
+    if not cfg.ldap.host:
         return DummyLDAP(bound=True)
-    return LDAP(cfg.main.ldap_host, cfg.main.ldap_base_dn)
+    return LDAP(cfg.ldap.host, cfg.ldap.base_dn)

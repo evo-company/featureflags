@@ -1,33 +1,45 @@
-from typing import Optional
-from os.path import expandvars
+import yaml
 
-from strictconf import Section, Compose, Key, key_property
-
-from .logging import LoggingSection
+from pydantic import BaseSettings, Extra, Field
 
 
-class Dev(LoggingSection, Section):
-    pass
+class LoggingSettings(BaseSettings):
+    level_app: str
+    level_libs: str
+    handlers: list[str]
+
+    syslog_app: str | None
+    syslog_facility: str | None
+    syslog_mapping: dict | None
+    syslog_defaults: dict | None
 
 
-class Main(Section):
-    _secret = Key('secret', str)
-    _dsn = Key('dsn', str)
+class PostgresSettings(BaseSettings):
+    host: str
+    port: int
+    user: str = Field("postgres", env="PGUSER")
+    password: str = Field("postgres", env="PGPASS")
+    database: str
 
-    debug = Key('debug', bool)
-
-    ldap_host = Key('ldap-host', Optional[str])
-    ldap_base_dn = Key('ldap-base-dn', Optional[str])
-
-    @key_property
+    @property
     def dsn(self):
-        return expandvars(self._dsn)
-
-    @key_property
-    def secret(self):
-        return expandvars(self._secret)
+        return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
 
 
-class Config(Compose):
-    dev = Dev('dev')
-    main = Main('main')
+class LdapSettings(BaseSettings):
+    host: str | None
+    base_dn: str | None
+
+
+class Config(BaseSettings):
+    debug: bool
+    secret: str = Field("secret", env="SECRET")
+    postgres: PostgresSettings
+    ldap: LdapSettings
+    logging: LoggingSettings
+
+
+def load_config(path: str) -> Config:
+    with open(path, "r") as f:
+        data = yaml.load(f, Loader=yaml.FullLoader)
+    return Config(**data)

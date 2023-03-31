@@ -19,3 +19,5 @@ jobs:
         uses: lets-cli/lets-action@v1.1
       - name: Run test
         run: lets test
+        # TODO: test client with python3.7 -> 3.11
+        # TODO: test server only with python3.11

@@ -1,4 +1,0 @@
-graft featureflags/server/web/cs
-graft featureflags/server/web/static
-graft featureflags/server/migrations
-recursive-exclude tests *

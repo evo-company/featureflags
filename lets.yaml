@@ -80,7 +80,9 @@ commands:
     description: run tests
     depends:
       - build-test
-    cmd: docker-compose run --rm test
+    cmd: |
+      export ARGS="$@"
+      docker-compose run --rm test
 
   postgres:
     description: run postgres
@@ -114,30 +116,6 @@ commands:
 
   psql:
     cmd: docker-compose exec postgres psql -U postgres -d featureflags
-
-  update-deps:
-    description: generate new setup.txt
-    depends:
-      - build-dev
-    cmd: |
-      docker-compose run --rm backend pip-compile \
-        server/setup.py --output-file server/setup.txt
-
-  update-test-deps:
-    description: generate new requirements-tests.txt
-    depends:
-      - build-dev
-    cmd: |
-      docker-compose run --rm backend pip-compile \
-        requirements-tests.in --output-file requirements-tests.txt
-
-  update-docs-deps:
-    description: generate new requirements-docs.txt
-    depends:
-      - build-dev
-    cmd: |
-      docker-compose run --rm backend pip-compile \
-        requirements-docs.in --output-file requirements-docs.txt
 
   gen-docs:
     description: generate docs

@@ -28,6 +28,7 @@ class Unknown(SessionState):
     Represents initial state, when user was never signed in, so we are doing
     nothing here.
     """
+
     user: Optional[UUID] = None
 
     def get_access_token(self):
@@ -39,6 +40,7 @@ class ValidAccessToken(SessionState):
     """
     Represents valid access token, no need to renew it, user is authenticated.
     """
+
     user: UUID
 
     def get_access_token(self):
@@ -51,6 +53,7 @@ class ExpiredAccessToken(SessionState):
     Represents expired access token, when user still signed in, so we can renew
     access token.
     """
+
     user: UUID
     _secret: str
     _session_key: str
@@ -58,15 +61,11 @@ class ExpiredAccessToken(SessionState):
 
     def get_access_token(self):
         exp = min(self._session_exp, datetime.utcnow() + ACCESS_TOKEN_TTL)
-        token_bytes = jwt.encode(
-            {
-                'exp': exp,
-                'user': self.user.hex,
-                'session': self._session_key
-            },
+        return jwt.encode(
+            {"exp": exp, "user": self.user.hex, "session": self._session_key},
             self._secret,
+            algorithm="HS256",
         )
-        return token_bytes.decode()
 
 
 @dataclass
@@ -75,18 +74,19 @@ class SignedOutSession(SessionState):
     Represents expired access token, when it can't be renewed, because user
     was signed out.
     """
+
     _session_key: str
     _secret: str
     user: UUID = None
 
     def get_access_token(self):
-        token_bytes = jwt.encode(
+        return jwt.encode(
             {
-                'session': self._session_key,
+                "session": self._session_key,
             },
-            self._secret
+            self._secret,
+            algorithm="HS256",
         )
-        return token_bytes.decode()
 
 
 @dataclass
@@ -95,6 +95,7 @@ class EmptyAccessToken(SessionState):
     Represents an expired session, user is unauthenticated, but we are keeping
     session key to reuse it during next sign in action.
     """
+
     user: UUID = None
 
     def get_access_token(self):
@@ -102,7 +103,6 @@ class EmptyAccessToken(SessionState):
 
 
 class SessionBase(ABC):
-
     @property
     @abstractmethod
     def is_authenticated(self):
@@ -110,9 +110,9 @@ class SessionBase(ABC):
 
 
 class Session(SessionBase):
-
-    def __init__(self, ident: Optional[str], state: SessionState, *,
-                 secret: str):
+    def __init__(
+        self, ident: Optional[str], state: SessionState, *, secret: str
+    ):
         self._ident = ident
         self._state = state
         self._secret = secret
@@ -135,8 +135,9 @@ class Session(SessionBase):
         return self._ident
 
     def associate_user(self, user, expiration_time):
-        self._state = ExpiredAccessToken(user, self._secret, self._ident,
-                                         expiration_time)
+        self._state = ExpiredAccessToken(
+            user, self._secret, self._ident, expiration_time
+        )
 
     def disassociate_user(self):
         assert self._ident
@@ -171,41 +172,45 @@ async def get_session(access_token=None, *, db, secret):
         session_key = None
     else:
         try:
-            payload = jwt.decode(access_token, secret)
+            payload = jwt.decode(access_token, secret, algorithms=["HS256"])
         except jwt.ExpiredSignatureError:
-            payload = jwt.decode(access_token, secret, verify=False)
-            session_key = payload['session']
+            payload = jwt.decode(access_token, secret, verify=False, algorithms=["HS256"])
+            session_key = payload["session"]
 
-            if 'user' in payload:
+            if "user" in payload:
                 async with db.acquire() as conn:
-                    row = await sel_first(conn, (
-                        select([
-                            AuthSession.auth_user,
-                            AuthSession.expiration_time,
-                        ])
-                        .where(AuthSession.session == session_key)
-                    ))
+                    row = await sel_first(
+                        conn,
+                        (
+                            select(
+                                [
+                                    AuthSession.auth_user,
+                                    AuthSession.expiration_time,
+                                ]
+                            ).where(AuthSession.session == session_key)
+                        ),
+                    )
                 if (
                     row
                     and row.auth_user  # FIXME: backward compatibility
                     and row.expiration_time > datetime.utcnow()
                 ):
-                    state = ExpiredAccessToken(row.auth_user, secret,
-                                               session_key,
-                                               row.expiration_time)
+                    state = ExpiredAccessToken(
+                        row.auth_user, secret, session_key, row.expiration_time
+                    )
                 else:
                     state = SignedOutSession(session_key, secret)
             else:
                 state = SignedOutSession(session_key, secret)
         except jwt.InvalidSignatureError:  # if secret key was changed
-            payload = jwt.decode(access_token, secret, verify=False)
-            session_key = payload['session']
+            payload = jwt.decode(access_token, secret, verify=False, algorithms=["HS256"])
+            session_key = payload["session"]
             state = SignedOutSession(session_key, secret)
         else:
-            session_key = payload['session']
-            if 'user' in payload:
+            session_key = payload["session"]
+            if "user" in payload:
                 try:
-                    user = UUID(hex=payload['user'])
+                    user = UUID(hex=payload["user"])
                 except ValueError:
                     # FIXME: backward compatibility
                     state = SignedOutSession(session_key, secret)

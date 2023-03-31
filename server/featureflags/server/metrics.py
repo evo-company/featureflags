@@ -6,6 +6,7 @@ def wrap(metric):
     async def wrapper(fn, *args, **kwargs):
         with metric:
             return await fn(*args, **kwargs)
+
     return decorator(wrapper)
 
 

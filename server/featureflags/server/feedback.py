@@ -15,19 +15,14 @@ from .schema import Flag, Project, Variable
 
 
 async def _select_project(name, *, db):
-    result = await db.execute(
-        select([Project.id])
-        .where(Project.name == name)
-    )
+    result = await db.execute(select([Project.id]).where(Project.name == name))
     return await result.scalar()
 
 
 async def _insert_project(name, *, db):
     result = await db.execute(
         insert(Project.__table__)
-        .values({Project.id: uuid4(),
-                 Project.name: name,
-                 Project.version: 0})
+        .values({Project.id: uuid4(), Project.name: name, Project.version: 0})
         .on_conflict_do_nothing()
         .returning(Project.id)
     )
@@ -50,9 +45,9 @@ async def _get_or_create_project(name, *, db, mc: MC):
 
 async def _select_variable(project, name, *, db):
     result = await db.execute(
-        select([Variable.id])
-        .where(and_(Variable.project == project,
-                    Variable.name == name))
+        select([Variable.id]).where(
+            and_(Variable.project == project, Variable.name == name)
+        )
     )
     return await result.scalar()
 
@@ -60,10 +55,14 @@ async def _select_variable(project, name, *, db):
 async def _insert_variable(project, name, type_, *, db):
     result = await db.execute(
         insert(Variable.__table__)
-        .values({Variable.id: uuid4(),
-                 Variable.project: project,
-                 Variable.name: name,
-                 Variable.type: type_})
+        .values(
+            {
+                Variable.id: uuid4(),
+                Variable.project: project,
+                Variable.name: name,
+                Variable.type: type_,
+            }
+        )
         .on_conflict_do_nothing()
         .returning(Variable.id)
     )
@@ -86,9 +85,9 @@ async def _get_or_create_variable(project, name, type_, *, db, mc: MC):
 
 async def _select_flag(project, name, *, db):
     result = await db.execute(
-        select([Flag.id])
-        .where(and_(Flag.project == project,
-                    Flag.name == name))
+        select([Flag.id]).where(
+            and_(Flag.project == project, Flag.name == name)
+        )
     )
     return await result.scalar()
 
@@ -96,9 +95,7 @@ async def _select_flag(project, name, *, db):
 async def _insert_flag(project, name, *, db):
     result = await db.execute(
         insert(Flag.__table__)
-        .values({Flag.id: uuid4(),
-                 Flag.project: project,
-                 Flag.name: name})
+        .values({Flag.id: uuid4(), Flag.project: project, Flag.name: name})
         .on_conflict_do_nothing()
         .returning(Flag.id)
     )
@@ -119,15 +116,16 @@ async def _get_or_create_flag(project, name, *, db, mc: MC):
     return id_
 
 
-async def add_statistics(op: service_pb2.ExchangeRequest,
-                         *, db, mc: MC, acc: ACC):
+async def add_statistics(
+    op: service_pb2.ExchangeRequest, *, db, mc: MC, acc: ACC
+):
     project = await _get_or_create_project(op.project, db=db, mc=mc)
     for v in op.variables:
-        await _get_or_create_variable(project, v.name, Type.from_pb(v.type),
-                                      db=db, mc=mc)
+        await _get_or_create_variable(
+            project, v.name, Type.from_pb(v.type), db=db, mc=mc
+        )
     for flag_usage in op.flags_usage:
-        flag = await _get_or_create_flag(project, flag_usage.name,
-                                         db=db, mc=mc)
+        flag = await _get_or_create_flag(project, flag_usage.name, db=db, mc=mc)
 
         s = acc[flag][flag_usage.interval.ToDatetime()]
         s[0] += flag_usage.positive_count

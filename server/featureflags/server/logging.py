@@ -1,28 +1,16 @@
 import logging
 
-from typing import List, Optional
 from logging import StreamHandler
 from logging.handlers import SysLogHandler
 
-from strictconf import Key, Section
 from metricslog.ext.formatter import ColorFormatter, CEELogstashFormatter
 
-
-class LoggingSection(Section):
-    logging_level_app = Key('logging-level-app', str)
-    logging_level_libs = Key('logging-level-libs', str)
-    logging_handlers = Key('logging-handlers', List[str])
-
-    logging_syslog_app = Key('logging-syslog-app', Optional[str])
-    logging_syslog_facility = Key('logging-syslog-facility', Optional[str])
-    logging_syslog_mapping = Key('logging-syslog-mapping', Optional[dict])
-    logging_syslog_defaults = Key('logging-syslog-defaults', Optional[dict])
+from server.featureflags.server.config import LoggingSettings
 
 
 class LoggingFilter:
-
     def filter(self, record):
-        return not record.msg.startswith('KeepAlive Timeout')
+        return not record.msg.startswith("KeepAlive Timeout")
 
 
 def create_console_handler():
@@ -31,40 +19,43 @@ def create_console_handler():
     return handler
 
 
-def create_syslog_handler(package, section: LoggingSection):
-    assert section.logging_syslog_app, section.logging_syslog_app
-    assert section.logging_syslog_facility, section.logging_syslog_facility
+def create_syslog_handler(package, section: LoggingSettings):
+    assert section.syslog_app, section.syslog_app
+    assert section.syslog_facility, section.syslog_facility
     formatter = CEELogstashFormatter(
-        section.logging_syslog_app,
-        mapping=section.logging_syslog_mapping,
-        defaults=section.logging_syslog_defaults,
+        section.syslog_app,
+        mapping=section.syslog_mapping,
+        defaults=section.syslog_defaults,
         extra_only={package},
     )
-    facility = SysLogHandler.facility_names[section.logging_syslog_facility]
-    handler = SysLogHandler('/dev/log', facility=facility)
+    facility = SysLogHandler.facility_names[section.syslog_facility]
+    handler = SysLogHandler("/dev/log", facility=facility)
     handler.setFormatter(formatter)
     return handler
 
 
-def configure_logging(package, section: LoggingSection):
+def configure_logging(package, section: LoggingSettings):
     logging.captureWarnings(True)
-    logging.root.setLevel(section.logging_level_libs.upper())
-    logging.getLogger(package).setLevel(section.logging_level_app.upper())
+    logging.root.setLevel(section.level_libs.upper())
+    logging.getLogger(package).setLevel(section.level_app.upper())
 
-    if 'logevo' in section.logging_handlers:
-        if len(section.logging_handlers) > 1:
-            raise ValueError('logevo handler must be used alone')
+    if "logevo" in section.handlers:
+        if len(section.handlers) > 1:
+            raise ValueError("logevo handler must be used alone")
 
         try:
             import logevo
+
             logevo.configure_logging()
         except ImportError:
-            raise ImportError("logevo handler is used but 'logevo' package is not installed")
+            raise ImportError(
+                "logevo handler is used but 'logevo' package is not installed"
+            )
 
-    if 'console' in section.logging_handlers:
+    if "console" in section.handlers:
         logging.root.addHandler(create_console_handler())
-    if 'syslog' in section.logging_handlers:
+    if "syslog" in section.handlers:
         logging.root.addHandler(create_syslog_handler(package, section))
 
     # Sanic-specific filtering
-    logging.getLogger('root').addFilter(LoggingFilter())
+    logging.getLogger("root").addFilter(LoggingFilter())

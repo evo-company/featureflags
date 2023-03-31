@@ -39,29 +39,36 @@ def debug_cancellation(func):
         except asyncio.CancelledError:
             if stream.deadline:
                 deadline = stream.deadline.time_remaining()
-                log.warning('Request cancelled, elapsed: %.4fs;'
-                            ' remaining: %.4fs',
-                            time.monotonic() - start_time, deadline,
-                            exc_info=True)
+                log.warning(
+                    "Request cancelled, elapsed: %.4fs;" " remaining: %.4fs",
+                    time.monotonic() - start_time,
+                    deadline,
+                    exc_info=True,
+                )
             else:
-                log.warning('Request cancelled, elapsed: %.4fs;'
-                            ' user-agent: %s;'
-                            ' metadata: %s;',
-                            time.monotonic() - start_time, stream.user_agent,
-                            stream.metadata, exc_info=True)
+                log.warning(
+                    "Request cancelled, elapsed: %.4fs;"
+                    " user-agent: %s;"
+                    " metadata: %s;",
+                    time.monotonic() - start_time,
+                    stream.user_agent,
+                    stream.metadata,
+                    exc_info=True,
+                )
             raise
+
     return wrapper
 
 
 class FeatureFlags(FeatureFlagsBase):
     _store_stats_timeout = 1
 
-    def __init__(self, *, sa_engine, loop):
+    def __init__(self, *, sa_engine):
         self._mc = MC()
         self._acc = ACC()
         self._sa_engine = sa_engine
-        self._lock = asyncio.Lock(loop=loop)
-        self._engine = Engine(AsyncIOExecutor(loop=loop))
+        self._lock = asyncio.Lock()
+        self._engine = Engine(AsyncIOExecutor())
 
         # debug
         self._tasks = weakref.WeakSet()
@@ -80,14 +87,14 @@ class FeatureFlags(FeatureFlagsBase):
             h2_conn = stream._stream._h2_connection
             window = h2_conn._inbound_flow_control_window_manager
             log.info(
-                'Stuck;'
-                ' streams: %d;'
-                ' tasks: %d;'
-                ' max_window_size: %d;'
-                ' current_window_size: %d;'
-                ' bytes_processed: %d;'
-                ' user_agent: %s;'
-                ' metadata: %s;',
+                "Stuck;"
+                " streams: %d;"
+                " tasks: %d;"
+                " max_window_size: %d;"
+                " current_window_size: %d;"
+                " bytes_processed: %d;"
+                " user_agent: %s;"
+                " metadata: %s;",
                 len(h2_conn.streams),
                 len(self._tasks),
                 window.max_window_size,
@@ -100,16 +107,19 @@ class FeatureFlags(FeatureFlagsBase):
         async with self._sa_engine.acquire() as db:
             await add_statistics(request, db=db, mc=self._mc, acc=self._acc)
             result = await db.execute(
-                select([Project.version])
-                .where(Project.name == request.project)
+                select([Project.version]).where(Project.name == request.project)
             )
             version = await result.scalar()
 
         reply = service_pb2.ExchangeReply()
-        if request.version != version and request.HasField('query'):
+        if request.version != version and request.HasField("query"):
             query = transform(request.query)
-            result = await pull(self._engine, query, sa=self._sa_engine,
-                                session=InternalSession())
+            result = await pull(
+                self._engine,
+                query,
+                sa=self._sa_engine,
+                session=InternalSession(),
+            )
             populate(result, reply.result)
         reply.version = version
         await stream.send_message(reply)
@@ -124,34 +134,27 @@ class FeatureFlags(FeatureFlagsBase):
         await stream.send_message(Empty())
 
 
-def create_server(*, sa_engine, loop):
-    ff = FeatureFlags(
-        sa_engine=sa_engine,
-        loop=loop,
-    )
+def create_server(*, sa_engine):
+    ff = FeatureFlags(sa_engine=sa_engine)
     health = Health()
     handlers = ServerReflection.extend([ff, health])
-    return Server(handlers, loop=loop)
+    return Server(handlers)
 
 
 async def main(cfg, *, host=None, port=None, prometheus_port=None):
-    host = host or '0.0.0.0'
+    host = host or "0.0.0.0"
     port = port or 50051
 
     if prometheus_port:
         metrics.configure(prometheus_port)
 
-    loop = asyncio.get_event_loop()
-
     async with contextlib.AsyncExitStack() as stack:
         sa_engine = await stack.enter_async_context(get_db(cfg))
 
-        server = create_server(
-            sa_engine=sa_engine,
-            loop=loop,
-        )
-        stack.enter_context(graceful_exit([server], loop=loop))
+        server = create_server(sa_engine=sa_engine)
+        stack.enter_context(graceful_exit([server]))
         await server.start(host, port)
-        log.info('gRPC server listening on %s:%s', host, port)
+        log.info("gRPC server listening on %s:%s", host, port)
+
         await server.wait_closed()
-        log.info('Exiting...')
+        log.info("Exiting...")

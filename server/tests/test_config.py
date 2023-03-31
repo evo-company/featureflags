@@ -1,8 +1,5 @@
-from strictconf.yaml import init
-
-from featureflags.server.config import Config
+from featureflags.server.config import Config, load_config
 
 
 def test_local():
-    config = Config()
-    init(config, ['config.yaml'], 'local')
+    load_config("config.yaml")
