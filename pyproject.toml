@@ -1,0 +1,85 @@
+[project]
+name = "evo-featureflags"
+version = "0.0.1"
+description = "Feature flags"
+authors = [
+    {name = "m.kindritskiy", email = "m.kindritskiy@smartweb.com.ua"},
+    {name = "Vladimir Magamedov",email = "vladimir@magamedov.com"},
+]
+dependencies = [
+    "evo-featureflags-protobuf",
+    'grpclib>=0.4.3',
+    "click==8",
+    "hiku==0.6.0",
+    "protobuf==3.20.1",
+    "sqlalchemy==1.4.42",
+    "aiopg[sa]==1.4.0",
+    "psycopg2==2.9.5",
+    "graphql-core==3.2.3",
+    "prometheus-client==0.15.0",
+    "alembic==1.5.8",
+    "metricslog",
+    "pyyaml",
+    "pyjwt",
+    "ldap3",
+    "pydantic>=1.10.7",
+    "sanic>=23.3.0",
+    "setuptools",
+]
+requires-python = ">=3.11"
+license = {text = "MIT"}
+
+[tool]
+
+[tool.pdm]
+excludes = [
+    "server/tests",
+]
+includes = [
+    "server",
+    "client",
+    "protobuf"
+]
+version = {use_scm = true}
+
+[tool.pdm.scripts]
+test = "python -m pytest"
+docs = "sphinx-build -a -b html docs public"
+fmt = "black server"
+
+[tool.pdm.dev-dependencies]
+
+test = [
+    "pytest~=7.1",
+    "pytest-asyncio~=0.18",
+    "faker",
+    "tox-pdm"
+]
+lint = [
+    "black",
+    "flake8~=5.0",
+]
+dev = [
+    "watchfiles",
+    "ipython>=8.4.0",
+]
+docs = [
+    "sphinx",
+    "sphinx-rtd-theme",
+    "sphinxcontrib-asyncio",
+]
+
+[tool.pytest.ini_options]
+addopts = "-p no:warnings -p no:cacheprovider -q --tb=native"
+filterwarnings = [
+    "ignore::DeprecationWarning:google.*"
+]
+log_cli = true
+testpaths = [
+    "server/tests",
+]
+asyncio_mode = "auto"
+
+[tool.black]
+line-length = 80
+target-version = ['py311']

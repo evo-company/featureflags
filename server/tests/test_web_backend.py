@@ -41,38 +41,34 @@ class RequestStub:
     user: Optional[UUID] = None
 
     def __getitem__(self, item):
-        if item == 'session':
+        if item == "session":
             return TestSession(self.user)
         else:
             raise KeyError(item)
 
 
 async def check_flag(flag, *, db):
-    result = await db.execute(
-        select([Flag.enabled]).where(Flag.id == flag)
-    )
+    result = await db.execute(select([Flag.enabled]).where(Flag.id == flag))
     return await result.scalar()
 
 
 async def get_flag(flag, *, db):
-    result = await db.execute(
-        select([Flag.id]).where(Flag.id == flag)
-    )
+    result = await db.execute(select([Flag.id]).where(Flag.id == flag))
     return await result.scalar()
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('authenticated', [True, False])
+@pytest.mark.parametrize("authenticated", [True, False])
 async def test_reset_flag_graph(authenticated, sa, db, hiku_engine):
     flag = await mk_flag(db, enabled=True)
 
     query = {
-        'query': """
+        "query": """
             mutation ResetFlag($id: String!) { 
                 resetFlag(id: $id) { error } 
             }
         """,
-        'variables': {'id': str(flag.id)}
+        "variables": {"id": str(flag.id)},
     }
     graphql_endpoint = AsyncGraphQLEndpoint(
         hiku_engine,
@@ -105,12 +101,12 @@ async def test_delete_flag_graph(sa, db, hiku_engine):
     flag = await mk_flag(db, enabled=True)
 
     query = {
-        'query': """
+        "query": """
             mutation DeleteFlag($id: String!) { 
                 deleteFlag(id: $id) { error } 
             }
         """,
-        'variables': {'id': str(flag.id)}
+        "variables": {"id": str(flag.id)},
     }
     user = await mk_auth_user(db)
 
@@ -126,6 +122,6 @@ async def test_delete_flag_graph(sa, db, hiku_engine):
     )
 
     res = await graphql_endpoint.dispatch_ext(query, ctx)
-    assert res['data']['deleteFlag']['error'] is None
+    assert res["data"]["deleteFlag"]["error"] is None
 
     assert await get_flag(flag.id, db=db) is None

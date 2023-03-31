@@ -1,8 +1,6 @@
-import asyncio
 import logging
 import os.path
 import pkgutil
-import contextlib
 import json
 from datetime import datetime
 from enum import Enum
@@ -12,7 +10,6 @@ from typing import Optional
 from uuid import UUID
 
 from sanic import Sanic
-from grpclib.utils import graceful_exit
 from sanic.response import html, text, json as json_response
 from sanic.exceptions import NotFound, Unauthorized
 
@@ -20,7 +17,6 @@ from hiku.engine import Engine
 from hiku.executors.asyncio import AsyncIOExecutor
 
 from hiku.endpoint.graphql import AsyncBatchGraphQLEndpoint
-
 
 from .. import metrics
 from ..auth import get_session
@@ -49,39 +45,41 @@ COOKIE_MAX_AGE = 365 * 24 * 3600
 
 
 async def on_request(request):
-    access_token = request.cookies.get('access_token')
-    request['session'] = await get_session(access_token,
-                                           db=request.app.sa_engine,
-                                           secret=request.app.cfg.main.secret)
+    access_token = request.cookies.get("access_token")
+    request.ctx.session = await get_session(
+        access_token,
+        db=request.app.ctx.sa_engine,
+        secret=request.app.ctx.cfg.secret,
+    )
 
 
 async def on_response(request, response):
-    if 'session' in request:
-        access_token_cookie = request['session'].get_access_token()
+    if request.ctx.session:
+        access_token_cookie = request.ctx.session.get_access_token()
         if access_token_cookie is None:
             pass
-        elif access_token_cookie == '':
-            response.cookies['access_token'] = ''
+        elif access_token_cookie == "":
+            response.cookies["access_token"] = ""
         else:
-            response.cookies['access_token'] = access_token_cookie
-            response.cookies['access_token']['max-age'] = COOKIE_MAX_AGE
-            response.cookies['access_token']['httponly'] = True
+            response.cookies["access_token"] = access_token_cookie
+            response.cookies["access_token"]["max-age"] = COOKIE_MAX_AGE
+            response.cookies["access_token"]["httponly"] = True
 
 
-def ignore_404(*_, **__):
-    return text('Not found', status=404)
+async def ignore_404(*_, **__):
+    return text("Not found", status=404)
 
 
 async def index(_):
-    return html(pkgutil.get_data('featureflags.server.web',
-                                 'static/index.html').decode('utf-8'))
+    return html(
+        pkgutil.get_data("featureflags.server.web", "static/index.html").decode(
+            "utf-8"
+        )
+    )
 
 
 def graph_context(
-    sa_engine,
-    session,
-    ldap,
-    ctx_override: Optional[dict] = None
+    sa_engine, session, ldap, ctx_override: Optional[dict] = None
 ):
     ctx = {
         SA_ENGINE: sa_engine,
@@ -131,15 +129,15 @@ json_dumps = partial(json.dumps, cls=JSONEncoder)
 
 async def graphql(request):
     graphql_endpoint = AsyncGraphQLEndpoint(
-        request.app.hiku_engine,
+        request.app.ctx.hiku_engine,
         GRAPH,
         MUTATION_GRAPH,
     )
 
     ctx = graph_context(
-        request.app.sa_engine,
-        request['session'],
-        request.app.ldap,
+        request.app.ctx.sa_engine,
+        request.ctx.session,
+        request.app.ctx.ldap,
     )
 
     result = await graphql_endpoint.dispatch_ext(request.json, ctx)
@@ -148,62 +146,71 @@ async def graphql(request):
 
 
 async def health(_):
-    return text('OK')
+    return text("OK")
 
 
-def create_app(*, cfg, sa_engine, hiku_engine, ldap):
-    app = Sanic(configure_logging=False)
+# TODO: add teardown listeners
+async def setup_db(app):
+    app.ctx.sa_engine = await get_db(app.ctx.cfg)
 
-    app.router.add('/', {'GET'}, index)
-    app.router.add('/health', {'GET'}, health)
+
+async def setup_hiku(app):
+    app.ctx.hiku_engine = Engine(AsyncIOExecutor())
+
+
+async def setup_ldap(app):
+    app.ctx.ldap = get_ldap(app.ctx.cfg)
+
+
+def create_app(*, cfg):
+    app = Sanic(name="web", configure_logging=False)
+
+    app.add_route(index, "/")
+    app.add_route(health, "/health")
 
     # not implemented
-    app.router.add('/favicon.ico', {'GET'}, ignore_404)
-    app.router.add('/apple-touch-icon.png', {'GET'}, ignore_404)
-    app.router.add('/apple-touch-icon-precomposed.png', {'GET'}, ignore_404)
-    app.router.add('/static/fuse.js.map', {'GET'}, ignore_404)
+    app.add_route(ignore_404, "/favicon.ico", name="favicon")
+    app.add_route(ignore_404, "/apple-touch-icon.png", name="apple-touch-icon")
+    app.add_route(
+        ignore_404,
+        "/apple-touch-icon-precomposed.png",
+        name="apple-touch-icon-precomposed",
+    )
+    app.add_route(ignore_404, "/static/fuse.js.map", name="fuse.js.map")
 
-    app.router.add('/graphql', {'POST'}, graphql)
+    app.add_route(graphql, "/graphql", {"POST"})
 
-    app.static('/static', os.path.join(os.path.dirname(__file__), 'static'))
-    if not cfg.main.debug:
+    app.static("/static", os.path.join(os.path.dirname(__file__), "static"))
+    if not cfg.debug:
         app.error_handler.add(NotFound, ignore_404)
 
-    app.register_middleware(on_request, 'request')
-    app.register_middleware(on_response, 'response')
+    app.register_middleware(on_request, "request")
+    app.register_middleware(on_response, "response")
 
-    app.cfg = cfg
-    app.sa_engine = sa_engine
-    app.hiku_engine = hiku_engine
-    app.ldap = ldap
+    app.ctx.cfg = cfg
+
+    app.register_listener(setup_db, "before_server_start")
+    app.register_listener(setup_hiku, "before_server_start")
+    app.register_listener(setup_ldap, "before_server_start")
+
     return app
 
 
-async def main(cfg, *, host=None, port=None, prometheus_port=None):
-    host = host or '0.0.0.0'
-    port = port or 8000
-
+def main(cfg, host, port, prometheus_port):
     if prometheus_port:
         metrics.configure(prometheus_port)
 
-    loop = asyncio.get_event_loop()
+    app = create_app(cfg=cfg)
 
-    async with contextlib.AsyncExitStack() as stack:
-        sa_engine = await stack.enter_async_context(get_db(cfg))
+    host = host or "0.0.0.0"
+    port = port or 8000
 
-        app = create_app(
-            cfg=cfg,
-            sa_engine=sa_engine,
-            hiku_engine=Engine(AsyncIOExecutor(loop=loop)),
-            ldap=get_ldap(cfg),
-        )
-        server = await app.create_server(
-            host=host, port=port,
-            debug=cfg.main.debug,
-            access_log=cfg.main.debug,
-            return_asyncio_server=True,
-        )
-        log.info('Web server listening on %s:%s', host, port)
-        stack.enter_context(graceful_exit([server], loop=loop))
-        await server.wait_closed()
-        log.info('Exiting...')
+    log.info("Web server listening on %s:%s", host, port)
+
+    app.run(
+        host=host,
+        port=port,
+        debug=cfg.debug,
+        access_log=cfg.debug,
+        single_process=True,
+    )

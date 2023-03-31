@@ -1,22 +1,23 @@
-dev.true:
-  logging-level-app: debug
-  logging-level-libs: info
-  logging-handlers: [console]
+logging:
+  level_app: debug
+  level_libs: info
+  handlers: [console]
 
-  logging-syslog-app: null
-  logging-syslog-facility: null
-  logging-syslog-mapping: null
-  logging-syslog-defaults: null
+  syslog_app: null
+  syslog_facility: null
+  syslog_mapping: null
+  syslog_defaults: null
 
-main.local:
-  debug: true
-  secret: 023517f06f444118986877e636b4a226
+postgres:
+  host: postgres
+  port: 5432
+  user: postgres
+  password: postgres
+  database: featureflags
 
-  dsn: postgres://postgres:postgres@postgres:5432/featureflags
+debug: true
+secret: 023517f06f444118986877e636b4a226
 
-  ldap-host: null
-  ldap-base-dn: cn=$user,ou=People,dc=acme,dc=com
-
-compose.local:
-  dev: "true"
-  main: local
+ldap:
+  host: null
+  base_dn: cn=$user,ou=People,dc=acme,dc=com

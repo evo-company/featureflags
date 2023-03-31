@@ -9,6 +9,7 @@ class MC:
     """
     Caches entity ids during request
     """
+
     def __init__(self):
         self.project = {}
         self.flag = collections.defaultdict(dict)
@@ -21,6 +22,7 @@ class ACC(collections.defaultdict):
 
     acc[interval][flag] -> [positive_count, negative_count]
     """
+
     def __init__(self):
         super().__init__(lambda: collections.defaultdict(lambda: [0, 0]))
 
@@ -54,6 +56,7 @@ class ArrayOfEnum(ARRAY):
     """
     See: http://docs.sqlalchemy.org/en/latest/dialects/postgresql.html#using-enum-with-array  # noqa: E501
     """
+
     def bind_expression(self, bind_value):
         return cast(bind_value, self)
 
@@ -66,10 +69,11 @@ class ArrayOfEnum(ARRAY):
             else:
                 value = value[1:-1]
                 if value:
-                    return proc(value.split(','))
+                    return proc(value.split(","))
                 else:
                     if self.as_tuple:
                         return tuple()
                     else:
                         return []
+
         return wrapper

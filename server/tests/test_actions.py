@@ -23,7 +23,7 @@ from featureflags.server.actions import AddCheckOp
 from featureflags.server.actions import AddConditionOp
 from featureflags.server.actions import with_session
 
-from state import (
+from tests.state import (
     mk_project,
     mk_flag,
     mk_variable,
@@ -37,12 +37,12 @@ from state import (
 f = faker.Faker()
 
 
-@pytest.fixture(name='dirty')
+@pytest.fixture(name="dirty")
 def dirty_fixture():
     return DirtyProjects()
 
 
-@pytest.fixture(name='changes')
+@pytest.fixture(name="changes")
 def changes_fixture():
     return Changes()
 
@@ -55,44 +55,46 @@ async def get_version(project, *, db):
 
 
 async def check_flag(flag, *, db):
-    result = await db.execute(
-        select([Flag.enabled]).where(Flag.id == flag)
-    )
+    result = await db.execute(select([Flag.enabled]).where(Flag.id == flag))
     return await result.scalar()
 
 
 @pytest.mark.asyncio
 async def test_sign_in_new(db):
-    username = 'user@host.com'
-    password = 'trust-me'
+    username = "user@host.com"
+    password = "trust-me"
 
-    user_id = await sel_scalar(db, (
-        select([AuthUser.id])
-        .where(AuthUser.username == username)
-    ))
+    user_id = await sel_scalar(
+        db, (select([AuthUser.id]).where(AuthUser.username == username))
+    )
     assert user_id is None
 
-    session = auth.Session(None, auth.EmptyAccessToken(), secret='secret')
+    session = auth.Session(None, auth.EmptyAccessToken(), secret="secret")
     assert session.get_access_token() is None
 
-    await sign_in(username, password, db=db, session=session, ldap=DummyLDAP(bound=True))
+    await sign_in(
+        username, password, db=db, session=session, ldap=DummyLDAP(bound=True)
+    )
 
     assert session.ident
     assert session.is_authenticated
     assert session.user
     assert session.get_access_token()
 
-    expiration_time = await sel_scalar(db, (
-        select([AuthSession.expiration_time])
-        .where(AuthSession.session == session.ident)
-    ))
+    expiration_time = await sel_scalar(
+        db,
+        (
+            select([AuthSession.expiration_time]).where(
+                AuthSession.session == session.ident
+            )
+        ),
+    )
     assert expiration_time is not None
     assert expiration_time > datetime.utcnow() + timedelta(minutes=1)
 
-    user_id = await sel_scalar(db, (
-        select([AuthUser.id])
-        .where(AuthUser.username == username)
-    ))
+    user_id = await sel_scalar(
+        db, (select([AuthUser.id]).where(AuthUser.username == username))
+    )
     assert user_id is not None
     assert user_id == session.user
 
@@ -100,12 +102,18 @@ async def test_sign_in_new(db):
 @pytest.mark.asyncio
 async def test_sign_in_existent(db):
     user = await mk_auth_user(db)
-    password = 'trust-me'
+    password = "trust-me"
 
-    session = auth.Session(None, auth.EmptyAccessToken(), secret='secret')
+    session = auth.Session(None, auth.EmptyAccessToken(), secret="secret")
     assert session.get_access_token() is None
 
-    await sign_in(user.username, password, db=db, session=session, ldap=DummyLDAP(bound=True))
+    await sign_in(
+        user.username,
+        password,
+        db=db,
+        session=session,
+        ldap=DummyLDAP(bound=True),
+    )
 
     assert session.ident
     assert session.is_authenticated
@@ -115,13 +123,15 @@ async def test_sign_in_existent(db):
 
 @pytest.mark.asyncio
 async def test_sign_in_invalid(db):
-    username = 'user@host.com'
-    password = 'trust-me'
+    username = "user@host.com"
+    password = "trust-me"
 
-    session = auth.Session(None, auth.EmptyAccessToken(), secret='secret')
+    session = auth.Session(None, auth.EmptyAccessToken(), secret="secret")
     assert session.get_access_token() is None
 
-    await sign_in(username, password, db=db, session=session, ldap=DummyLDAP(bound=False))
+    await sign_in(
+        username, password, db=db, session=session, ldap=DummyLDAP(bound=False)
+    )
 
     assert session.ident is None
     assert session.get_access_token() is None
@@ -132,39 +142,46 @@ async def test_sign_out(db):
     auth_session = await mk_auth_session(db)
 
     r1 = await db.execute(
-        select([AuthSession.expiration_time])
-        .where(AuthSession.session == auth_session.session)
+        select([AuthSession.expiration_time]).where(
+            AuthSession.session == auth_session.session
+        )
     )
     assert await r1.fetchall() == [(auth_session.expiration_time,)]
 
-    session = auth.Session(auth_session.session,
-                           auth.ValidAccessToken(auth_session.auth_user),
-                           secret='secret')
+    session = auth.Session(
+        auth_session.session,
+        auth.ValidAccessToken(auth_session.auth_user),
+        secret="secret",
+    )
     assert session.get_access_token() is None
 
     await sign_out(db=db, session=session)
 
     access_token = session.get_access_token()
     assert access_token
-    session = await auth.get_session(access_token, db=db, secret='secret')
+    session = await auth.get_session(access_token, db=db, secret="secret")
     assert session.is_authenticated is False
 
     r2 = await db.execute(
-        select([AuthSession.expiration_time])
-        .where(AuthSession.session == auth_session.session)
+        select([AuthSession.expiration_time]).where(
+            AuthSession.session == auth_session.session
+        )
     )
     assert await r2.fetchall() == []
 
 
 @pytest.mark.asyncio
 async def test_gen_id(db):
-    local_id = LocalId(scope='marston', value='minuit')
+    local_id = LocalId(scope="marston", value="minuit")
 
     async def get_count():
         result = await db.execute(
-            select([func.count('*')])
-            .where(and_(LocalIdMap.scope == local_id.scope,
-                        LocalIdMap.value == local_id.value))
+            select([func.count("*")]).where(
+                and_(
+                    LocalIdMap.scope == local_id.scope,
+                    LocalIdMap.value == local_id.value,
+                )
+            )
         )
         return await result.scalar()
 
@@ -177,14 +194,18 @@ async def test_gen_id(db):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('action, before, after, action_type', [
-    (enable_flag, None, True, Action.ENABLE_FLAG),
-    (enable_flag, False, True, Action.ENABLE_FLAG),
-    (disable_flag, None, False, Action.DISABLE_FLAG),
-    (disable_flag, True, False, Action.DISABLE_FLAG),
-])
-async def test_switching_flag(db, dirty, changes,
-                              action, before, after, action_type):
+@pytest.mark.parametrize(
+    "action, before, after, action_type",
+    [
+        (enable_flag, None, True, Action.ENABLE_FLAG),
+        (enable_flag, False, True, Action.ENABLE_FLAG),
+        (disable_flag, None, False, Action.DISABLE_FLAG),
+        (disable_flag, True, False, Action.DISABLE_FLAG),
+    ],
+)
+async def test_switching_flag(
+    db, dirty, changes, action, before, after, action_type
+):
     flag = await mk_flag(db, enabled=before)
     assert await check_flag(flag.id, db=db) == before
     session = auth.TestSession(1)
@@ -206,55 +227,81 @@ async def test_reset_flag(db, dirty, changes):
 
     async with with_session(session):
         assert await check_flag(flag.id, db=db) is True
-    assert await (await db.execute(
-        select([exists().where(Condition.id == condition.id)])
-    )).scalar() is True
+    assert (
+        await (
+            await db.execute(
+                select([exists().where(Condition.id == condition.id)])
+            )
+        ).scalar()
+        is True
+    )
 
     async with with_session(session):
-        await reset_flag(flag_id=flag.id.hex, db=db, dirty=dirty, changes=changes)
+        await reset_flag(
+            flag_id=flag.id.hex, db=db, dirty=dirty, changes=changes
+        )
     assert dirty.by_flag == {flag.id}
     assert changes.get_actions() == [(flag.id, [Action.RESET_FLAG])]
 
     async with with_session(session):
         assert await check_flag(flag.id, db=db) is None
-    assert await (await db.execute(
-        select([exists().where(Condition.id == condition.id)])
-    )).scalar() is False
+    assert (
+        await (
+            await db.execute(
+                select([exists().where(Condition.id == condition.id)])
+            )
+        ).scalar()
+        is False
+    )
 
 
 @pytest.mark.asyncio
 async def test_add_check(db, dirty):
     variable = await mk_variable(db)
 
-    local_id = LocalId(scope='spatted', value='widget')
+    local_id = LocalId(scope="spatted", value="widget")
 
     session = auth.TestSession(1)
 
     async with with_session(session):
-        ids = await add_check(AddCheckOp(
-            dict(
-                local_id=dict(
-                    scope='spatted',
-                    value='widget'
-                ),
-                variable=variable.id.hex,
-                operator=Operator.EQUAL.value,
-                kind='value_string',
-                value_string='sandino',
-            )
-        ), db=db, dirty=dirty)
+        ids = await add_check(
+            AddCheckOp(
+                dict(
+                    local_id=dict(scope="spatted", value="widget"),
+                    variable=variable.id.hex,
+                    operator=Operator.EQUAL.value,
+                    kind="value_string",
+                    value_string="sandino",
+                )
+            ),
+            db=db,
+            dirty=dirty,
+        )
     assert dirty.by_variable == {variable.id}
 
     id_ = ids[local_id]
 
     result = await db.execute(
-        select([Check.variable, Check.operator, Check.value_string,
-                Check.value_number, Check.value_timestamp, Check.value_set])
-        .where(Check.id == id_)
+        select(
+            [
+                Check.variable,
+                Check.operator,
+                Check.value_string,
+                Check.value_number,
+                Check.value_timestamp,
+                Check.value_set,
+            ]
+        ).where(Check.id == id_)
     )
     row = await result.first()
-    assert row.as_tuple() == (variable.id, Operator.EQUAL, 'sandino',
-                              None, None, None)
+    assert row.as_tuple() == (
+        variable.id,
+        Operator.EQUAL,
+        "sandino",
+        None,
+        None,
+        None,
+    )
 
 
 @pytest.mark.asyncio
@@ -263,29 +310,31 @@ async def test_add_condition(db, dirty, changes):
     flag = await mk_flag(db, project=project)
     check = await mk_check(db, variable_project=project)
 
-    local_id = LocalId(scope='arra', value='sowle')
+    local_id = LocalId(scope="arra", value="sowle")
 
     session = auth.TestSession(1)
 
     async with with_session(session):
-        ids = await add_condition(AddConditionOp(
-            dict(
-                local_id=dict(
-                    scope='arra',
-                    value='sowle'
-                ),
-                flag_id=flag.id.hex,
-                checks=[dict(id=check.id.hex)],
-            )
-        ), db=db, ids={}, dirty=dirty, changes=changes)
+        ids = await add_condition(
+            AddConditionOp(
+                dict(
+                    local_id=dict(scope="arra", value="sowle"),
+                    flag_id=flag.id.hex,
+                    checks=[dict(id=check.id.hex)],
+                )
+            ),
+            db=db,
+            ids={},
+            dirty=dirty,
+            changes=changes,
+        )
     assert dirty.by_flag == {flag.id}
     assert changes.get_actions() == [(flag.id, [Action.ADD_CONDITION])]
 
     id_ = ids[local_id]
 
     result = await db.execute(
-        select([Condition.flag, Condition.checks])
-        .where(Condition.id == id_)
+        select([Condition.flag, Condition.checks]).where(Condition.id == id_)
     )
     row = await result.first()
     assert row.as_tuple() == (flag.id, (check.id,))
@@ -298,20 +347,15 @@ async def test_add_condition_and_check(db, dirty, changes):
     check1 = await mk_check(db, variable_project=project)
     check2 = await mk_check(db, variable_project=project)
 
-    check1_id = LocalId(
-        scope='peggy', value='caseful'
-    )
+    check1_id = LocalId(scope="peggy", value="caseful")
 
     ids = {check1_id: check1.id}
 
-    local_id = LocalId(scope='focal', value='klutzes')
+    local_id = LocalId(scope="focal", value="klutzes")
 
     op = AddConditionOp(
         dict(
-            local_id=dict(
-                scope=local_id.scope,
-                value=local_id.value
-            ),
+            local_id=dict(scope=local_id.scope, value=local_id.value),
             flag_id=flag.id.hex,
             checks=[
                 dict(
@@ -320,7 +364,7 @@ async def test_add_condition_and_check(db, dirty, changes):
                         value=check1_id.value,
                     ),
                 ),
-                dict(id=check2.id.hex)
+                dict(id=check2.id.hex),
             ],
         )
     )
@@ -328,15 +372,18 @@ async def test_add_condition_and_check(db, dirty, changes):
     session = auth.TestSession(1)
 
     async with with_session(session):
-        ids.update(await add_condition(op, db=db, ids=ids, dirty=dirty, changes=changes))
+        ids.update(
+            await add_condition(
+                op, db=db, ids=ids, dirty=dirty, changes=changes
+            )
+        )
     assert dirty.by_flag == {flag.id}
     assert changes.get_actions() == [(flag.id, [Action.ADD_CONDITION])]
 
     id_ = ids[local_id]
 
     result = await db.execute(
-        select([Condition.flag, Condition.checks])
-        .where(Condition.id == id_)
+        select([Condition.flag, Condition.checks]).where(Condition.id == id_)
     )
     row = await result.first()
     assert row.as_tuple() == (flag.id, (check1.id, check2.id))
@@ -348,8 +395,7 @@ async def test_disable_condition(db, dirty, changes):
 
     async def check_condition():
         result = await db.execute(
-            select([Condition.id])
-            .where(Condition.id == condition.id)
+            select([Condition.id]).where(Condition.id == condition.id)
         )
         row = await result.first()
         return row and row[0]
@@ -359,18 +405,24 @@ async def test_disable_condition(db, dirty, changes):
     session = auth.TestSession(1)
 
     async with with_session(session):
-        await disable_condition(condition.id.hex, db=db, dirty=dirty, changes=changes)
+        await disable_condition(
+            condition.id.hex, db=db, dirty=dirty, changes=changes
+        )
     assert dirty.by_flag == {condition.flag}
-    assert changes.get_actions() == [(condition.flag,
-                                      [Action.DISABLE_CONDITION])]
+    assert changes.get_actions() == [
+        (condition.flag, [Action.DISABLE_CONDITION])
+    ]
 
     assert (await check_condition()) is None
 
     async with with_session(session):
-        await disable_condition(condition.id.hex, db=db, dirty=dirty, changes=changes)
+        await disable_condition(
+            condition.id.hex, db=db, dirty=dirty, changes=changes
+        )
     # should be the same
-    assert changes.get_actions() == [(condition.flag,
-                                      [Action.DISABLE_CONDITION])]
+    assert changes.get_actions() == [
+        (condition.flag, [Action.DISABLE_CONDITION])
+    ]
 
     assert (await check_condition()) is None
 
@@ -426,10 +478,9 @@ async def test_update_changelog(db):
 
     await update_changelog(session=session, db=db, changes=changes)
 
-    actions = await sel_scalar(db, (
-        select([Changelog.actions])
-        .where(Changelog.flag == flag.id)
-    ))
+    actions = await sel_scalar(
+        db, (select([Changelog.actions]).where(Changelog.flag == flag.id))
+    )
     assert actions == (
         Action.ENABLE_FLAG,
         Action.ADD_CONDITION,

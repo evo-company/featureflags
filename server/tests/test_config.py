@@ -1,8 +1,18 @@
-from strictconf.yaml import init
+import os
 
-from featureflags.server.config import Config
+import yaml
+from featureflags.server.config import Config, load_config
 
 
 def test_local():
-    config = Config()
-    init(config, ['config.yaml'], 'local')
+    load_config("config.yaml")
+
+
+def test_from_env():
+    os.environ["PGPASS"] = "postgres"
+    with open("config.yaml", "r") as f:
+        data = yaml.load(f, Loader=yaml.FullLoader)
+
+    del data["postgres"]["password"]
+    cfg = Config(**data)
+    assert cfg.postgres.password == "postgres"

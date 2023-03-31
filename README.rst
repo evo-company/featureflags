@@ -12,9 +12,9 @@ This repository consists of three sub-projects:
 - ``/protobuf`` - message types definition for talking between client and server
   using gRPC protocol
 
-Client supports Python 2.7, >=3.5.
+Client supports Python >=3.7.
 
-Server requires Python >= 3.6.
+Server requires Python >= 3.11.
 
 Server consists of two services:
 

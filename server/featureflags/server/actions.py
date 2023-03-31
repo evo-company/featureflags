@@ -23,12 +23,16 @@ from .schema import Flag, Check, LocalIdMap, Condition, Action, Changelog
 
 
 action_time = Histogram(
-    'action_time', 'Action latency (seconds)', ['action'],
-    buckets=(0.010, 0.050, 0.100, 1.000, float('inf')),
+    "action_time",
+    "Action latency (seconds)",
+    ["action"],
+    buckets=(0.010, 0.050, 0.100, 1.000, float("inf")),
 )
 
 action_errors = Counter(
-    'action_errors', 'Action errors count', ['action'],
+    "action_errors",
+    "Action errors count",
+    ["action"],
 )
 
 
@@ -52,7 +56,7 @@ class AccessError(Exception):
     pass
 
 
-session_var = ContextVar('session')
+session_var = ContextVar("session")
 
 
 @contextlib.asynccontextmanager
@@ -68,14 +72,13 @@ def auth_required(func):
     async def wrapper(*args, **kwargs):
         session = session_var.get()
         if not session.is_authenticated:
-            raise AccessError('User is not authenticated')
+            raise AccessError("User is not authenticated")
         return await func(*args, **kwargs)
 
     return wrapper
 
 
 class DirtyProjects:
-
     def __init__(self):
         self.by_flag = set()
         self.by_variable = set()
@@ -106,40 +109,55 @@ class LocalId:
 async def gen_id(local_id: LocalId, *, db: SAConnection):
     assert local_id.scope and local_id.value, local_id
 
-    id_ = await sel_scalar(db, (
-        insert(LocalIdMap.__table__)
-        .values({LocalIdMap.scope: local_id.scope,
-                 LocalIdMap.value: local_id.value,
-                 LocalIdMap.id: uuid4(),
-                 LocalIdMap.timestamp: datetime.utcnow()})
-        .on_conflict_do_nothing()
-        .returning(LocalIdMap.id)
-    ))
+    id_ = await sel_scalar(
+        db,
+        (
+            insert(LocalIdMap.__table__)
+            .values(
+                {
+                    LocalIdMap.scope: local_id.scope,
+                    LocalIdMap.value: local_id.value,
+                    LocalIdMap.id: uuid4(),
+                    LocalIdMap.timestamp: datetime.utcnow(),
+                }
+            )
+            .on_conflict_do_nothing()
+            .returning(LocalIdMap.id)
+        ),
+    )
     if id_ is None:
-        id_ = await sel_scalar(db, (
-            select([LocalIdMap.id])
-            .where(and_(LocalIdMap.scope == local_id.scope,
-                        LocalIdMap.value == local_id.value))
-        ))
+        id_ = await sel_scalar(
+            db,
+            (
+                select([LocalIdMap.id]).where(
+                    and_(
+                        LocalIdMap.scope == local_id.scope,
+                        LocalIdMap.value == local_id.value,
+                    )
+                )
+            ),
+        )
     return id_
 
 
 async def get_auth_user(username, *, db):
-    user_id_select = (
-        select([AuthUser.id])
-        .where(AuthUser.username == username)
-    )
+    user_id_select = select([AuthUser.id]).where(AuthUser.username == username)
     user_id = await sel_scalar(db, user_id_select)
     if user_id is None:
-        user_id = await sel_scalar(db, (
-            insert(AuthUser.__table__)
-            .values({
-                AuthUser.id: uuid4(),
-                AuthUser.username: username,
-            })
-            .on_conflict_do_nothing()
-            .returning(AuthUser.id)
-        ))
+        user_id = await sel_scalar(
+            db,
+            (
+                insert(AuthUser.__table__)
+                .values(
+                    {
+                        AuthUser.id: uuid4(),
+                        AuthUser.username: username,
+                    }
+                )
+                .on_conflict_do_nothing()
+                .returning(AuthUser.id)
+            ),
+        )
         if user_id is None:
             user_id = await sel_scalar(db, user_id_select)
             assert user_id is not None
@@ -147,14 +165,7 @@ async def get_auth_user(username, *, db):
 
 
 @measure_action
-async def sign_in(
-    username: str,
-    password: str,
-    *,
-    db,
-    session,
-    ldap
-) -> bool:
+async def sign_in(username: str, password: str, *, db, session, ldap) -> bool:
     assert username and password, "Username and password are required"
     if not await ldap.check_credentials(username, password):
         return False
@@ -166,12 +177,14 @@ async def sign_in(
     session_ident = session.ensure_ident()
     await db.execute(
         insert(AuthSession.__table__)
-        .values({
-            AuthSession.session: session_ident,
-            AuthSession.auth_user: user_id,
-            AuthSession.creation_time: now,
-            AuthSession.expiration_time: exp,
-        })
+        .values(
+            {
+                AuthSession.session: session_ident,
+                AuthSession.auth_user: user_id,
+                AuthSession.creation_time: now,
+                AuthSession.expiration_time: exp,
+            }
+        )
         .on_conflict_do_update(
             index_elements=[AuthSession.session],
             set_={
@@ -188,8 +201,9 @@ async def sign_in(
 async def sign_out(*, db, session):
     if session.ident:
         await db.execute(
-            AuthSession.__table__.delete()
-            .where(AuthSession.session == session.ident)
+            AuthSession.__table__.delete().where(
+                AuthSession.session == session.ident
+            )
         )
         session.disassociate_user()
 
@@ -236,8 +250,7 @@ async def reset_flag(flag_id, *, db, dirty, changes):
         .values({Flag.enabled: None})
     )
     await db.execute(
-        Condition.__table__.delete()
-        .where(Condition.flag == flag_id)
+        Condition.__table__.delete().where(Condition.flag == flag_id)
     )
     dirty.by_flag.add(flag_id)
     changes.add(flag_id, Action.RESET_FLAG)
@@ -250,13 +263,9 @@ async def delete_flag(flag_id, *, db, changes):
 
     flag_id = UUID(hex=flag_id)
     await db.execute(
-        Condition.__table__.delete()
-            .where(Condition.flag == flag_id)
+        Condition.__table__.delete().where(Condition.flag == flag_id)
     )
-    await db.execute(
-        Flag.__table__.delete()
-        .where(Flag.id == flag_id)
-    )
+    await db.execute(Flag.__table__.delete().where(Flag.id == flag_id))
 
     changes.add(flag_id, Action.DELETE_FLAG)
 
@@ -274,16 +283,16 @@ class AddCheckOp:
 
     def __init__(self, op: dict):
         self.local_id = LocalId(
-            scope=op['local_id']['scope'],
-            value=op['local_id']['value'],
+            scope=op["local_id"]["scope"],
+            value=op["local_id"]["value"],
         )
-        self.variable = op['variable']
-        self.operator = int(op['operator'])
-        self.kind = op['kind']
-        self.value_string = op.get('value_string')
-        self.value_number = op.get('value_number')
-        self.value_timestamp = op.get('value_timestamp')
-        self.value_set = op.get('value_set')
+        self.variable = op["variable"]
+        self.operator = int(op["operator"])
+        self.kind = op["kind"]
+        self.value_string = op.get("value_string")
+        self.value_number = op.get("value_number")
+        self.value_timestamp = op.get("value_timestamp")
+        self.value_set = op.get("value_set")
 
 
 @auth_required
@@ -291,14 +300,14 @@ class AddCheckOp:
 async def add_check(op: AddCheckOp, *, db, dirty):
     id_ = await gen_id(op.local_id, db=db)
     variable_id = UUID(hex=op.variable)
-    values = {Check.id: id_,
-              Check.variable: variable_id,
-              Check.operator: Operator(op.operator)}
+    values = {
+        Check.id: id_,
+        Check.variable: variable_id,
+        Check.operator: Operator(op.operator),
+    }
     values.update(Check.value_from_op(op))
     await db.execute(
-        insert(Check.__table__)
-        .values(values)
-        .on_conflict_do_nothing()
+        insert(Check.__table__).values(values).on_conflict_do_nothing()
     )
     dirty.by_variable.add(variable_id)
     return {op.local_id: id_}
@@ -317,19 +326,21 @@ class AddConditionOp:
 
     def __init__(self, op: dict):
         self.local_id = LocalId(
-            scope=op['local_id']['scope'],
-            value=op['local_id']['value'],
+            scope=op["local_id"]["scope"],
+            value=op["local_id"]["value"],
         )
-        self.flag_id = op['flag_id']
+        self.flag_id = op["flag_id"]
         self.checks = [
             self.Check(
                 local_id=LocalId(
-                    scope=check['local_id']['scope'],
-                    value=check['local_id']['value'],
-                ) if 'local_id' in check else None,
-                id=check.get('id'),
+                    scope=check["local_id"]["scope"],
+                    value=check["local_id"]["value"],
+                )
+                if "local_id" in check
+                else None,
+                id=check.get("id"),
             )
-            for check in op['checks']
+            for check in op["checks"]
         ]
 
 
@@ -340,18 +351,19 @@ async def add_condition(op: AddConditionOp, *, db, ids, dirty, changes):
 
     flag_id = UUID(hex=op.flag_id)
     checks = [
-        ids[check.local_id]
-        if check.local_id else UUID(hex=check.id)
+        ids[check.local_id] if check.local_id else UUID(hex=check.id)
         for check in op.checks
     ]
 
     await db.execute(
         insert(Condition.__table__)
-        .values({
-            Condition.id: id_,
-            Condition.flag: flag_id,
-            Condition.checks: checks,
-        })
+        .values(
+            {
+                Condition.id: id_,
+                Condition.flag: flag_id,
+                Condition.checks: checks,
+            }
+        )
         .on_conflict_do_nothing()
     )
     dirty.by_flag.add(flag_id)
@@ -365,11 +377,14 @@ async def disable_condition(condition_id, *, db, dirty, changes):
     assert condition_id, "Condition id is required"
 
     condition_id = UUID(hex=condition_id)
-    flag_id = await sel_scalar(db, (
-        Condition.__table__.delete()
-        .where(Condition.id == condition_id)
-        .returning(Condition.flag)
-    ))
+    flag_id = await sel_scalar(
+        db,
+        (
+            Condition.__table__.delete()
+            .where(Condition.id == condition_id)
+            .returning(Condition.flag)
+        ),
+    )
     if flag_id is not None:
         dirty.by_flag.add(flag_id)
         changes.add(flag_id, Action.DISABLE_CONDITION)
@@ -378,14 +393,10 @@ async def disable_condition(condition_id, *, db, dirty, changes):
 async def postprocess(*, db, dirty):
     selections = []
     for flag_id in dirty.by_flag:
-        selections.append(
-            select([Flag.project])
-            .where(Flag.id == flag_id)
-        )
+        selections.append(select([Flag.project]).where(Flag.id == flag_id))
     for variable_id in dirty.by_variable:
         selections.append(
-            select([Variable.project])
-            .where(Variable.id == variable_id)
+            select([Variable.project]).where(Variable.id == variable_id)
         )
     if selections:
         await db.execute(
@@ -402,11 +413,12 @@ async def update_changelog(*, session, db, changes: Changes):
         for flag, flag_actions in actions:
             assert flag_actions, repr(flag_actions)
             await db.execute(
-                insert(Changelog.__table__)
-                .values({
-                    Changelog.timestamp: datetime.utcnow(),
-                    Changelog.auth_user: session.user,
-                    Changelog.flag: flag,
-                    Changelog.actions: flag_actions,
-                })
+                insert(Changelog.__table__).values(
+                    {
+                        Changelog.timestamp: datetime.utcnow(),
+                        Changelog.auth_user: session.user,
+                        Changelog.flag: flag,
+                        Changelog.actions: flag_actions,
+                    }
+                )
             )

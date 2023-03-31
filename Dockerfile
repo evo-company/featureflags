@@ -1,13 +1,30 @@
-FROM python:3.7.13-slim-bullseye as base
+FROM python:3.11-slim-bullseye as base
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y build-essential libpq-dev
+ENV PIP_VERSION=22.0.2
+ENV PDM_VERSION=2.4.6
+ENV PDM_USE_VENV=no
+ENV PYTHONPATH=/app/__pypackages__/3.11/lib
 
-COPY server/setup.txt /app/server/setup.txt
+COPY pyproject.toml .
+COPY pdm.lock .
 
-RUN pip3 install --no-cache-dir --no-deps --disable-pip-version-check -r "server/setup.txt"
+RUN apt-get update && apt-get install -y libpq-dev gcc make g++ git && \
+    # install tools
+    pip install --upgrade pip==${PIP_VERSION} && \
+    pip install pdm==${PDM_VERSION} && \
+
+    # configure
+    pdm config cache_dir /pdm_cache && \
+    pdm config check_update false && \
+
+    # install base deps
+    pdm install --no-lock --prod --no-editable  && \
+
+    # cleanup base layer to keep image size small
+    apt purge --auto-remove -y gcc make g++ git && \
+      rm -rf /var/cache/apt && rm -rf /var/lib/apt/list && rm -rf $HOME/.cache
 
 FROM node:12.4.0-alpine as assets-base
 ENV NODE_PATH=/node_modules
@@ -23,31 +40,36 @@ RUN cd ui \
     && npm install \
     && npm run build
 
-FROM base as prd
+FROM base as dev
 
-COPY . .
+RUN pdm install --no-lock -G dev -G lint --no-editable
 
-RUN pip3 install --no-deps server/
+FROM base as test
+
+RUN pdm install --no-lock -G test
+
+FROM base as docs
+
+RUN pdm install --no-lock -G docs
+
+FROM base AS prd
+
+ARG APP_VERSION=0.0.0-dev
+
+ENV TINI_VERSION=v0.18.0
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+RUN chmod +x /tini && /tini --version
 
 COPY --from=assets-prod "ui/dist" "server/featureflags/server/web/static"
+
 ADD "https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.2.0/grpc_health_probe-linux-amd64" \
     "/usr/local/bin/grpc_health_probe"
 
-ADD "https://github.com/krallin/tini/releases/download/v0.18.0/tini" "/tini"
+RUN chmod +x /usr/local/bin/grpc_health_probe
 
-RUN chmod +x /usr/local/bin/grpc_health_probe && chmod +x /tini
+RUN echo "${APP_VERSION}" > /app_version
 
-FROM base as dev
+COPY server/featureflags /app/featureflags
+RUN python3 -m compileall featureflags
 
-RUN pip install pip-tools watchfiles \
-    && mkdir -p /.cache/pip-tools && chmod -R 777 /.cache/pip-tools
-
-FROM dev as test
-COPY requirements-tests.txt .
-
-RUN pip3 install --no-cache-dir --no-deps --disable-pip-version-check -r requirements-tests.txt
-
-FROM base as docs
-COPY requirements-docs.txt .
-
-RUN pip3 install --no-cache-dir --no-deps --disable-pip-version-check -r requirements-docs.txt
+ENTRYPOINT ["/tini", "--", "python3", "-m"]

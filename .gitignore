@@ -13,3 +13,5 @@ examples/local_config.py
 *.egg-info
 .pytest_cache
 .lets
+.pdm.toml
+__pypackages__

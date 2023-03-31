@@ -2,13 +2,11 @@ from hiku.result import ROOT
 
 
 class IdMixin:
-
     def id(self, obj, value):
         obj.id = value.hex
 
 
 class RootBinding:
-
     def flag(self, obj, value):
         if value is not None:
             obj.flag.Flag = value.ident.hex
@@ -30,7 +28,6 @@ class RootBinding:
 
 
 class ProjectBinding(IdMixin):
-
     def name(self, obj, value):
         obj.name = value
 
@@ -43,7 +40,6 @@ class ProjectBinding(IdMixin):
 
 
 class VariableBinding(IdMixin):
-
     def name(self, obj, value):
         obj.name = value
 
@@ -52,7 +48,6 @@ class VariableBinding(IdMixin):
 
 
 class FlagBinding(IdMixin):
-
     def name(self, obj, value):
         obj.name = value
 
@@ -74,7 +69,6 @@ class FlagBinding(IdMixin):
 
 
 class ConditionBinding(IdMixin):
-
     def _checks(self, obj, value):
         pass
 
@@ -84,7 +78,6 @@ class ConditionBinding(IdMixin):
 
 
 class CheckBinding(IdMixin):
-
     def _variable(self, obj, value):
         pass
 
@@ -112,19 +105,19 @@ class CheckBinding(IdMixin):
 
 
 BINDINGS = {
-    'Root': RootBinding(),
-    'Project': ProjectBinding(),
-    'Variable': VariableBinding(),
-    'Flag': FlagBinding(),
-    'Condition': ConditionBinding(),
-    'Check': CheckBinding(),
+    "Root": RootBinding(),
+    "Project": ProjectBinding(),
+    "Variable": VariableBinding(),
+    "Flag": FlagBinding(),
+    "Condition": ConditionBinding(),
+    "Check": CheckBinding(),
 }
 
 
 def populate(result, result_proto):
-    binding = BINDINGS['Root']
+    binding = BINDINGS["Root"]
     for name, value in result.__idx__.root.items():
-        getattr(binding, name.partition('[')[0])(result_proto.Root, value)
+        getattr(binding, name.partition("[")[0])(result_proto.Root, value)
     for node_name, node_index in result.__idx__.items():
         if node_name != ROOT.node:
             binding = BINDINGS[node_name]
@@ -132,5 +125,5 @@ def populate(result, result_proto):
             for id_, obj in node_index.items():
                 obj_proto = idx_proto[id_.hex]
                 for name, value in obj.items():
-                    getattr(binding, name.partition('[')[0])(obj_proto, value)
+                    getattr(binding, name.partition("[")[0])(obj_proto, value)
     return result_proto
