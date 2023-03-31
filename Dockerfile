@@ -9,6 +9,7 @@ ENV PYTHONPATH=/app/__pypackages__/3.11/lib
 
 COPY pyproject.toml .
 COPY pdm.lock .
+COPY scripts/pre-install.sh .
 
 RUN apt-get update && apt-get install -y libpq-dev gcc make g++ git && \
     # install tools
@@ -19,6 +20,7 @@ RUN apt-get update && apt-get install -y libpq-dev gcc make g++ git && \
     pdm config cache_dir /pdm_cache && \
     pdm config check_update false && \
 
+    ./pre-install.sh && \
     # install base deps
     pdm install --no-lock --prod --no-editable  && \
 

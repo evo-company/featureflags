@@ -8,6 +8,9 @@ from metricslog.ext.formatter import ColorFormatter, CEELogstashFormatter
 from featureflags.server.config import LoggingSettings
 
 
+log = logging.getLogger(__name__)
+
+
 class LoggingFilter:
     def filter(self, record):
         return not record.msg.startswith("KeepAlive Timeout")
@@ -47,6 +50,7 @@ def configure_logging(package, section: LoggingSettings):
             import logevo
 
             logevo.configure_logging()
+            log.info("Logevo configured")
         except ImportError:
             raise ImportError(
                 "logevo handler is used but 'logevo' package is not installed"
