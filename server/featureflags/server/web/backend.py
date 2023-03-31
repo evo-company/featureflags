@@ -149,9 +149,13 @@ async def health(_):
     return text("OK")
 
 
-# TODO: add teardown listeners
 async def setup_db(app):
     app.ctx.sa_engine = await get_db(app.ctx.cfg)
+
+
+async def shutdown_db(app):
+    app.ctx.sa_engine.close()
+    await app.ctx.sa_engine.wait_closed()
 
 
 async def setup_hiku(app):
@@ -190,6 +194,7 @@ def create_app(*, cfg):
     app.ctx.cfg = cfg
 
     app.register_listener(setup_db, "before_server_start")
+    app.register_listener(shutdown_db, "before_server_stop")
     app.register_listener(setup_hiku, "before_server_start")
     app.register_listener(setup_ldap, "before_server_start")
 
