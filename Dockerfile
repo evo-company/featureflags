@@ -69,7 +69,7 @@ RUN chmod +x /usr/local/bin/grpc_health_probe
 
 RUN echo "${APP_VERSION}" > /app_version
 
-COPY server/ /app/server
-RUN python3 -m compileall server
+COPY server/featureflags /app/featureflags
+RUN python3 -m compileall featureflags
 
 ENTRYPOINT ["/tini", "--", "python3", "-m"]

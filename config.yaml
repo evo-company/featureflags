@@ -1,6 +1,6 @@
 logging:
   level_app: debug
-  level_libs: debug
+  level_libs: info
   handlers: [console]
 
   syslog_app: null

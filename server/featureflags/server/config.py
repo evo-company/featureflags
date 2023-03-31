@@ -17,8 +17,8 @@ class LoggingSettings(BaseSettings):
 class PostgresSettings(BaseSettings):
     host: str
     port: int
-    user: str = Field("postgres", env="PGUSER")
-    password: str = Field("postgres", env="PGPASS")
+    user: str = Field("user", env="PGUSER")
+    password: str = Field(..., env="PGPASS")
     database: str
 
     @property

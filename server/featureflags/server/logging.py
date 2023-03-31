@@ -5,7 +5,7 @@ from logging.handlers import SysLogHandler
 
 from metricslog.ext.formatter import ColorFormatter, CEELogstashFormatter
 
-from server.featureflags.server.config import LoggingSettings
+from featureflags.server.config import LoggingSettings
 
 
 class LoggingFilter:

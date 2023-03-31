@@ -92,13 +92,13 @@ commands:
     description: Apply migrations to local postgres
     depends:
       - build-dev
-    cmd: docker-compose run --rm backend python3 -m featureflags.server config.yaml@local alembic -- upgrade head
+    cmd: docker-compose run --rm backend pdm run python3 -m featureflags.server config.yaml alembic -- upgrade head
 
   rollback-migration-dev:
     description: Rollback migrations to local postgres
     depends:
       - build-dev
-    cmd: docker-compose run --rm backend python3 -m featureflags.server config.yaml@local alembic -- downgrade -1
+    cmd: docker-compose run --rm backend pdm run python3 -m featureflags.server config.yaml alembic -- downgrade -1
 
   create-migration:
     description: |
@@ -107,7 +107,7 @@ commands:
     depends:
       - build-dev
     cmd:
-      - docker-compose run --rm backend python3 -m featureflags.server config.yaml@local alembic -- revision --autogenerate -m
+      - docker-compose run --rm backend pdm run python3 -m featureflags.server config.yaml alembic -- revision --autogenerate -m
 
   ui:
     description: Build and run ui local

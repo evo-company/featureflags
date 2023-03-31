@@ -39,12 +39,7 @@ services:
       - postgres
     ports:
       - "8000:8000"
-    command:
-    - bash
-    - c
-    - |
-      if [[ ! -d server/
-      pdm run watchfiles --filter python "python3 -m featureflags.server config.yaml web --port 8000" server
+    command: pdm run watchfiles --filter python "python3 -m featureflags.server config.yaml web --port 8000" server
 
   rpc:
     <<: *backend
