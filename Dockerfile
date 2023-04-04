@@ -59,19 +59,20 @@ FROM base AS prd
 ARG APP_VERSION=0.0.0-dev
 
 ENV TINI_VERSION=v0.18.0
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-RUN chmod +x /tini && /tini --version
+ENV GRPC_HEALTH_PROBE_VERSION=v0.2.0
 
-COPY --from=assets-prod "ui/dist" "server/featureflags/server/web/static"
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-arm64 /tini
+RUN chmod +x /tini
 
-ADD "https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v0.2.0/grpc_health_probe-linux-amd64" \
-    "/usr/local/bin/grpc_health_probe"
-
+ADD "https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64" "/usr/local/bin/grpc_health_probe"
 RUN chmod +x /usr/local/bin/grpc_health_probe
 
 RUN echo "${APP_VERSION}" > /app_version
 
 COPY server/featureflags /app/featureflags
+COPY --from=assets-prod "ui/dist" "featureflags/server/web/static"
+
+COPY config.yaml /app/config.yaml
 RUN python3 -m compileall featureflags
 
 ENTRYPOINT ["/tini", "--", "python3", "-m"]
