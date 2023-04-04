@@ -4,6 +4,7 @@ import logging
 import weakref
 import contextlib
 
+from prometheus_client import Histogram
 from sqlalchemy import select
 from hiku.engine import Engine
 from grpclib.utils import graceful_exit
@@ -29,6 +30,36 @@ from ..services.db import get_db
 from ..utils import MC, ACC
 
 log = logging.getLogger(__name__)
+
+
+get_project_version_time = Histogram(
+    "get_project_version_time",
+    "Get project version time (seconds)",
+    [],
+    buckets=(0.050, 0.100, 0.250, 1, float("inf")),
+)
+
+exchange_recv_time = Histogram(
+    "exchange_recv_time",
+    "Exchange method recv time (seconds)",
+    [],
+    buckets=(0.050, 0.100, 0.250, 1, float("inf")),
+)
+
+exchange_send_time = Histogram(
+    "exchange_send_time",
+    "Exchange method send time (seconds)",
+    [],
+    buckets=(0.050, 0.100, 0.250, 1, float("inf")),
+)
+
+
+@metrics.wrap(get_project_version_time.time())
+async def _get_project_version(project: str, *, db):
+    result = await db.execute(
+        select([Project.version]).where(Project.name == project)
+    )
+    return await result.scalar()
 
 
 def debug_cancellation(func):
@@ -82,7 +113,8 @@ class FeatureFlags(FeatureFlagsBase):
     async def Exchange(self, stream):
         self._tasks.add(asyncio.current_task())
         try:
-            request: service_pb2.ExchangeRequest = await stream.recv_message()
+            with exchange_recv_time.time():
+                request: service_pb2.ExchangeRequest = await stream.recv_message()
         except asyncio.CancelledError:
             h2_conn = stream._stream._h2_connection
             window = h2_conn._inbound_flow_control_window_manager
@@ -106,10 +138,7 @@ class FeatureFlags(FeatureFlagsBase):
             raise
         async with self._sa_engine.acquire() as db:
             await add_statistics(request, db=db, mc=self._mc, acc=self._acc)
-            result = await db.execute(
-                select([Project.version]).where(Project.name == request.project)
-            )
-            version = await result.scalar()
+            version = await _get_project_version(request.project, db=db)
 
         reply = service_pb2.ExchangeReply()
         if request.version != version and request.HasField("query"):
@@ -122,8 +151,9 @@ class FeatureFlags(FeatureFlagsBase):
             )
             populate(result, reply.result)
         reply.version = version
-        await stream.send_message(reply)
-        await stream.send_trailing_metadata()
+        with exchange_send_time.time():
+            await stream.send_message(reply)
+            await stream.send_trailing_metadata()
 
     async def store_stats(self, stream):
         # backward compatibility

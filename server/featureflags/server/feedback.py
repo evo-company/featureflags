@@ -4,14 +4,24 @@
 """
 from uuid import uuid4
 
+from prometheus_client import Histogram
 from sqlalchemy import select, and_
 from sqlalchemy.dialects.postgresql import insert
 
 from featureflags.protobuf import service_pb2
 
+from . import metrics
 from .utils import MC, ACC
 from .schema import Type
 from .schema import Flag, Project, Variable
+
+
+add_statistics_time = Histogram(
+    "add_statistics_time",
+    "Add statistics time (seconds)",
+    [],
+    buckets=(0.050, 0.100, 0.250, 1, float("inf")),
+)
 
 
 async def _select_project(name, *, db):
@@ -116,6 +126,7 @@ async def _get_or_create_flag(project, name, *, db, mc: MC):
     return id_
 
 
+@metrics.wrap(add_statistics_time.time())
 async def add_statistics(
     op: service_pb2.ExchangeRequest, *, db, mc: MC, acc: ACC
 ):

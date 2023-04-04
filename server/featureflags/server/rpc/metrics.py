@@ -1,3 +1,4 @@
+import asyncio
 from functools import wraps
 from time import perf_counter
 
@@ -18,6 +19,10 @@ GRPC_METHOD_COUNT = Counter(
     "grpc_method_call_count", "how many times grpc method called", ["method"]
 )
 
+GRPC_ERROR = Counter(
+    "grpc_error_count", "how many times grpc execution failed", ["error"]
+)
+
 GRPC_METHOD_IN_PROGRESS = Gauge(
     "grpc_method_call_in_progress",
     "how many grpc method calls in progress",
@@ -32,11 +37,20 @@ def track(wrapped):
         GRPC_METHOD_COUNT.labels(method).inc()
         GRPC_METHOD_IN_PROGRESS.labels(method).inc()
         start_time = perf_counter()
+        error_type = None
         try:
             rv = await wrapped(*args, **kw)
+        except asyncio.CancelledError:
+            error_type = "asyncio.CancelledError"
+            raise
+        except Exception as err:
+            error_type = err.__class__.__name__
+            raise
         finally:
             GRPC_METHOD_TIME.labels(method).observe(perf_counter() - start_time)
             GRPC_METHOD_IN_PROGRESS.labels(method).dec()
+            if error_type:
+                GRPC_ERROR.labels(error_type).inc()
 
         return rv
 
