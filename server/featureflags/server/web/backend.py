@@ -1,11 +1,10 @@
 import logging
-import os.path
-import pkgutil
 import json
 from datetime import datetime
 from enum import Enum
 from functools import partial
 from typing import Optional
+from pathlib import Path
 
 from uuid import UUID
 
@@ -42,6 +41,7 @@ from ..services.ldap import get_ldap
 log = logging.getLogger(__name__)
 
 COOKIE_MAX_AGE = 365 * 24 * 3600
+STATIC_DIR = Path(__file__).parent / "static"
 
 
 async def on_request(request):
@@ -71,11 +71,8 @@ async def ignore_404(*_, **__):
 
 
 async def index(_):
-    return html(
-        pkgutil.get_data("featureflags.server.web", "static/index.html").decode(
-            "utf-8"
-        )
-    )
+    with open(STATIC_DIR / "index.html", 'rb') as f:
+        return html(f.read().decode('utf-8'))
 
 
 def graph_context(
@@ -184,7 +181,7 @@ def create_app(*, cfg):
 
     app.add_route(graphql, "/graphql", {"POST"})
 
-    app.static("/static", os.path.join(os.path.dirname(__file__), "static"))
+    app.static("/static", STATIC_DIR)
     if not cfg.debug:
         app.error_handler.add(NotFound, ignore_404)
 
