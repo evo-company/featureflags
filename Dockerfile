@@ -61,7 +61,7 @@ ARG APP_VERSION=0.0.0-dev
 ENV TINI_VERSION=v0.18.0
 ENV GRPC_HEALTH_PROBE_VERSION=v0.2.0
 
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-arm64 /tini
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
 
 ADD "https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64" "/usr/local/bin/grpc_health_probe"
