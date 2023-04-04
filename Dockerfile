@@ -72,7 +72,6 @@ RUN echo "${APP_VERSION}" > /app_version
 COPY server/featureflags /app/featureflags
 COPY --from=assets-prod "ui/dist" "featureflags/server/web/static"
 
-COPY config.yaml /app/config.yaml
 RUN python3 -m compileall featureflags
 
 ENTRYPOINT ["/tini", "--", "python3", "-m"]
