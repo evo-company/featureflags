@@ -32,29 +32,27 @@ from ..utils import MC, ACC
 log = logging.getLogger(__name__)
 
 
+add_statistics_time = Histogram(
+    "add_statistics_time",
+    "Add statistics time (seconds)",
+)
+
 get_project_version_time = Histogram(
     "get_project_version_time",
     "Get project version time (seconds)",
-    [],
-    buckets=(0.050, 0.100, 0.250, 1, float("inf")),
 )
 
 exchange_recv_time = Histogram(
     "exchange_recv_time",
     "Exchange method recv time (seconds)",
-    [],
-    buckets=(0.050, 0.100, 0.250, 1, float("inf")),
 )
 
 exchange_send_time = Histogram(
     "exchange_send_time",
     "Exchange method send time (seconds)",
-    [],
-    buckets=(0.050, 0.100, 0.250, 1, float("inf")),
 )
 
 
-@metrics.wrap(get_project_version_time.time())
 async def _get_project_version(project: str, *, db):
     result = await db.execute(
         select([Project.version]).where(Project.name == project)
@@ -137,8 +135,11 @@ class FeatureFlags(FeatureFlagsBase):
             )
             raise
         async with self._sa_engine.acquire() as db:
-            await add_statistics(request, db=db, mc=self._mc, acc=self._acc)
-            version = await _get_project_version(request.project, db=db)
+            with add_statistics_time.time():
+                await add_statistics(request, db=db, mc=self._mc, acc=self._acc)
+
+            with get_project_version_time.time():
+                version = await _get_project_version(request.project, db=db)
 
         reply = service_pb2.ExchangeReply()
         if request.version != version and request.HasField("query"):
