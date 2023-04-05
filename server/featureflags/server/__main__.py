@@ -60,7 +60,6 @@ def rpc_command(cfg, host, port, prometheus_port):
 
     asyncio.run(
         main(cfg, host=host, port=port, prometheus_port=prometheus_port),
-        debug=True,
     )
 
 
