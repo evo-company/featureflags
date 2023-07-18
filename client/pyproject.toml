@@ -1,6 +1,6 @@
 [project]
 name = "evo-featureflags-client"
-version = "0.3.2"
+version = "0.3.3"
 description = "Feature flags client"
 authors = [
     {name = "m.kindritskiy", email = "m.kindritskiy@smartweb.com.ua"},
