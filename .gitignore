@@ -15,3 +15,4 @@ examples/local_config.py
 .lets
 .pdm.toml
 __pypackages__
+.DS_Store

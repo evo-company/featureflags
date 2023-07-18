@@ -27,6 +27,21 @@ Server consists of two services:
 
   - grpclib_ + hiku_
 
+Installation
+~~~~~~~~~~~~
+
+To install client library for synchronous app:
+
+.. code-block:: shell
+
+    $ pip install featureflags-client grpcio
+
+To install client library for asynchronous app:
+
+.. code-block:: shell
+
+    $ pip install featureflags-client grpclib
+
 Development
 ~~~~~~~~~~~
 

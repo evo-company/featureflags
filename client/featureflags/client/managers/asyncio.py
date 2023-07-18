@@ -66,8 +66,20 @@ class AsyncIOManager(AbstractManager):
                 stacklevel=2,
             )
 
-    async def preload(self, *, timeout=None):
-        await self._exchange(timeout)
+    async def preload(self, *, timeout=None, defaults=None):
+        """
+        Preload flags from the server.
+        :param timeout: timeout in seconds (for grpclib)
+        :param defaults: dict with default values for feature flags.
+                         If passed, all feature flags will be synced with server,
+                         otherwise flags will be synced only when they are accessed
+                         for the first time.
+        """
+        stats = None
+        if defaults is not None:
+            stats = self._stats.from_defaults(defaults)
+
+        await self._exchange(timeout, stats)
 
     def start(self):
         if self._exchange_task is not None:
@@ -105,8 +117,11 @@ class AsyncIOManager(AbstractManager):
                 await asyncio.sleep(interval)
                 continue
 
-    async def _exchange(self, timeout):
-        request = self._state.get_request(self._stats.flush())
+    async def _exchange(self, timeout, flags_usage=None):
+        if flags_usage is None:
+            flags_usage = self._stats.flush()
+
+        request = self._state.get_request(flags_usage)
         log.debug('Exchange request, project: %r, version: %r, stats: %r',
                   request.project, request.version, request.flags_usage)
         reply = await self._stub.Exchange(request, timeout=timeout)
