@@ -30,17 +30,19 @@ Server consists of two services:
 Installation
 ~~~~~~~~~~~~
 
+On PyPi: https://pypi.org/project/evo-featureflags-client
+
 To install client library for synchronous app:
 
 .. code-block:: shell
 
-    $ pip install featureflags-client grpcio
+    $ pip install evo-featureflags-client grpcio
 
 To install client library for asynchronous app:
 
 .. code-block:: shell
 
-    $ pip install featureflags-client grpclib
+    $ pip install evo-featureflags-client grpclib
 
 Development
 ~~~~~~~~~~~
