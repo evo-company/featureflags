@@ -225,3 +225,12 @@ class Client:
         finally:
             if tracer is not None:
                 self._manager.add_trace(tracer)
+
+    def preload(self, timeout=None):
+        """Preload flags from server.
+        This method syncs all flags with server"""
+        self._manager.preload(timeout=timeout, defaults=self._defaults)
+
+    async def preload_async(self, timeout=None):
+        """Async version of `preload` method"""
+        await self._manager.preload(timeout=timeout, defaults=self._defaults)
