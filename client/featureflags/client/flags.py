@@ -95,6 +95,15 @@ class StatsCollector:
                 ))
         return stats
 
+    @staticmethod
+    def from_defaults(defaults):
+        interval_pb = Timestamp()
+        interval_pb.FromDatetime(datetime.utcnow())
+        return [
+            FlagUsage(name=name, interval=interval_pb, positive_count=0, negative_count=0)
+            for name in defaults
+        ]
+
 
 class Tracer:
     """

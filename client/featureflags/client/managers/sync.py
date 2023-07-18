@@ -46,11 +46,26 @@ class SyncManager(AbstractManager):
         self._int_gen.send(None)
         self._next_exchange = datetime.utcnow()
 
-    def preload(self, timeout=None):
-        self._exchange(timeout)
+    def preload(self, timeout=None, defaults=None):
+        """
+        Preload flags from the server.
+        :param timeout: timeout in seconds (for grpcio)
+        :param defaults: dict with default values for feature flags.
+                         If passed, all feature flags will be synced with server,
+                         otherwise flags will be synced only when they are accessed
+                         for the first time.
+        """
+        stats = None
+        if defaults is not None:
+            stats = self._stats.from_defaults(defaults)
 
-    def _exchange(self, timeout):
-        request = self._state.get_request(self._stats.flush())
+        self._exchange(timeout, stats)
+
+    def _exchange(self, timeout, flags_usage=None):
+        if flags_usage is None:
+            flags_usage = self._stats.flush()
+
+        request = self._state.get_request(flags_usage)
         log.debug('Exchange request, project: %r, version: %r, stats: %r',
                   request.project, request.version, request.flags_usage)
         reply = self._stub.Exchange(request, timeout=timeout)
