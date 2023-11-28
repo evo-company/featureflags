@@ -11,7 +11,7 @@ dependencies = [
     'grpclib>=0.4.3',
     "click==8",
     "hiku==0.6.0",
-    "protobuf==3.20.1",
+    "protobuf>=4.25.1",
     "sqlalchemy==1.4.42",
     "aiopg[sa]==1.4.0",
     "psycopg2==2.9.5",

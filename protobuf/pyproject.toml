@@ -14,5 +14,26 @@ license = {text = "MIT"}
 requires = ["pdm-pep517>=1.0.0"]
 build-backend = "pdm.pep517.api"
 
+[project.optional-dependencies]
+dev = [
+    "protobuf>=4.24.4",
+    "grpcio-tools>=1.59.3",
+    "hiku==0.6.0",
+    "grpclib>=0.4.6",
+]
+
+[tool]
+
 [tool.pdm]
 
+[tool.pdm.scripts.generate-proto]
+shell = """
+set -e
+
+export PROTO_PATH=$(python3 -c 'import os.path, hiku;\
+                    print(os.path.dirname(os.path.dirname(hiku.__file__)))')
+
+python3 -m grpc_tools.protoc -I. -I$PROTO_PATH --python_out=. featureflags/protobuf/backend.proto
+python3 -m grpc_tools.protoc -I. -I$PROTO_PATH --python_out=. featureflags/protobuf/graph.proto
+python3 -m grpc_tools.protoc -I. -I$PROTO_PATH --python_out=. --python_grpc_out=.  --grpc_python_out=. featureflags/protobuf/service.proto
+"""

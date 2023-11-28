@@ -30,7 +30,7 @@ test = [
     "faker",
     "tox-pdm",
     "grpclib",
-    "protobuf==3.20.1",
+    "protobuf>=4.24.4",
     "grpcio",
     "evo-featureflags-protobuf @ file:///${PROJECT_ROOT}/../protobuf",
 ]
