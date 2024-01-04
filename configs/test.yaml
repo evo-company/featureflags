@@ -1,5 +1,6 @@
 debug: true
 secret: 023517f06f444118986877e636b4a226
+test_environ: false
 
 app:
   port: 8000
@@ -34,4 +35,4 @@ ldap:
   base_dn: null
 
 instrumentation:
-  prometheus_port: 9100
+  prometheus_port: null
