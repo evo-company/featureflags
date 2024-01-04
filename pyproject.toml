@@ -1,10 +1,11 @@
 [project]
 name = "evo-featureflags"
-version = "0.0.1"
-description = "Feature flags"
+version = "1.0.0"
+description = "Feature flags server"
 authors = [
     {name = "m.kindritskiy", email = "m.kindritskiy@smartweb.com.ua"},
     {name = "Vladimir Magamedov",email = "vladimir@magamedov.com"},
+    {name = "d.zakharchuk", email = "d.zakharchuk@smartweb.com.ua"},
 ]
 dependencies = [
     "evo-featureflags-protobuf",
@@ -29,11 +30,15 @@ dependencies = [
 requires-python = ">=3.11"
 license = {text = "MIT"}
 
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
 [tool]
 
 [tool.pdm]
 excludes = [
-    "server/tests",
+    "featureflags/tests",
 ]
 includes = [
     "server",
