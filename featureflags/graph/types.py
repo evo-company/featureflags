@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from dataclasses import dataclass
 from enum import Enum
 from uuid import UUID
@@ -112,3 +112,9 @@ class AddConditionOp:
             )
             for check in op["checks"]
         ]
+
+
+AuthResult = namedtuple("AuthResult", ["error"])
+SaveFlagResult = namedtuple("SaveFlagResult", ["errors"])
+ResetFlagResult = namedtuple("ResetFlagResult", ["error"])
+DeleteFlagResult = namedtuple("DeleteFlagResult", ["error"])

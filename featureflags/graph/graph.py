@@ -1,5 +1,4 @@
 import contextvars
-from collections import namedtuple
 from uuid import UUID
 
 import aiopg.sa
@@ -18,7 +17,7 @@ from hiku.graph import (
     Root,
     apply,
 )
-from hiku.result import denormalize
+from hiku.result import Proxy, denormalize
 from hiku.sources.aiopg import (
     FieldsQuery,
     LinkQuery,
@@ -37,17 +36,20 @@ from hiku.types import (
 from sqlalchemy import select
 
 from featureflags.graph import actions
-from featureflags.graph.actions import (
-    AddCheckOp,
-    AddConditionOp,
-    postprocess,
-    update_changelog,
-)
 from featureflags.graph.metrics import (
     GRAPH_PULL_ERRORS_COUNTER,
     GRAPH_PULL_TIME_HISTOGRAM,
 )
-from featureflags.graph.types import GraphContext, Operation
+from featureflags.graph.types import (
+    AddCheckOp,
+    AddConditionOp,
+    AuthResult,
+    DeleteFlagResult,
+    GraphContext,
+    Operation,
+    ResetFlagResult,
+    SaveFlagResult,
+)
 from featureflags.graph.utils import is_valid_uuid
 from featureflags.metrics import wrap_metric
 from featureflags.models import (
@@ -384,7 +386,9 @@ RootNode = Root(
 )
 
 
-async def auth_info(fields, auth_results):
+async def auth_info(
+    fields: list[Field], auth_results: list[AuthResult]
+) -> list[list]:
     [auth_result] = auth_results
 
     def get_field(name):
@@ -411,7 +415,9 @@ SignOutNode = Node(
 )
 
 
-async def save_flag_info(fields, results):
+async def save_flag_info(
+    fields: list[Field], results: list[SaveFlagResult]
+) -> list[list]:
     [result] = results
 
     def get_field(name):
@@ -423,7 +429,9 @@ async def save_flag_info(fields, results):
     return [[get_field(f.name)] for f in fields]
 
 
-async def reset_flag_info(fields, results):
+async def reset_flag_info(
+    fields: list[Field], results: list[ResetFlagResult]
+) -> list[list]:
     [result] = results
 
     def get_field(name):
@@ -450,7 +458,9 @@ ResetFlagNode = Node(
 )
 
 
-async def delete_flag_info(fields, results):
+async def delete_flag_info(
+    fields: list[Field], results: list[DeleteFlagResult]
+) -> list[list]:
     [result] = results
 
     def get_field(name):
@@ -482,11 +492,9 @@ GRAPH = Graph(
     ]
 )
 
-AuthResult = namedtuple("AuthResult", ["error"])
-
 
 @pass_context
-async def sing_in(ctx, options):
+async def sing_in(ctx: dict, options: dict) -> AuthResult:
     if ctx[GraphContext.USER_SESSION].get().is_authenticated:
         return AuthResult(None)
 
@@ -512,7 +520,7 @@ async def sing_in(ctx, options):
 
 
 @pass_context
-async def sing_out(ctx):
+async def sing_out(ctx: dict) -> AuthResult:
     if not ctx[GraphContext.USER_SESSION].get().is_authenticated:
         return AuthResult(None)
     async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
@@ -521,9 +529,6 @@ async def sing_out(ctx):
             session=ctx[GraphContext.USER_SESSION].get(),
         )
     return AuthResult(None)
-
-
-SaveFlagResult = namedtuple("SaveFlagResult", ["errors"])
 
 
 @pass_context
@@ -581,19 +586,16 @@ async def save_flag(ctx: dict, options: dict) -> SaveFlagResult:
                 case _:
                     raise ValueError(f"Unknown operation: {operation_type}")
 
-        await postprocess(
+        await actions.postprocess(
             db_connection=conn, dirty=ctx[GraphContext.DIRTY_PROJECTS]
         )
-        await update_changelog(
+        await actions.update_changelog(
             session=ctx[GraphContext.USER_SESSION].get(),
             db_connection=conn,
             changes=ctx[GraphContext.CHANGES],
         )
 
     return SaveFlagResult(None)
-
-
-ResetFlagResult = namedtuple("ResetFlagResult", ["error"])
 
 
 @pass_context
@@ -605,19 +607,16 @@ async def reset_flag(ctx: dict, options: dict) -> ResetFlagResult:
             dirty=ctx[GraphContext.DIRTY_PROJECTS],
             changes=ctx[GraphContext.CHANGES],
         )
-        await postprocess(
+        await actions.postprocess(
             db_connection=conn, dirty=ctx[GraphContext.DIRTY_PROJECTS]
         )
-        await update_changelog(
+        await actions.update_changelog(
             session=ctx[GraphContext.USER_SESSION].get(),
             db_connection=conn,
             changes=ctx[GraphContext.CHANGES],
         )
 
     return ResetFlagResult(None)
-
-
-DeleteFlagResult = namedtuple("DeleteFlagResult", ["error"])
 
 
 @pass_context
@@ -699,7 +698,7 @@ async def exec_graph(
     query: Node,
     db_engine: aiopg.sa.Engine,
     session: contextvars.ContextVar[UserSession],
-):
+) -> Proxy:
     return await graph_engine.execute(
         GRAPH,
         query,
