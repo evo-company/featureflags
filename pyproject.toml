@@ -155,6 +155,7 @@ exclude = [
     "venv",
     ".ve",
     "__pycache__",
+    "featureflags/migrations",
 ]
 line-length = 80
 # Allow unused variables when underscore-prefixed.
