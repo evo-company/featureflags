@@ -70,6 +70,12 @@ commands:
       - build-dev
     cmd: docker-compose up rpc
 
+  http:
+    description: Run http server
+    depends:
+      - build-dev
+    cmd: docker-compose up http
+
   test:
     description: Run tests
     depends: [ build-test ]

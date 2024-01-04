@@ -36,3 +36,10 @@ def rpc() -> None:
 
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     asyncio.run(rpc_main())
+
+
+@cli.command(name="http", help="Run http server")
+def http() -> None:
+    from featureflags.http.app import main as http_main
+
+    http_main()
