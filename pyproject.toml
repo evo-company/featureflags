@@ -3,27 +3,29 @@ name = "evo-featureflags"
 version = "1.0.0"
 description = "Feature flags server"
 authors = [
-    {name = "m.kindritskiy", email = "m.kindritskiy@smartweb.com.ua"},
-    {name = "Vladimir Magamedov",email = "vladimir@magamedov.com"},
     {name = "d.zakharchuk", email = "d.zakharchuk@smartweb.com.ua"},
+    {name = "m.kindritskiy", email = "m.kindritskiy@smartweb.com.ua"},
+    {name = "Vladimir Magamedov", email = "vladimir@magamedov.com"},
 ]
 dependencies = [
-    "evo-featureflags-protobuf",
-    'grpclib>=0.4.3',
-    "click==8",
-    "hiku==0.6.0",
-    "protobuf==3.20.1",
+    "evo-featureflags-protobuf==0.2.1",  # TODO: change to 0.3.0
+    "typer>=0.9.0",
+    "grpclib==0.4.5",
+    "hiku==0.7.1",
+    "protobuf<4.0.0",
     "sqlalchemy==1.4.42",
     "aiopg[sa]==1.4.0",
-    "psycopg2==2.9.5",
+    "psycopg2==2.9.7",
     "graphql-core==3.2.3",
-    "prometheus-client==0.15.0",
-    "alembic==1.5.8",
-    "metricslog",
-    "pyyaml",
-    "pyjwt",
-    "ldap3",
-    "pydantic>=1.10.7",
+    "prometheus-client==0.17.1",
+    "alembic==1.12.0",
+    "metricslog==0.1.3",
+    "pyyaml==6.0.1",
+    "pyjwt==2.8.0",
+    "ldap3==2.9.1",
+    "pydantic>=2.3.0",
+    "pydantic-settings>=2.0.3",
+    "setuptools==68.2.2",
     "sanic>=23.3.0",
     "setuptools",
 ]
@@ -36,42 +38,35 @@ build-backend = "pdm.backend"
 
 [tool]
 
-[tool.pdm]
-excludes = [
-    "featureflags/tests",
-]
-includes = [
-    "server",
-    "client",
-    "protobuf"
-]
-version = {use_scm = true}
-
 [tool.pdm.scripts]
-test = "python -m pytest"
+test = "python -m pytest {args}"
 docs = "sphinx-build -a -b html docs public"
-fmt = "black server"
+ruff = "ruff check featureflags {args} --fix"
+ruff-diff = "ruff check featureflags {args}"
+mypy = "mypy featureflags {args}"
+black = "black featureflags {args}"
+fmt = {composite = ["black", "ruff"]}
 
 [tool.pdm.dev-dependencies]
-
 test = [
-    "pytest~=7.1",
-    "pytest-asyncio~=0.18",
-    "faker",
-    "tox-pdm"
+    "pytest~=7.4",
+    "pytest-asyncio~=0.21",
+    "faker~=19.6.1",
+    "tox-pdm~=0.7.0"
 ]
 lint = [
-    "black",
-    "flake8~=5.0",
+    "black~=23.9.1",
+    "ruff>=0.0.292",
+    "mypy>=1.6.0",
 ]
 dev = [
-    "watchfiles",
-    "ipython>=8.4.0",
+    "watchfiles~=0.20.0",
+    "ipython~=8.15.0",
 ]
 docs = [
-    "sphinx",
-    "sphinx-rtd-theme",
-    "sphinxcontrib-asyncio",
+    "sphinx==7.2.5",
+    "sphinx-rtd-theme==1.3.0",
+    "sphinxcontrib-asyncio==0.3.0",
 ]
 
 [tool.pytest.ini_options]
@@ -81,10 +76,126 @@ filterwarnings = [
 ]
 log_cli = true
 testpaths = [
-    "server/tests",
+    "featureflags/tests",
 ]
 asyncio_mode = "auto"
 
 [tool.black]
 line-length = 80
 target-version = ['py311']
+extend-exclude = '''
+/(
+  | .git
+  | __pycache__
+  | __pypackages__
+  | .venv
+  | venv
+  | .ve
+)/
+'''
+
+[tool.ruff]
+select = [
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # Pyflakes
+    "C90", # McCabe
+    "I", # isort
+    "N", # pep8-naming
+    "UP", # pyupgrade
+    "ASYNC", # flake8-async
+    "S", # bandit
+    "DTZ", # flake8-datetimez
+    "A", # flake8-builtins
+    "B", # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "T20", # flake8-print
+    "SIM", # flake8-simplify
+    "ERA", # eradicate
+    "PL", # pylint
+    "RUF", # ruff-specific
+]
+ignore = [
+    "S101",
+    "S104",
+    "S105",
+    "DTZ003",
+    "DTZ006",
+    "A003",
+    "B008",
+]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    ".venv",
+    "venv",
+    ".ve",
+    "__pycache__",
+]
+line-length = 80
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+target-version = "py311"
+
+[tool.ruff.per-file-ignores]
+"featureflags/tests/*" = [
+    "A002",
+    "E501",
+    "S101",
+    "S105",
+    "S106",
+    "PLR2004",
+    "PLR0913",
+    "DTZ005",
+    "DTZ003",
+]
+
+[tool.ruff.mccabe]
+max-complexity = 10
+
+[tool.ruff.isort]
+known-first-party = ["featureflags"]
+
+[tool.mypy]
+python_version = "3.11"
+follow_imports = "normal"
+pretty = true
+strict_optional = false
+warn_no_return = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+exclude = [
+    ".git",
+    "__pycache__",
+    "__pypackages__",
+    ".venv",
+    "venv",
+    ".ve",
+]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_decorators = false
+disable_error_code = [
+    "no-untyped-def",
+    "attr-defined",
+]
