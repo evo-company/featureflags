@@ -48,7 +48,7 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
         self._tasks.add(asyncio.current_task())
         try:
             request: service_pb2.ExchangeRequest = await stream.recv_message()
-        except asyncio.CancelledError as exc:
+        except asyncio.CancelledError:
             h2_conn = stream._stream._h2_connection
             window = h2_conn._inbound_flow_control_window_manager
             log.info(
@@ -68,7 +68,7 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
                 stream.user_agent,
                 stream.metadata,
             )
-            raise from exc
+            raise
 
         async with self._db_engine.acquire() as db_connection:
             await add_statistics(

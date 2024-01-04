@@ -12,7 +12,7 @@ def debug_cancellation(func: Callable) -> Callable:
         start_time = time.monotonic()
         try:
             return await func(self, stream, *args, **kwargs)
-        except asyncio.CancelledError as e:
+        except asyncio.CancelledError:
             if stream.deadline:
                 deadline = stream.deadline.time_remaining()
                 log.exception(
@@ -30,6 +30,6 @@ def debug_cancellation(func: Callable) -> Callable:
                     stream.metadata,
                 )
 
-            raise from e
+            raise
 
     return wrapper
