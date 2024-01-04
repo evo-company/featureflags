@@ -114,7 +114,7 @@ BINDINGS = {
 }
 
 
-def populate(result, result_proto):
+def populate_result_proto(result, result_proto):
     binding = BINDINGS["Root"]
     for name, value in result.__idx__.root.items():
         getattr(binding, name.partition("[")[0])(result_proto.Root, value)

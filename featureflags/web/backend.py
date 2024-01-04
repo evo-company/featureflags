@@ -18,8 +18,8 @@ from hiku.executors.asyncio import AsyncIOExecutor
 from hiku.endpoint.graphql import AsyncBatchGraphQLEndpoint
 
 from featureflags import metrics
-from featureflags.auth import get_session
-from featureflags.actions import (
+from featureflags.services.auth import get_session
+from featureflags.graph.actions import (
     AccessError,
     DirtyProjects,
     Changes,

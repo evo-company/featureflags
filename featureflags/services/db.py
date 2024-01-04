@@ -1,12 +1,15 @@
+from collections.abc import AsyncGenerator
+
 import aiopg.sa
 
-from featureflags.config import Config
+from featureflags.config import config
 
 
-def get_db(cfg: Config, *, timeout=10):
-    return aiopg.sa.create_engine(
-        cfg.postgres.dsn,
-        echo=cfg.debug,
+async def init_db_engine() -> AsyncGenerator[aiopg.sa.Engine, None]:
+    async with aiopg.sa.create_engine(
+        config.postgres.dsn,
+        echo=config.debug,
         enable_hstore=False,
-        timeout=timeout,
-    )
+        timeout=config.postgres.timeout,
+    ) as engine:
+        yield engine

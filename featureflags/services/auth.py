@@ -9,7 +9,7 @@ import jwt
 from sqlalchemy import select
 
 from featureflags.utils import sel_first
-from featureflags.schema import AuthSession
+from featureflags.models import AuthSession
 
 
 ACCESS_TOKEN_TTL = timedelta(minutes=10)
