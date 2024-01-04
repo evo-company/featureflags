@@ -37,3 +37,8 @@ featureflags/web/static
 # Ignore any build artifacts
 build/
 dist/
+
+# Production configs
+configs/*
+!configs/local.yaml
+!configs/test.yaml

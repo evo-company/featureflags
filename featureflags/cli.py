@@ -1,67 +1,38 @@
-import logging
+from typing import Annotated
 
-import click
-import asyncio
+import typer
 
-from featureflags.config import load_config
 from featureflags.logging import configure_logging
 
-log = logging.getLogger(__name__)
+configure_logging(__package__)
+
+cli = typer.Typer()
 
 
-@click.group()
-@click.argument("config")
-@click.pass_context
-def cli(ctx, config):
-    if not config:
-        print("Please provide config path, e.g. config.yaml")
-        ctx.exit(1)
+@cli.command(
+    name="alembic",
+    help="Run alembic",
+)
+def alembic(args: Annotated[list[str], typer.Argument()]) -> None:
+    from featureflags.alembic import main as alembic_main
 
-    cfg = load_config(config)
-    configure_logging(__package__, cfg.logging)
-    ctx.obj = cfg
+    alembic_main(args)
 
 
-@cli.command(name="alembic")
-@click.argument("args", nargs=-1)
-@click.pass_obj
-def alembic_command(cfg, args):
-    import alembic.config
+@cli.command(name="web", help="Run web server")
+def web() -> None:
+    from featureflags.web.app import main as web_main
 
-    alembic_cfg = alembic.config.Config()
-    alembic_cfg.set_main_option(
-        "script_location", "featureflags.server:migrations"
-    )
-    alembic_cfg.set_main_option("url", cfg.postgres.dsn)
-
-    alembic_cli = alembic.config.CommandLine()
-    options = alembic_cli.parser.parse_args(args)
-    alembic_cli.run_cmd(alembic_cfg, options)
+    web_main()
 
 
-@cli.command(name="web")
-@click.option("--host", default="0.0.0.0")
-@click.option("--port", type=int)
-@click.option("--prometheus-port", type=int)
-@click.pass_obj
-def web_command(cfg, host, port, prometheus_port):
-    from .web.backend import main
+@cli.command(name="rpc", help="Run rpc server")
+def rpc() -> None:
+    import asyncio
 
-    main(cfg, host, port, prometheus_port)
+    import uvloop
 
+    from featureflags.rpc.app import main as rpc_main
 
-@cli.command(name="rpc")
-@click.option("--host", default="0.0.0.0")
-@click.option("--port", type=int)
-@click.option("--prometheus-port", type=int)
-@click.pass_obj
-def rpc_command(cfg, host, port, prometheus_port):
-    from .rpc.service import main
-
-    asyncio.run(
-        main(cfg, host=host, port=port, prometheus_port=prometheus_port),
-    )
-
-
-if __name__ == "__main__":
-    cli.main(prog_name=f"python -m {__package__}")
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+    asyncio.run(rpc_main())
