@@ -7,8 +7,18 @@ env:
     sh: echo "`id -u`:`id -g`"
 
 commands:
+  build-target:
+    options: |
+      Usage: lets build-target <target>
+    cmd: |
+      docker build \
+        -t featureflags-server-${LETSOPT_TARGET} \
+        -f Dockerfile \
+        --target ${LETSOPT_TARGET} \
+        .
+
   build-prod:
-    description: build server image with embeded frontend
+    description: Build server image with embeded frontend
     options: |
       Usage: lets build-prod --repo=<repo> --tag=<tag>
 
@@ -17,109 +27,144 @@ commands:
         --tag=<tag>                  Set container tag
     cmd: |
       docker build \
-        -f Dockerfile \
+        -f docker/server.Dockerfile \
         -t ${LETSOPT_REPO}:${LETSOPT_TAG} \
         --target prd \
         .
 
   build-dev:
-    description: build dev server image
-    cmd: |
-      docker build \
-        -f Dockerfile \
-        -t featureflags-server \
-        --target dev \
-        .
+    description: Build dev server image
+    ref: build-target
+    args: dev
 
   build-test:
-    description: build test server image
-    cmd: |
-      docker build \
-        -f Dockerfile \
-        -t featureflags-server-test \
-        --target test \
-        .
+    description: Build test server image
+    ref: build-target
+    args: test
 
   build-docs:
-    description: build docs image
-    cmd: |
-      docker build \
-        -f Dockerfile \
-        -t featureflags-docs \
-        --target docs \
-        .
+    description: Build docs image
+    ref: build-target
+    args: docs
 
   build-ui:
-    description: build ui image
-    cmd: |
-      docker build \
-        -f Dockerfile \
-        -t featureflags-assets \
-        --target assets-dev \
-        .
+    description: Build client image
+    ref: build-target
+    args: assets-dev
 
   run:
-    description: run whole application
+    description: Run whole application
     depends:
       - build-dev
-    cmd: docker-compose up server postgres
+    cmd: docker-compose up web rpc client
 
   web:
-    description: run web server
+    description: Run web server
     depends:
       - build-dev
     cmd: docker-compose up web
 
   rpc:
-    description: run grpc server
+    description: Run grpc server
     depends:
       - build-dev
     cmd: docker-compose up rpc
 
   test:
-    description: run tests
-    depends:
-      - build-test
+    description: Run tests
+    depends: [ build-test ]
     cmd: |
       export ARGS="$@"
       docker-compose run --rm test
 
   postgres:
-    description: run postgres
+    description: Run postgres
     cmd: docker-compose up postgres
 
-  apply-migration-dev:
+  apply-migrations-dev:
     description: Apply migrations to local postgres
-    depends:
-      - build-dev
-    cmd: docker-compose run --rm backend pdm run python3 -m featureflags.server config.yaml alembic -- upgrade head
+    depends: [ build-dev ]
+    cmd: |
+      docker-compose run --rm backend \
+        pdm run python3 -m featureflags alembic -- upgrade head
 
   rollback-migration-dev:
     description: Rollback migrations to local postgres
-    depends:
-      - build-dev
-    cmd: docker-compose run --rm backend pdm run python3 -m featureflags.server config.yaml alembic -- downgrade -1
+    depends: [ build-dev ]
+    cmd: |
+      docker-compose run --rm backend \
+        pdm run python3 -m featureflags alembic -- downgrade -1
 
   create-migration:
     description: |
       Create new migration file
       Example: lets create-migration add_date_created_column_to_user_table
-    depends:
-      - build-dev
-    cmd:
-      - docker-compose run --rm backend pdm run python3 -m featureflags.server config.yaml alembic -- revision --autogenerate -m
+    depends: [ build-dev ]
+    cmd: |
+      docker-compose run --rm backend \
+        pdm run python3 -m featureflags alembic -- revision --autogenerate -m
 
-  ui:
-    description: Build and run ui local
-    work_dir: ./ui
-    cmd: npm run dev
+  apply-seeds-dev:
+    description: Apply seeds to local postgres
+    cmd: |
+      docker-compose exec postgres \
+        psql -U postgres -d featureflags -f /var/lib/postgresql/seeds/seeds.sql
+
+  ishell:
+    description: Run app with ipython
+    depends: [ build-dev ]
+    cmd: docker-compose run --rm ishell
 
   psql:
     cmd: docker-compose exec postgres psql -U postgres -d featureflags
 
   gen-docs:
-    description: generate docs
-    depends:
-      - build-docs
+    description: Generate docs
+    depends: [ build-docs ]
     cmd: |
-      docker-compose run --rm docs
+      docker-compose run --rm docs \
+        sphinx-build -a -b html docs public
+
+  copy-ui-bundle:
+    description: Build and copy UI bundle to server
+    cmd: ./scripts/build-copy-ui-dist.sh
+
+  ui:
+    description: Build and run UI local
+    work_dir: ./ui
+    cmd: npm run dev
+
+  ruff:
+    description: Run ruff and fix errors
+    depends: [ build-dev ]
+    cmd: |
+      docker-compose run -T --rm backend \
+        pdm run ruff ${LETS_COMMAND_ARGS}
+
+  ruff-diff:
+    description: Run ruff to check diff
+    depends: [ build-dev ]
+    cmd: |
+      docker-compose run -T --rm backend \
+        pdm run ruff-diff ${LETS_COMMAND_ARGS}
+
+  mypy:
+    description: Run mypy
+    depends: [ build-dev ]
+    cmd: |
+      docker-compose run -T --rm backend \
+        pdm run mypy ${LETS_COMMAND_ARGS}
+
+  black:
+    description: Run black
+    depends: [ build-dev ]
+    cmd: |
+      docker-compose run -T --rm backend \
+        pdm run black ${LETS_COMMAND_ARGS}
+
+  fmt:
+    description: Run black and ruff
+    depends: [ build-dev ]
+    cmd: |
+      docker-compose run -T --rm backend \
+        pdm run fmt
