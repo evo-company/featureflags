@@ -1,0 +1,81 @@
+import logging
+
+import aiopg.sa
+from google.protobuf.empty_pb2 import Empty
+from grpclib.server import Stream
+from hiku.engine import Engine
+from hiku.readers import protobuf
+from sqlalchemy import select
+
+from featureflags.graph.graph import exec_graph
+from featureflags.graph.proto_adapter import populate_result_proto
+from featureflags.models import Project
+from featureflags.rpc.db import add_statistics
+from featureflags.rpc.metrics import track
+from featureflags.rpc.utils import debug_cancellation
+from featureflags.services.auth import (
+    user_session,
+)
+from featureflags.utils import EntityCache, FlagAggStats, select_scalar
+from featureflags_protobuf import service_grpc, service_pb2
+
+log = logging.getLogger(__name__)
+
+
+class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
+    def __init__(
+        self,
+        db_engine: aiopg.sa.Engine,
+        graph_engine: Engine,
+    ) -> None:
+        self._entity_cache = EntityCache()
+        self._flag_agg_stats = FlagAggStats()
+        self._graph_engine = graph_engine
+        self._db_engine = db_engine
+
+    async def exchange(self, stream: Stream) -> None:
+        # backward compatibility
+        await self.Exchange(stream)
+
+    @debug_cancellation
+    @track
+    async def Exchange(self, stream: Stream) -> None:  # noqa: N802
+        request: service_pb2.ExchangeRequest = await stream.recv_message()
+
+        async with self._db_engine.acquire() as db_connection:
+            await add_statistics(
+                request,
+                db_connection=db_connection,
+                entity_cache=self._entity_cache,
+                flag_agg_stats=self._flag_agg_stats,
+            )
+            version = select_scalar(
+                db_connection,
+                select([Project.version]).where(
+                    Project.name == request.project
+                ),
+            )
+
+        exchange_reply = service_pb2.ExchangeReply()
+
+        if request.version != version and request.HasField("query"):
+            result = await exec_graph(
+                graph_engine=self._graph_engine,
+                query=protobuf.transform(request.query),
+                db_engine=self._db_engine,
+                session=user_session,
+            )
+            populate_result_proto(result, exchange_reply.result)
+
+        exchange_reply.version = version
+
+        await stream.send_message(exchange_reply)
+        await stream.send_trailing_metadata()
+
+    async def store_stats(self, stream: Stream) -> None:
+        # backward compatibility
+        await self.StoreStats(stream)
+
+    @track
+    async def StoreStats(self, stream: Stream) -> None:  # noqa: N802
+        await stream.send_message(Empty())

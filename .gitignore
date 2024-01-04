@@ -1,18 +1,41 @@
-public
-static
-build
-dist
-env
-node_modules
-examples/local_config.py
-.idea
-.venv
-.cache
-.tox
+# Ignore Python bytecode files / cache
 *.pyc
-*.egg-info
+*.pyo
+*.pyd
+.mypy_cache
 .pytest_cache
-.lets
-.pdm.toml
+.ruff_cache
+__pycache__
 __pypackages__
-.DS_Store
+featureflags_protobuf
+seeds/seeds.sql
+
+# Ignore Python virtual environment files
+venv/
+.venv/
+.ve/
+.pdm.toml
+.pdm-python
+.pdm-build
+featureflags/web/static
+
+# Ignore local development configuration files
+.env
+.lets
+.ipython
+.ptpython
+.python-version
+.secrets
+
+# Ignore IDE settings
+.vscode
+.idea
+
+# Ignore any compiled Python extension modules
+*.so
+
+# Ignore any build artifacts
+build/
+dist/
+
+configs/trunk.yaml
