@@ -1,30 +1,26 @@
-from uuid import UUID
-from typing import Optional
 from dataclasses import dataclass
+from uuid import UUID
 
-import pytest
 import aiopg.sa
 import hiku.engine
-
+import pytest
+from fastapi import HTTPException
+from hiku.endpoint.graphql import (
+    AsyncBatchGraphQLEndpoint,
+    AsyncGraphQLEndpoint,
+)
 from sqlalchemy import select
-from sanic.exceptions import Unauthorized
+from state import mk_auth_user, mk_flag
 
-from featureflags.services.auth import TestSession
-from featureflags.models import Flag
+from featureflags.graph import graph
+from featureflags.graph.context import init_graph_context
 from featureflags.graph.graph import (
     GRAPH,
     MUTATION_GRAPH,
 )
-from featureflags.web.backend import (
-    AsyncGraphQLEndpoint,
-    graph_context,
-)
-
+from featureflags.models import Flag
 from featureflags.services import auth
-from state import (
-    mk_flag,
-    mk_auth_user,
-)
+from featureflags.services.auth import TestSession
 
 
 @dataclass
@@ -38,7 +34,7 @@ class AppStub:
 class RequestStub:
     app: AppStub
     body: bytes
-    user: Optional[UUID] = None
+    user: UUID | None = None
 
     def __getitem__(self, item):
         if item == "session":
@@ -59,19 +55,19 @@ async def get_flag(flag, *, db):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("authenticated", [True, False])
-async def test_reset_flag_graph(authenticated, sa, db, hiku_engine):
+async def test_reset_flag_graph(authenticated, sa, db, graph_engine):
     flag = await mk_flag(db, enabled=True)
 
     query = {
         "query": """
-            mutation ResetFlag($id: String!) { 
-                resetFlag(id: $id) { error } 
+            mutation ResetFlag($id: String!) {
+                resetFlag(id: $id) { error }
             }
         """,
         "variables": {"id": str(flag.id)},
     }
     graphql_endpoint = AsyncGraphQLEndpoint(
-        hiku_engine,
+        graph_engine,
         GRAPH,
         MUTATION_GRAPH,
     )
@@ -81,10 +77,10 @@ async def test_reset_flag_graph(authenticated, sa, db, hiku_engine):
         if user:
             session = auth.TestSession(user)
 
-        ctx = graph_context(
-            sa,
-            session,
-            None,
+        ctx = init_graph_context(
+            session=session,
+            engine=sa,
+            ldap=None,
         )
         return await graphql_endpoint.dispatch_ext(query, ctx)
 
@@ -92,33 +88,33 @@ async def test_reset_flag_graph(authenticated, sa, db, hiku_engine):
         await make_call(user=(await mk_auth_user(db)).id)
         assert await check_flag(flag.id, db=db) is None
     else:
-        with pytest.raises(Unauthorized):
+        with pytest.raises(HTTPException):
             await make_call(user=None)
 
 
 @pytest.mark.asyncio
-async def test_delete_flag_graph(sa, db, hiku_engine):
+async def test_delete_flag_graph(sa, db, graph_engine):
     flag = await mk_flag(db, enabled=True)
 
     query = {
         "query": """
-            mutation DeleteFlag($id: String!) { 
-                deleteFlag(id: $id) { error } 
+            mutation DeleteFlag($id: String!) {
+                deleteFlag(id: $id) { error }
             }
         """,
         "variables": {"id": str(flag.id)},
     }
     user = await mk_auth_user(db)
 
-    graphql_endpoint = AsyncGraphQLEndpoint(
-        hiku_engine,
-        GRAPH,
-        MUTATION_GRAPH,
+    graphql_endpoint = AsyncBatchGraphQLEndpoint(
+        engine=graph_engine,
+        graph=graph.GRAPH,
+        mutation_graph=graph.MUTATION_GRAPH,
     )
-    ctx = graph_context(
-        sa,
-        auth.TestSession(user.id),
-        None,
+    ctx = init_graph_context(
+        session=auth.TestSession(user.id),
+        engine=sa,
+        ldap=None,
     )
 
     res = await graphql_endpoint.dispatch_ext(query, ctx)

@@ -1,72 +1,82 @@
+import contextvars
 import uuid
+from typing import TYPE_CHECKING
 
-import pytest
 import aiopg.sa
-import sqlalchemy
-import psycopg2.extensions
-
+import pytest
+import pytest_asyncio
+from fastapi import FastAPI
 from hiku.engine import Engine
-from hiku.executors.asyncio import AsyncIOExecutor
 
-from featureflags.models import metadata
+from featureflags.graph.types import Changes, DirtyProjects
+from featureflags.services.auth import TestSession
+from featureflags.tests.state import mk_session_var
+from featureflags.web.app import create_app
 
-
-@pytest.fixture(name="loop")
-def loop_fixture(event_loop):
-    return event_loop
-
-
-@pytest.fixture(name="dsn", scope="session")
-def dsn_fixture(request):
-    name = "test_{}".format(uuid.uuid4().hex)
-    pg_dsn = "postgresql://postgres:postgres@postgres:5432/postgres"
-    db_dsn = "postgresql://postgres:postgres@postgres:5432/{}".format(name)
-
-    pg_engine = sqlalchemy.create_engine(pg_dsn)
-    pg_engine.raw_connection().set_isolation_level(
-        psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
-    )
-    pg_engine.execute("CREATE DATABASE {0}".format(name))
-    pg_engine.dispose()
-
-    db_engine = sqlalchemy.create_engine(db_dsn)
-    metadata.create_all(db_engine)
-    db_engine.dispose()
-
-    def fin():
-        pg_engine = sqlalchemy.create_engine(pg_dsn)
-        pg_engine.raw_connection().set_isolation_level(
-            psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
-        )
-        pg_engine.execute("DROP DATABASE {0}".format(name))
-        pg_engine.dispose()
-
-    request.addfinalizer(fin)
-    return db_dsn
+if TYPE_CHECKING:
+    from featureflags.container import Container
 
 
-@pytest.fixture(name="sa")
-def sa_fixture(loop, dsn):
-    engine_ctx = aiopg.sa.create_engine(
-        dsn, loop=loop, echo=True, enable_hstore=False
-    )
-    engine = loop.run_until_complete(engine_ctx.__aenter__())
-    try:
-        yield engine
-    finally:
-        loop.run_until_complete(engine_ctx.__aexit__(None, None, None))
+@pytest.fixture
+def app() -> FastAPI:
+    return create_app()
 
 
-@pytest.fixture(name="db")
-def db_fixture(loop, sa):
-    conn_ctx = sa.acquire()
-    conn = loop.run_until_complete(conn_ctx.__aenter__())
-    try:
+@pytest.fixture
+def container(app: FastAPI) -> "Container":
+    return app.container  # type: ignore
+
+
+@pytest_asyncio.fixture
+async def db_engine(container: "Container") -> aiopg.sa.Engine:
+    return await container.db_engine()
+
+
+@pytest_asyncio.fixture
+async def db_connection(db_engine: aiopg.sa.Engine) -> aiopg.sa.SAConnection:
+    async with db_engine.acquire() as conn:
         yield conn
-    finally:
-        loop.run_until_complete(conn_ctx.__aexit__(None, None, None))
 
 
-@pytest.fixture(name="hiku_engine")
-def hiku_engine_fixture(loop):
-    return Engine(AsyncIOExecutor(loop=loop))
+@pytest.fixture
+def test_session() -> contextvars.ContextVar[TestSession]:
+    return mk_session_var(TestSession(user=uuid.uuid4()))  # type: ignore
+
+
+@pytest.fixture
+def dirty_projects() -> DirtyProjects:
+    return DirtyProjects()
+
+
+@pytest.fixture
+def changes() -> Changes:
+    return Changes()
+
+
+@pytest.fixture
+def graph_engine(container: "Container") -> Engine:
+    return container.graph_engine()
+
+
+# @pytest.fixture(scope="session")
+# def dsn(request):
+#
+#     pg_engine.raw_connection().set_isolation_level(
+#         psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
+#
+#
+#     def fin():
+#         pg_engine.raw_connection().set_isolation_level(
+#             psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
+#
+#
+
+# @pytest_asyncio.fixture
+# async def sa(dsn):
+#         yield engine
+#
+
+# @pytest_asyncio.fixture
+# async def db(sa):
+#         yield conn
+#
