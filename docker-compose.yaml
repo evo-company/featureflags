@@ -4,7 +4,7 @@ services:
   postgres:
     image: postgres:13-alpine
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -59,6 +59,15 @@ services:
     ports:
       - "127.0.0.1:50051:50051"
     command: pdm run watchfiles --filter python "python3 -m featureflags rpc" featureflags
+
+  http:
+    <<: *backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+    command: pdm run watchfiles --filter python "python3 -m featureflags http" featureflags
 
   ishell:
     <<: *backend
