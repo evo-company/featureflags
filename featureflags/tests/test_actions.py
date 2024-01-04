@@ -7,23 +7,21 @@ from sqlalchemy import and_, func, select, exists
 
 from featureflags.services import auth
 from featureflags.services.ldap import DummyLDAP
-from featureflags.utils import sel_scalar
+from featureflags.utils import select_scalar
 from featureflags.models import LocalIdMap, Flag, Project
 from featureflags.models import Check, Operator, Condition
 from featureflags.models import AuthSession, AuthUser, Action
 from featureflags.models import Changelog
+from featureflags.graph.types import DirtyProjects, LocalId, AddCheckOp, AddConditionOp, Changes
 from featureflags.graph.actions import gen_id, enable_flag, disable_flag
-from featureflags.graph.actions import add_check, add_condition, DirtyProjects
+from featureflags.graph.actions import add_check, add_condition
 from featureflags.graph.actions import disable_condition, postprocess
-from featureflags.graph.actions import reset_flag, Changes
+from featureflags.graph.actions import reset_flag
 from featureflags.graph.actions import sign_in, sign_out
 from featureflags.graph.actions import update_changelog
-from featureflags.graph.actions import LocalId
-from featureflags.graph.actions import AddCheckOp
-from featureflags.graph.actions import AddConditionOp
 from featureflags.graph.actions import with_session
 
-from tests.state import (
+from featureflags.tests.state import (
     mk_project,
     mk_flag,
     mk_variable,
@@ -64,7 +62,7 @@ async def test_sign_in_new(db):
     username = "user@host.com"
     password = "trust-me"
 
-    user_id = await sel_scalar(
+    user_id = await select_scalar(
         db, (select([AuthUser.id]).where(AuthUser.username == username))
     )
     assert user_id is None
@@ -81,7 +79,7 @@ async def test_sign_in_new(db):
     assert session.user
     assert session.get_access_token()
 
-    expiration_time = await sel_scalar(
+    expiration_time = await select_scalar(
         db,
         (
             select([AuthSession.expiration_time]).where(
@@ -92,7 +90,7 @@ async def test_sign_in_new(db):
     assert expiration_time is not None
     assert expiration_time > datetime.utcnow() + timedelta(minutes=1)
 
-    user_id = await sel_scalar(
+    user_id = await select_scalar(
         db, (select([AuthUser.id]).where(AuthUser.username == username))
     )
     assert user_id is not None
@@ -478,7 +476,7 @@ async def test_update_changelog(db):
 
     await update_changelog(session=session, db=db, changes=changes)
 
-    actions = await sel_scalar(
+    actions = await select_scalar(
         db, (select([Changelog.actions]).where(Changelog.flag == flag.id))
     )
     assert actions == (

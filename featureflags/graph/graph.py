@@ -1,46 +1,41 @@
-import re
+import contextvars
 from collections import namedtuple
-
 from uuid import UUID
 
-from sqlalchemy import select
-from prometheus_client import (
-    Histogram,
-    Counter,
-)
-
-from hiku.graph import (
-    Graph,
-    Root,
-    Link,
-    Option,
-    Node,
-    Field,
-    Nothing,
-    apply,
-)
-from hiku.types import (
-    TypeRef,
-    String,
-    Sequence,
-    Optional,
-    Boolean,
-    Record,
-    Any,
-)
-from hiku.engine import pass_context
+import aiopg.sa
+from hiku.engine import Engine, pass_context
 from hiku.expr.core import (
     S,
     if_some,
 )
-from hiku.sources.graph import SubGraph
+from hiku.graph import (
+    Field,
+    Graph,
+    Link,
+    Node,
+    Nothing,
+    Option,
+    Root,
+    apply,
+)
+from hiku.result import denormalize
 from hiku.sources.aiopg import (
     FieldsQuery,
     LinkQuery,
 )
+from hiku.sources.graph import SubGraph
 from hiku.telemetry.prometheus import AsyncGraphMetrics
+from hiku.types import (
+    Any,
+    Boolean,
+    Optional,
+    Record,
+    Sequence,
+    String,
+    TypeRef,
+)
+from sqlalchemy import select
 
-from featureflags import metrics
 from featureflags.graph import actions
 from featureflags.graph.actions import (
     AddCheckOp,
@@ -48,79 +43,61 @@ from featureflags.graph.actions import (
     postprocess,
     update_changelog,
 )
+from featureflags.graph.metrics import (
+    GRAPH_PULL_ERRORS_COUNTER,
+    GRAPH_PULL_TIME_HISTOGRAM,
+)
+from featureflags.graph.types import GraphContext, Operation
+from featureflags.graph.utils import is_valid_uuid
+from featureflags.metrics import wrap_metric
+from featureflags.models import (
+    AuthUser,
+    Changelog,
+    Check,
+    Condition,
+    Flag,
+    Project,
+    Variable,
+)
+from featureflags.services.auth import UserSession
 from featureflags.utils import (
     exec_expression,
     exec_scalar,
 )
-from featureflags.models import (
-    Project,
-    Variable,
-    Flag,
-    Condition,
-    Check,
-    Changelog,
-)
-from featureflags.models import AuthUser
-
-graph_pull_time = Histogram(
-    "graph_pull_time",
-    "Graph pull time (seconds)",
-    [],
-    buckets=(0.050, 0.100, 0.250, 1, float("inf")),
-)
-
-graph_pull_errors = Counter(
-    "graph_pull_errors",
-    "Graph pull errors count",
-    [],
-)
-
-SA_ENGINE = "sa-engine"
-SESSION = "session"
-LDAP = "ldap"
-DIRTY = "dirty"
-CHANGES = "changes"
-IDS = "ids"
-
-_UUID_RE = re.compile(
-    "^"
-    "[0-9a-f]{8}-?"
-    "[0-9a-f]{4}-?"
-    "[0-9a-f]{4}-?"
-    "[0-9a-f]{4}-?"
-    "[0-9a-f]{12}"
-    "$"
-)
 
 
-def _is_uuid(value):
-    return _UUID_RE.match(value) is not None
-
-
-async def id_field(fields, ids):
+async def id_field(fields: list, ids: list) -> list[list]:
     return [[i for _ in fields] for i in ids]
 
 
-async def direct_link(ids):
+async def direct_link(ids: list) -> list:
     return ids
 
 
 @pass_context
-async def root_flag(ctx, options):
-    if not ctx[SESSION].is_authenticated:
+async def root_flag(ctx: dict, options: dict) -> list:
+    if not (
+        ctx[GraphContext.USER_SESSION].get().is_authenticated
+        or not is_valid_uuid(options["id"])
+    ):
         return Nothing
-    if not _is_uuid(options["id"]):
-        return Nothing
-    sel = select([Flag.id]).where(Flag.id == UUID(hex=options["id"]))
-    return await exec_scalar(ctx[SA_ENGINE], sel) or Nothing
+
+    flag = await exec_scalar(
+        ctx[GraphContext.DB_ENGINE],
+        select([Flag.id]).where(Flag.id == UUID(options["id"])),
+    )
+
+    return flag or Nothing
 
 
 @pass_context
-async def root_flags(ctx, options):
-    if not ctx[SESSION].is_authenticated:
+async def root_flags(ctx: dict, options: dict) -> list:
+    if not ctx[GraphContext.USER_SESSION].get().is_authenticated:
         return []
+
     project_name = options.get("project_name")
     expr = select([Flag.id])
+
     if project_name is not None:
         expr = expr.where(
             Flag.project.in_(
@@ -129,34 +106,40 @@ async def root_flags(ctx, options):
                 )
             )
         )
-    return await exec_expression(ctx[SA_ENGINE], expr)
+
+    return await exec_expression(ctx[GraphContext.DB_ENGINE], expr)
 
 
 @pass_context
-async def root_flags_by_ids(ctx, options):
-    if not ctx[SESSION].is_authenticated:
+async def root_flags_by_ids(ctx: dict, options: dict) -> list:
+    if not ctx[GraphContext.USER_SESSION].get().is_authenticated:
         return []
-    ids = list(filter(_is_uuid, options["ids"]))
-    if len(ids) == 0:
-        return []
-    else:
+
+    ids = list(filter(is_valid_uuid, options["ids"]))
+    if ids:
         return await exec_expression(
-            ctx[SA_ENGINE], select([Flag.id]).where(Flag.id.in_(ids))
+            ctx[GraphContext.DB_ENGINE],
+            select([Flag.id]).where(Flag.id.in_(ids)),
         )
 
-
-@pass_context
-async def root_projects(ctx):
-    if not ctx[SESSION].is_authenticated:
-        return []
-    else:
-        return await exec_expression(ctx[SA_ENGINE], select([Project.id]))
+    return []
 
 
 @pass_context
-async def root_changes(ctx, options):
-    if not ctx[SESSION].is_authenticated:
+async def root_projects(ctx: dict) -> list:
+    if not ctx[GraphContext.USER_SESSION].get().is_authenticated:
         return []
+
+    return await exec_expression(
+        ctx[GraphContext.DB_ENGINE], select([Project.id])
+    )
+
+
+@pass_context
+async def root_changes(ctx: dict, options: dict) -> list:
+    if not ctx[GraphContext.USER_SESSION].get().is_authenticated:
+        return []
+
     project_ids = options.get("project_ids")
     sel = select([Changelog.id])
     if project_ids is not None:
@@ -166,27 +149,28 @@ async def root_changes(ctx, options):
             Flag.__table__, Changelog.flag == Flag.id
         )
         sel = sel.select_from(join).where(Flag.project.in_(project_ids))
+
     return await exec_expression(
-        ctx[SA_ENGINE], sel.order_by(Changelog.timestamp.desc())
+        ctx[GraphContext.DB_ENGINE], sel.order_by(Changelog.timestamp.desc())
     )
 
 
 @pass_context
-async def root_authenticated(ctx, _):
-    return [ctx[SESSION].is_authenticated]
+async def root_authenticated(ctx: dict, _options: dict) -> list:
+    return [ctx[GraphContext.USER_SESSION].get().is_authenticated]
 
 
-async def check_variable(ids):
+async def check_variable(ids: list[int]) -> list[int]:
     return ids
 
 
-async def flag_project(ids):
+async def flag_project(ids: list[int]) -> list[int]:
     return ids
 
 
 ID_FIELD = Field("id", None, id_field)
 
-flag_fq = FieldsQuery(SA_ENGINE, Flag.__table__)
+flag_fq = FieldsQuery(GraphContext.DB_ENGINE, Flag.__table__)
 
 _FlagNode = Node(
     "Flag",
@@ -198,7 +182,7 @@ _FlagNode = Node(
     ],
 )
 
-condition_fq = FieldsQuery(SA_ENGINE, Condition.__table__)
+condition_fq = FieldsQuery(GraphContext.DB_ENGINE, Condition.__table__)
 
 _ConditionNode = Node(
     "Condition",
@@ -208,7 +192,7 @@ _ConditionNode = Node(
     ],
 )
 
-check_fq = FieldsQuery(SA_ENGINE, Check.__table__)
+check_fq = FieldsQuery(GraphContext.DB_ENGINE, Check.__table__)
 
 _CheckNode = Node(
     "Check",
@@ -223,7 +207,7 @@ _CheckNode = Node(
     ],
 )
 
-changelog_fq = FieldsQuery(SA_ENGINE, Changelog.__table__)
+changelog_fq = FieldsQuery(GraphContext.DB_ENGINE, Changelog.__table__)
 
 _ChangeNode = Node(
     "Change",
@@ -245,10 +229,10 @@ _GRAPH = Graph(
 )
 _GRAPH = apply(_GRAPH, [AsyncGraphMetrics("source")])
 
-project_fq = FieldsQuery(SA_ENGINE, Project.__table__)
+project_fq = FieldsQuery(GraphContext.DB_ENGINE, Project.__table__)
 
 project_variables = LinkQuery(
-    SA_ENGINE, from_column=Variable.project, to_column=Variable.id
+    GraphContext.DB_ENGINE, from_column=Variable.project, to_column=Variable.id
 )
 
 ProjectNode = Node(
@@ -263,7 +247,7 @@ ProjectNode = Node(
     ],
 )
 
-variable_fq = FieldsQuery(SA_ENGINE, Variable.__table__)
+variable_fq = FieldsQuery(GraphContext.DB_ENGINE, Variable.__table__)
 
 VariableNode = Node(
     "Variable",
@@ -277,7 +261,9 @@ VariableNode = Node(
 flag_sg = SubGraph(_GRAPH, "Flag")
 
 flag_conditions = LinkQuery(
-    SA_ENGINE, from_column=Condition.flag, to_column=Condition.id
+    GraphContext.DB_ENGINE,
+    from_column=Condition.flag,
+    to_column=Condition.id,
 )
 
 FlagNode = Node(
@@ -335,7 +321,7 @@ CheckNode = Node(
     ],
 )
 
-auth_user_fq = FieldsQuery(SA_ENGINE, AuthUser.__table__)
+auth_user_fq = FieldsQuery(GraphContext.DB_ENGINE, AuthUser.__table__)
 
 UserNode = Node(
     "User",
@@ -501,7 +487,7 @@ AuthResult = namedtuple("AuthResult", ["error"])
 
 @pass_context
 async def sing_in(ctx, options):
-    if ctx[SESSION].is_authenticated:
+    if ctx[GraphContext.USER_SESSION].get().is_authenticated:
         return AuthResult(None)
 
     username = options["username"]
@@ -512,28 +498,27 @@ async def sing_in(ctx, options):
     if not password:
         return AuthResult("Password is required")
 
-    async with ctx[SA_ENGINE].acquire() as conn:
+    async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
         success = await actions.sign_in(
             username,
             password,
-            db=conn,
-            session=ctx[SESSION],
-            ldap=ctx[LDAP],
+            db_connection=conn,
+            session=ctx[GraphContext.USER_SESSION].get(),
+            ldap=ctx[GraphContext.LDAP_SERVICE],
         )
-    error = None
-    if not success:
-        error = "Invalid username or password"
+
+    error = "Invalid username or password" if not success else None
     return AuthResult(error)
 
 
 @pass_context
 async def sing_out(ctx):
-    if not ctx[SESSION].is_authenticated:
+    if not ctx[GraphContext.USER_SESSION].get().is_authenticated:
         return AuthResult(None)
-    async with ctx[SA_ENGINE].acquire() as conn:
+    async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
         await actions.sign_out(
-            db=conn,
-            session=ctx[SESSION],
+            db_connection=conn,
+            session=ctx[GraphContext.USER_SESSION].get(),
         )
     return AuthResult(None)
 
@@ -541,73 +526,68 @@ async def sing_out(ctx):
 SaveFlagResult = namedtuple("SaveFlagResult", ["errors"])
 
 
-class Operation:
-    disable_flag = "disable_flag"
-    enable_flag = "enable_flag"
-    add_check = "add_check"
-    add_condition = "add_condition"
-    disable_condition = "disable_condition"
-
-
 @pass_context
-async def save_flag(ctx, options):
+async def save_flag(ctx: dict, options: dict) -> SaveFlagResult:
     operations = options["operations"]
 
     if not operations:
         return SaveFlagResult(None)
 
-    async with ctx[SA_ENGINE].acquire() as conn, actions.with_session(
-        ctx[SESSION]
-    ):
-        for op in operations:
-            payload = op["payload"]
-            type_ = op["type"]
+    async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
+        for operation in operations:
+            operation_payload = operation["payload"]
+            operation_type = Operation(operation["type"])
 
-            if type_ == Operation.enable_flag:
-                await actions.enable_flag(
-                    payload["flag_id"],
-                    db=conn,
-                    dirty=ctx[DIRTY],
-                    changes=ctx[CHANGES],
-                )
-            elif type_ == Operation.disable_flag:
-                await actions.disable_flag(
-                    payload["flag_id"],
-                    db=conn,
-                    dirty=ctx[DIRTY],
-                    changes=ctx[CHANGES],
-                )
-            elif type_ == Operation.add_check:
-                new_ids = await actions.add_check(
-                    AddCheckOp(payload),
-                    db=conn,
-                    dirty=ctx[DIRTY],
-                )
-                if new_ids is not None:
-                    ctx[IDS].update(new_ids)
-            elif type_ == Operation.add_condition:
-                new_ids = await actions.add_condition(
-                    AddConditionOp(payload),
-                    db=conn,
-                    ids=ctx[IDS],
-                    dirty=ctx[DIRTY],
-                    changes=ctx[CHANGES],
-                )
-                if new_ids is not None:
-                    ctx[IDS].update(new_ids)
-            elif type_ == Operation.disable_condition:
-                await actions.disable_condition(
-                    payload["condition_id"],
-                    db=conn,
-                    dirty=ctx[DIRTY],
-                    changes=ctx[CHANGES],
-                )
-            else:
-                raise ValueError(f"Unknown operation: {type_}")
+            match operation_type:
+                case Operation.ENABLE_FLAG:
+                    await actions.enable_flag(
+                        operation_payload["flag_id"],
+                        db_connection=conn,
+                        dirty=ctx[GraphContext.DIRTY_PROJECTS],
+                        changes=ctx[GraphContext.CHANGES],
+                    )
+                case Operation.DISABLE_FLAG:
+                    await actions.disable_flag(
+                        operation_payload["flag_id"],
+                        db_connection=conn,
+                        dirty=ctx[GraphContext.DIRTY_PROJECTS],
+                        changes=ctx[GraphContext.CHANGES],
+                    )
+                case Operation.ADD_CHECK:
+                    new_ids = await actions.add_check(
+                        AddCheckOp(operation_payload),
+                        db_connection=conn,
+                        dirty=ctx[GraphContext.DIRTY_PROJECTS],
+                    )
+                    if new_ids is not None:
+                        ctx[GraphContext.CHECK_IDS].update(new_ids)
+                case Operation.ADD_CONDITION:
+                    new_ids = await actions.add_condition(
+                        AddConditionOp(operation_payload),
+                        db_connection=conn,
+                        ids=ctx[GraphContext.CHECK_IDS],
+                        dirty=ctx[GraphContext.DIRTY_PROJECTS],
+                        changes=ctx[GraphContext.CHANGES],
+                    )
+                    if new_ids is not None:
+                        ctx[GraphContext.CHECK_IDS].update(new_ids)
+                case Operation.DISABLE_CONDITION:
+                    await actions.disable_condition(
+                        operation_payload["condition_id"],
+                        db_connection=conn,
+                        dirty=ctx[GraphContext.DIRTY_PROJECTS],
+                        changes=ctx[GraphContext.CHANGES],
+                    )
+                case _:
+                    raise ValueError(f"Unknown operation: {operation_type}")
 
-        await postprocess(db=conn, dirty=ctx[DIRTY])
+        await postprocess(
+            db_connection=conn, dirty=ctx[GraphContext.DIRTY_PROJECTS]
+        )
         await update_changelog(
-            session=ctx[SESSION], db=conn, changes=ctx[CHANGES]
+            session=ctx[GraphContext.USER_SESSION].get(),
+            db_connection=conn,
+            changes=ctx[GraphContext.CHANGES],
         )
 
     return SaveFlagResult(None)
@@ -617,19 +597,21 @@ ResetFlagResult = namedtuple("ResetFlagResult", ["error"])
 
 
 @pass_context
-async def reset_flag(ctx, options):
-    async with ctx[SA_ENGINE].acquire() as conn, actions.with_session(
-        ctx[SESSION]
-    ):
+async def reset_flag(ctx: dict, options: dict) -> ResetFlagResult:
+    async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
         await actions.reset_flag(
             options["id"],
-            db=conn,
-            dirty=ctx[DIRTY],
-            changes=ctx[CHANGES],
+            db_connection=conn,
+            dirty=ctx[GraphContext.DIRTY_PROJECTS],
+            changes=ctx[GraphContext.CHANGES],
         )
-        await postprocess(db=conn, dirty=ctx[DIRTY])
+        await postprocess(
+            db_connection=conn, dirty=ctx[GraphContext.DIRTY_PROJECTS]
+        )
         await update_changelog(
-            session=ctx[SESSION], db=conn, changes=ctx[CHANGES]
+            session=ctx[GraphContext.USER_SESSION].get(),
+            db_connection=conn,
+            changes=ctx[GraphContext.CHANGES],
         )
 
     return ResetFlagResult(None)
@@ -639,14 +621,12 @@ DeleteFlagResult = namedtuple("DeleteFlagResult", ["error"])
 
 
 @pass_context
-async def delete_flag(ctx, options):
-    async with ctx[SA_ENGINE].acquire() as conn, actions.with_session(
-        ctx[SESSION]
-    ):
+async def delete_flag(ctx: dict, options: dict) -> DeleteFlagResult:
+    async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
         await actions.delete_flag(
             options["id"],
-            db=conn,
-            changes=ctx[CHANGES],
+            db_connection=conn,
+            changes=ctx[GraphContext.CHANGES],
         )
 
     return DeleteFlagResult(None)
@@ -657,8 +637,8 @@ mutation_data_types = {
 }
 
 MUTATION_GRAPH = Graph(
-    GRAPH.nodes
-    + [
+    [
+        *GRAPH.nodes,
         SignInNode,
         SignOutNode,
         SaveFlagNode,
@@ -684,7 +664,7 @@ MUTATION_GRAPH = Graph(
                     options=[
                         Option(
                             "operations", Sequence[TypeRef["SaveFlagOperation"]]
-                        ),
+                        )
                     ],
                     requires=None,
                 ),
@@ -692,18 +672,14 @@ MUTATION_GRAPH = Graph(
                     "resetFlag",
                     TypeRef["ResetFlag"],
                     reset_flag,
-                    options=[
-                        Option("id", String),
-                    ],
+                    options=[Option("id", String)],
                     requires=None,
                 ),
                 Link(
                     "deleteFlag",
                     TypeRef["DeleteFlag"],
                     delete_flag,
-                    options=[
-                        Option("id", String),
-                    ],
+                    options=[Option("id", String)],
                     requires=None,
                 ),
             ]
@@ -716,14 +692,34 @@ GRAPH = apply(GRAPH, [AsyncGraphMetrics("public")])
 MUTATION_GRAPH = apply(MUTATION_GRAPH, [AsyncGraphMetrics("mutation")])
 
 
-@metrics.wrap(graph_pull_time.time())
-@metrics.wrap(graph_pull_errors.count_exceptions())
-async def exec_graph(engine, query, *, sa, session):
-    return await engine.execute(
+@wrap_metric(GRAPH_PULL_TIME_HISTOGRAM.time())
+@wrap_metric(GRAPH_PULL_ERRORS_COUNTER.count_exceptions())
+async def exec_graph(
+    graph_engine: Engine,
+    query: Node,
+    db_engine: aiopg.sa.Engine,
+    session: contextvars.ContextVar[UserSession],
+):
+    return await graph_engine.execute(
         GRAPH,
         query,
         ctx={
-            SA_ENGINE: sa,
-            SESSION: session,
+            GraphContext.DB_ENGINE: db_engine,
+            GraphContext.USER_SESSION: session,
         },
     )
+
+
+async def exec_denormalize_graph(
+    graph_engine: Engine,
+    query: Node,
+    db_engine: aiopg.sa.Engine,
+    session: contextvars.ContextVar[UserSession],
+) -> dict:
+    result_proxy = await exec_graph(
+        graph_engine=graph_engine,
+        query=query,
+        db_engine=db_engine,
+        session=session,
+    )
+    return denormalize(GRAPH, result_proxy)

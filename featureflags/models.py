@@ -14,21 +14,13 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.schema import Column, ForeignKey, MetaData
 from sqlalchemy.types import Boolean, Enum, String
 
+from featureflags.graph.types import Action
 from featureflags.utils import ArrayOfEnum
 from featureflags_protobuf.graph_pb2 import Check as CheckProto
 from featureflags_protobuf.graph_pb2 import Variable as VariableProto
 
 metadata = MetaData()
 Base = declarative_base(metadata)  # type: ignore
-
-
-class Action(enum.Enum):
-    ENABLE_FLAG = 1
-    DISABLE_FLAG = 2
-    ADD_CONDITION = 3
-    DISABLE_CONDITION = 4
-    RESET_FLAG = 5
-    DELETE_FLAG = 6
 
 
 class VariableType(enum.Enum):

@@ -12,7 +12,7 @@ from featureflags_protobuf import graph_pb2
 from featureflags.services import auth
 from featureflags.graph.graph import GRAPH, exec_graph, _is_uuid
 from featureflags.graph.proto_adapter import populate_result_proto
-from featureflags.models import Action
+from featureflags.graph.types import Action
 
 from state import mk_condition, mk_project, mk_variable, mk_flag, mk_auth_user
 from state import mk_check, mk_changelog_entry
