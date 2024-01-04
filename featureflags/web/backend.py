@@ -21,7 +21,6 @@ from featureflags import metrics
 from featureflags.services.auth import get_session
 from featureflags.graph.actions import (
     AccessError,
-    DirtyProjects,
     Changes,
 )
 from featureflags.services.db import get_db

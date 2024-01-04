@@ -8,7 +8,7 @@ import jwt
 
 from sqlalchemy import select
 
-from featureflags.utils import sel_first
+from featureflags.utils import select_scalar
 from featureflags.models import AuthSession
 
 
@@ -185,7 +185,7 @@ async def get_session(access_token=None, *, db, secret):
 
             if "user" in payload:
                 async with db.acquire() as conn:
-                    row = await sel_first(
+                    row = await select_scalar(
                         conn,
                         (
                             select(
