@@ -1,6 +1,5 @@
 import logging
 import os
-from functools import lru_cache
 from pathlib import Path
 
 import yaml
@@ -79,7 +78,6 @@ class Config(BaseSettings):
     rpc: RpcSettings
 
 
-@lru_cache(maxsize=1)
 def _load_config() -> Config:
     config_path = os.environ.get(CONFIG_PATH_ENV_VAR, DEFAULT_CONFIG_PATH)
     log.info("Reading config from %s", config_path)
