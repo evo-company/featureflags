@@ -8,9 +8,9 @@ import faker
 from sqlalchemy.engine import Row
 
 from featureflags.utils import sel_first
-from featureflags.schema import Flag, Project, Variable
-from featureflags.schema import Type, Check, Operator, Condition
-from featureflags.schema import AuthSession, AuthUser, Changelog
+from featureflags.models import Flag, Project, Variable
+from featureflags.models import VariableType, Check, Operator, Condition
+from featureflags.models import AuthSession, AuthUser, Changelog
 
 
 f = faker.Faker()
@@ -82,7 +82,7 @@ async def mk_project(db, *, id=uuid4, name=f.pystr, version=0):
 
 
 async def mk_variable(
-    db, *, id=uuid4, name=f.pystr, type=Type.STRING, project=None
+    db, *, id=uuid4, name=f.pystr, type=VariableType.STRING, project=None
 ):
     project = project or await mk_project(db)
     return await _flush(

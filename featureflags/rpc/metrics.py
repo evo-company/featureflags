@@ -1,12 +1,13 @@
+import time
+from collections.abc import Callable
 from functools import wraps
-from time import perf_counter
+from typing import Any
 
 from prometheus_client import (
-    Histogram,
     Counter,
     Gauge,
+    Histogram,
 )
-
 
 GRPC_METHOD_TIME = Histogram(
     "grpc_method_time_seconds",
@@ -25,19 +26,23 @@ GRPC_METHOD_IN_PROGRESS = Gauge(
 )
 
 
-def track(wrapped):
-    @wraps(wrapped)
-    async def tracker(*args, **kw):
-        method = wrapped.__name__
-        GRPC_METHOD_COUNT.labels(method).inc()
-        GRPC_METHOD_IN_PROGRESS.labels(method).inc()
-        start_time = perf_counter()
+def track(func: Callable) -> Callable:
+    @wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        func_name = func.__name__
+
+        GRPC_METHOD_COUNT.labels(func_name).inc()
+        GRPC_METHOD_IN_PROGRESS.labels(func_name).inc()
+
+        start_time = time.perf_counter()
         try:
-            rv = await wrapped(*args, **kw)
+            result = await func(*args, **kwargs)
         finally:
-            GRPC_METHOD_TIME.labels(method).observe(perf_counter() - start_time)
-            GRPC_METHOD_IN_PROGRESS.labels(method).dec()
+            GRPC_METHOD_TIME.labels(func_name).observe(
+                time.perf_counter() - start_time
+            )
+            GRPC_METHOD_IN_PROGRESS.labels(func_name).dec()
 
-        return rv
+        return result
 
-    return tracker
+    return wrapper

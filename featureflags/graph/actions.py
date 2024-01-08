@@ -17,9 +17,9 @@ from prometheus_client import Histogram, Counter
 from sqlalchemy.dialects.postgresql import insert
 
 from featureflags import metrics
-from featureflags.utils import sel_scalar
-from featureflags.schema import Operator, Project, Variable, AuthSession, AuthUser
-from featureflags.schema import Flag, Check, LocalIdMap, Condition, Action, Changelog
+from featureflags.utils import select_scalar
+from featureflags.models import Operator, Project, Variable, AuthSession, AuthUser
+from featureflags.models import Flag, Check, LocalIdMap, Condition, Action, Changelog
 
 
 action_time = Histogram(
@@ -109,7 +109,7 @@ class LocalId:
 async def gen_id(local_id: LocalId, *, db: SAConnection):
     assert local_id.scope and local_id.value, local_id
 
-    id_ = await sel_scalar(
+    id_ = await select_scalar(
         db,
         (
             insert(LocalIdMap.__table__)
@@ -126,7 +126,7 @@ async def gen_id(local_id: LocalId, *, db: SAConnection):
         ),
     )
     if id_ is None:
-        id_ = await sel_scalar(
+        id_ = await select_scalar(
             db,
             (
                 select([LocalIdMap.id]).where(
@@ -142,9 +142,9 @@ async def gen_id(local_id: LocalId, *, db: SAConnection):
 
 async def get_auth_user(username, *, db):
     user_id_select = select([AuthUser.id]).where(AuthUser.username == username)
-    user_id = await sel_scalar(db, user_id_select)
+    user_id = await select_scalar(db, user_id_select)
     if user_id is None:
-        user_id = await sel_scalar(
+        user_id = await select_scalar(
             db,
             (
                 insert(AuthUser.__table__)
@@ -159,7 +159,7 @@ async def get_auth_user(username, *, db):
             ),
         )
         if user_id is None:
-            user_id = await sel_scalar(db, user_id_select)
+            user_id = await select_scalar(db, user_id_select)
             assert user_id is not None
     return user_id
 
@@ -377,7 +377,7 @@ async def disable_condition(condition_id, *, db, dirty, changes):
     assert condition_id, "Condition id is required"
 
     condition_id = UUID(hex=condition_id)
-    flag_id = await sel_scalar(
+    flag_id = await select_scalar(
         db,
         (
             Condition.__table__.delete()

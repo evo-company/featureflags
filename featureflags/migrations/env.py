@@ -1,7 +1,7 @@
 from alembic import context
 from sqlalchemy import create_engine, pool
 
-from featureflags.schema import metadata
+from featureflags.models import metadata
 
 dsn = context.config.get_main_option("url")
 assert dsn

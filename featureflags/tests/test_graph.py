@@ -9,10 +9,10 @@ from google.protobuf.wrappers_pb2 import BoolValue
 
 from featureflags_protobuf import graph_pb2
 
-from featureflags import auth
-from featureflags.graph.graph import GRAPH, pull, _is_uuid
-from featureflags.graph.proto import populate
-from featureflags.schema import Action
+from featureflags.services import auth
+from featureflags.graph.graph import GRAPH, exec_graph, _is_uuid
+from featureflags.graph.proto_adapter import populate_result_proto
+from featureflags.models import Action
 
 from state import mk_condition, mk_project, mk_variable, mk_flag, mk_auth_user
 from state import mk_check, mk_changelog_entry
@@ -37,7 +37,7 @@ async def test_root_flag_invalid(sa, hiku_engine):
             Q.flag(id="invalid-uuid")[Q.id,],
         ]
     )
-    result = await pull(
+    result = await exec_graph(
         hiku_engine, query, sa=sa, session=auth.TestSession(uuid4())
     )
     assert denormalize(GRAPH, result) == {"flag": None}
@@ -97,7 +97,7 @@ async def test_flags(enabled, overridden, db, sa, hiku_engine):
             ],
         ]
     )
-    result = await pull(
+    result = await exec_graph(
         hiku_engine, query, sa=sa, session=auth.TestSession(uuid4())
     )
     assert denormalize(GRAPH, result) == {
@@ -142,7 +142,7 @@ async def test_flags(enabled, overridden, db, sa, hiku_engine):
         ],
     }
 
-    assert populate(result, graph_pb2.Result()) == graph_pb2.Result(
+    assert populate_result_proto(result, graph_pb2.Result()) == graph_pb2.Result(
         Root=graph_pb2.Root(
             flags=[graph_pb2.Ref(Flag=flag.id.hex)],
         ),
@@ -201,7 +201,7 @@ async def test_flags_by_ids(db, sa, hiku_engine):
             ],
         ]
     )
-    result = await pull(
+    result = await exec_graph(
         hiku_engine, query, sa=sa, session=auth.TestSession(uuid4())
     )
     assert denormalize(GRAPH, result) == {
@@ -212,7 +212,7 @@ async def test_flags_by_ids(db, sa, hiku_engine):
             },
         ],
     }
-    assert populate(result, graph_pb2.Result()) == graph_pb2.Result(
+    assert populate_result_proto(result, graph_pb2.Result()) == graph_pb2.Result(
         Root=graph_pb2.Root(
             flags_by_ids=[graph_pb2.Ref(Flag=flag.id.hex)],
         ),
@@ -243,7 +243,7 @@ async def test_projects(db, sa, hiku_engine):
             ]
         ]
     )
-    result = await pull(
+    result = await exec_graph(
         hiku_engine, query, sa=sa, session=auth.TestSession(uuid4())
     )
     plain_result = denormalize(GRAPH, result)
@@ -260,7 +260,7 @@ async def test_projects(db, sa, hiku_engine):
     }
     assert any(p == expected for p in plain_result["projects"])
 
-    result_proto = populate(result, graph_pb2.Result())
+    result_proto = populate_result_proto(result, graph_pb2.Result())
     assert graph_pb2.Ref(Project=project.id.hex) in result_proto.Root.projects
     assert result_proto.Project[project.id.hex] == graph_pb2.Project(
         id=project.id.hex,
@@ -293,9 +293,9 @@ async def test_projects(db, sa, hiku_engine):
 async def test_authenticated(state, value, sa, hiku_engine):
     query = build([Q.authenticated])
     session = auth.Session(None, state, secret="secret")
-    result = await pull(hiku_engine, query, sa=sa, session=session)
+    result = await exec_graph(hiku_engine, query, sa=sa, session=session)
     assert result["authenticated"] is value
-    result_proto = populate(result, graph_pb2.Result())
+    result_proto = populate_result_proto(result, graph_pb2.Result())
     assert result_proto.Root.authenticated is value
 
 
@@ -316,7 +316,7 @@ async def test_changes(db, hiku_engine, sa):
         ]
     )
     session = auth.TestSession(uuid4())
-    result = await pull(hiku_engine, query, sa=sa, session=session)
+    result = await exec_graph(hiku_engine, query, sa=sa, session=session)
     plain_result = denormalize(GRAPH, result)
     assert plain_result["changes"][0] == {  # 0 == latest
         "id": entry.id,
@@ -346,7 +346,7 @@ async def test_changes_by_project_ids(db, hiku_engine, sa):
             ],
         ]
     )
-    r1 = await pull(hiku_engine, q1, sa=sa, session=session)
+    r1 = await exec_graph(hiku_engine, q1, sa=sa, session=session)
     assert denormalize(GRAPH, r1) == {"changes": []}
 
     q2 = build(
@@ -360,7 +360,7 @@ async def test_changes_by_project_ids(db, hiku_engine, sa):
             ],
         ]
     )
-    r2 = await pull(hiku_engine, q2, sa=sa, session=session)
+    r2 = await exec_graph(hiku_engine, q2, sa=sa, session=session)
     assert denormalize(GRAPH, r2) == {
         "changes": [
             {

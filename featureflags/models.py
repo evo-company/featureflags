@@ -1,28 +1,37 @@
 import enum
+from collections.abc import Callable
 from datetime import datetime
+from typing import ClassVar
 
-from sqlalchemy import Integer, UniqueConstraint, Index
-from sqlalchemy.types import String, Boolean, Enum
-from sqlalchemy.schema import MetaData, Table, Column, ForeignKey
-from sqlalchemy.ext.declarative import as_declarative
-from sqlalchemy.dialects.postgresql import UUID, DOUBLE_PRECISION, TIMESTAMP
-from sqlalchemy.dialects.postgresql import ARRAY
-
-from featureflags_protobuf.graph_pb2 import Check as PBCheck
-from featureflags_protobuf.graph_pb2 import Variable as PBVariable
+from sqlalchemy import Index, Integer, UniqueConstraint
+from sqlalchemy.dialects.postgresql import (
+    ARRAY,
+    DOUBLE_PRECISION,
+    TIMESTAMP,
+    UUID,
+)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.schema import Column, ForeignKey, MetaData
+from sqlalchemy.types import Boolean, Enum, String
 
 from featureflags.utils import ArrayOfEnum
-
+from featureflags_protobuf.graph_pb2 import Check as CheckProto
+from featureflags_protobuf.graph_pb2 import Variable as VariableProto
 
 metadata = MetaData()
+Base = declarative_base(metadata)  # type: ignore
 
 
-@as_declarative(metadata=metadata)
-class Base:
-    __table__: Table
+class Action(enum.Enum):
+    ENABLE_FLAG = 1
+    DISABLE_FLAG = 2
+    ADD_CONDITION = 3
+    DISABLE_CONDITION = 4
+    RESET_FLAG = 5
+    DELETE_FLAG = 6
 
 
-class Type(enum.Enum):
+class VariableType(enum.Enum):
     STRING = 1
     NUMBER = 2
     TIMESTAMP = 3
@@ -30,10 +39,10 @@ class Type(enum.Enum):
 
     @classmethod
     def from_pb(cls, value):
-        return cls.__members__[PBVariable.Type.Name(value)]
+        return cls.__members__[VariableProto.Type.Name(value)]
 
     def to_pb(self):
-        return PBVariable.Type.Value(self.name)
+        return VariableProto.Type.Value(self.name)
 
 
 class Operator(enum.Enum):
@@ -51,19 +60,10 @@ class Operator(enum.Enum):
 
     @classmethod
     def from_pb(cls, value):
-        return cls.__members__[PBCheck.Operator.Name(value)]
+        return cls.__members__[CheckProto.Operator.Name(value)]
 
     def to_pb(self):
-        return PBCheck.Operator.Value(self.name)
-
-
-class Action(enum.Enum):
-    ENABLE_FLAG = 1
-    DISABLE_FLAG = 2
-    ADD_CONDITION = 3
-    DISABLE_CONDITION = 4
-    RESET_FLAG = 5
-    DELETE_FLAG = 6
+        return CheckProto.Operator.Value(self.name)
 
 
 class AuthUser(Base):
@@ -112,7 +112,7 @@ class Variable(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True)
     name = Column(String, nullable=False)
-    type = Column(Enum(Type, name="variable_type"), nullable=False)
+    type = Column(Enum(VariableType, name="variable_type"), nullable=False)
 
     project = Column(ForeignKey("project.id"), nullable=False)
 
@@ -158,7 +158,7 @@ class Check(Base):
 
     variable = Column(ForeignKey("variable.id"), nullable=False)
 
-    __value_from_op__ = {
+    __value_from_op__: ClassVar[dict[str, Callable]] = {
         "value_string": lambda m: {
             Check.value_string: m.value_string,
         },

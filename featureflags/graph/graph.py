@@ -41,18 +41,18 @@ from hiku.sources.aiopg import (
 from hiku.telemetry.prometheus import AsyncGraphMetrics
 
 from featureflags import metrics
-from featureflags import actions
-from featureflags.actions import (
+from featureflags.graph import actions
+from featureflags.graph.actions import (
     AddCheckOp,
     AddConditionOp,
     postprocess,
     update_changelog,
 )
 from featureflags.utils import (
-    exec_expr,
+    exec_expression,
     exec_scalar,
 )
-from featureflags.schema import (
+from featureflags.models import (
     Project,
     Variable,
     Flag,
@@ -60,7 +60,7 @@ from featureflags.schema import (
     Check,
     Changelog,
 )
-from featureflags.schema import AuthUser
+from featureflags.models import AuthUser
 
 graph_pull_time = Histogram(
     "graph_pull_time",
@@ -129,7 +129,7 @@ async def root_flags(ctx, options):
                 )
             )
         )
-    return await exec_expr(ctx[SA_ENGINE], expr)
+    return await exec_expression(ctx[SA_ENGINE], expr)
 
 
 @pass_context
@@ -140,7 +140,7 @@ async def root_flags_by_ids(ctx, options):
     if len(ids) == 0:
         return []
     else:
-        return await exec_expr(
+        return await exec_expression(
             ctx[SA_ENGINE], select([Flag.id]).where(Flag.id.in_(ids))
         )
 
@@ -150,7 +150,7 @@ async def root_projects(ctx):
     if not ctx[SESSION].is_authenticated:
         return []
     else:
-        return await exec_expr(ctx[SA_ENGINE], select([Project.id]))
+        return await exec_expression(ctx[SA_ENGINE], select([Project.id]))
 
 
 @pass_context
@@ -166,7 +166,7 @@ async def root_changes(ctx, options):
             Flag.__table__, Changelog.flag == Flag.id
         )
         sel = sel.select_from(join).where(Flag.project.in_(project_ids))
-    return await exec_expr(
+    return await exec_expression(
         ctx[SA_ENGINE], sel.order_by(Changelog.timestamp.desc())
     )
 
@@ -718,7 +718,7 @@ MUTATION_GRAPH = apply(MUTATION_GRAPH, [AsyncGraphMetrics("mutation")])
 
 @metrics.wrap(graph_pull_time.time())
 @metrics.wrap(graph_pull_errors.count_exceptions())
-async def pull(engine, query, *, sa, session):
+async def exec_graph(engine, query, *, sa, session):
     return await engine.execute(
         GRAPH,
         query,
