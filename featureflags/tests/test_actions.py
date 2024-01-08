@@ -5,23 +5,23 @@ import pytest
 
 from sqlalchemy import and_, func, select, exists
 
-from featureflags import auth
-from featureflags.ldap import DummyLDAP
+from featureflags.services import auth
+from featureflags.services.ldap import DummyLDAP
 from featureflags.utils import sel_scalar
-from featureflags.schema import LocalIdMap, Flag, Project
-from featureflags.schema import Check, Operator, Condition
-from featureflags.schema import AuthSession, AuthUser, Action
-from featureflags.schema import Changelog
-from featureflags.actions import gen_id, enable_flag, disable_flag
-from featureflags.actions import add_check, add_condition, DirtyProjects
-from featureflags.actions import disable_condition, postprocess
-from featureflags.actions import reset_flag, Changes
-from featureflags.actions import sign_in, sign_out, AccessError
-from featureflags.actions import update_changelog
-from featureflags.actions import LocalId
-from featureflags.actions import AddCheckOp
-from featureflags.actions import AddConditionOp
-from featureflags.actions import with_session
+from featureflags.models import LocalIdMap, Flag, Project
+from featureflags.models import Check, Operator, Condition
+from featureflags.models import AuthSession, AuthUser, Action
+from featureflags.models import Changelog
+from featureflags.graph.actions import gen_id, enable_flag, disable_flag
+from featureflags.graph.actions import add_check, add_condition, DirtyProjects
+from featureflags.graph.actions import disable_condition, postprocess
+from featureflags.graph.actions import reset_flag, Changes
+from featureflags.graph.actions import sign_in, sign_out
+from featureflags.graph.actions import update_changelog
+from featureflags.graph.actions import LocalId
+from featureflags.graph.actions import AddCheckOp
+from featureflags.graph.actions import AddConditionOp
+from featureflags.graph.actions import with_session
 
 from tests.state import (
     mk_project,

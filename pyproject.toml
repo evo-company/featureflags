@@ -9,7 +9,6 @@ authors = [
 ]
 dependencies = [
     "evo-featureflags-protobuf==0.2.1",  # TODO: change to 0.3.0
-    "typer>=0.9.0",
     "grpclib==0.4.5",
     "hiku==0.7.1",
     "protobuf<4.0.0",
@@ -26,8 +25,9 @@ dependencies = [
     "pydantic>=2.3.0",
     "pydantic-settings>=2.0.3",
     "setuptools==68.2.2",
-    "sanic>=23.3.0",
-    "setuptools",
+    "typer>=0.9.0",
+    "dependency-injector>=4.41.0",
+    "grpcio>=1.59.0",
 ]
 requires-python = ">=3.11"
 license = {text = "MIT"}

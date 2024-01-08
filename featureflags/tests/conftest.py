@@ -8,7 +8,7 @@ import psycopg2.extensions
 from hiku.engine import Engine
 from hiku.executors.asyncio import AsyncIOExecutor
 
-from featureflags.schema import metadata
+from featureflags.models import metadata
 
 
 @pytest.fixture(name="loop")

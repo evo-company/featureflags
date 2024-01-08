@@ -9,8 +9,8 @@ import hiku.engine
 from sqlalchemy import select
 from sanic.exceptions import Unauthorized
 
-from featureflags.auth import TestSession
-from featureflags.schema import Flag
+from featureflags.services.auth import TestSession
+from featureflags.models import Flag
 from featureflags.graph.graph import (
     GRAPH,
     MUTATION_GRAPH,
@@ -20,7 +20,7 @@ from featureflags.web.backend import (
     graph_context,
 )
 
-from featureflags import auth
+from featureflags.services import auth
 from state import (
     mk_flag,
     mk_auth_user,
