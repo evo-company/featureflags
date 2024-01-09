@@ -23,7 +23,7 @@ async def preload_flags(
     Init flags for project and load flags.
     """
 
-    return await flags_repo.preload_flags(request)
+    return await flags_repo.load(request)
 
 
 @router.post("/sync")
@@ -36,4 +36,4 @@ async def sync_flags(
     Sync flags for project.
     """
 
-    return await flags_repo.sync_flags(request)
+    return await flags_repo.sync(request)

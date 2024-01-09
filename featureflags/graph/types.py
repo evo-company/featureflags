@@ -1,6 +1,7 @@
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
+from typing import NamedTuple
 from uuid import UUID
 
 
@@ -114,7 +115,17 @@ class AddConditionOp:
         ]
 
 
-AuthResult = namedtuple("AuthResult", ["error"])
-SaveFlagResult = namedtuple("SaveFlagResult", ["errors"])
-ResetFlagResult = namedtuple("ResetFlagResult", ["error"])
-DeleteFlagResult = namedtuple("DeleteFlagResult", ["error"])
+class AuthResult(NamedTuple):
+    error: str | None = None
+
+
+class SaveFlagResult(NamedTuple):
+    errors: list[str] | None = None
+
+
+class ResetFlagResult(NamedTuple):
+    error: str | None = None
+
+
+class DeleteFlagResult(NamedTuple):
+    error: str | None = None
