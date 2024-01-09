@@ -65,10 +65,14 @@ class FlagsRepository:
                 select([Project.version]).where(Project.name == project),
             )
 
-    async def _prepare_flags_project(
+    async def prepare_project(
         self,
         request: PreloadFlagsRequest,
     ) -> None:
+        """
+        Initialize project from request, create/update entities in the database.
+        """
+
         async with self._db_engine.acquire() as db_connection:
             await prepare_flags_project(
                 request,
@@ -76,11 +80,13 @@ class FlagsRepository:
                 entity_cache=self._entity_cache,
             )
 
-    async def preload_flags(
-        self,
-        request: PreloadFlagsRequest,
-    ) -> PreloadFlagsResponse:
-        await self._prepare_flags_project(request)
+    async def load(self, request: PreloadFlagsRequest) -> PreloadFlagsResponse:
+        """
+        Initialize project from request, create/update entities in the database
+        and return available flags.
+        """
+
+        await self.prepare_project(request)
 
         current_version = await self.get_current_version(request.project)
 
@@ -97,7 +103,12 @@ class FlagsRepository:
             version=current_version,
         )
 
-    async def sync_flags(self, request: SyncFlagsRequest) -> SyncFlagsResponse:
+    async def sync(self, request: SyncFlagsRequest) -> SyncFlagsResponse:
+        """
+        Return updated flags if project version
+        is different from the requested one.
+        """
+
         current_version = await self.get_current_version(request.project)
 
         if request.version != current_version:
