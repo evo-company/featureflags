@@ -79,7 +79,7 @@ async def direct_link(ids: list) -> list:
 @pass_context
 async def root_flag(ctx: dict, options: dict) -> list:
     if not (
-        ctx[GraphContext.USER_SESSION].get().is_authenticated
+        ctx[GraphContext.USER_SESSION].is_authenticated
         or not is_valid_uuid(options["id"])
     ):
         return Nothing
@@ -94,7 +94,7 @@ async def root_flag(ctx: dict, options: dict) -> list:
 
 @pass_context
 async def root_flags(ctx: dict, options: dict) -> list:
-    if not ctx[GraphContext.USER_SESSION].get().is_authenticated:
+    if not ctx[GraphContext.USER_SESSION].is_authenticated:
         return []
 
     project_name = options.get("project_name")
@@ -104,7 +104,7 @@ async def root_flags(ctx: dict, options: dict) -> list:
         expr = expr.where(
             Flag.project.in_(
                 select([Project.id]).where(
-                    Project.name == options["project_name"]
+                    Project.name == project_name
                 )
             )
         )
@@ -114,7 +114,7 @@ async def root_flags(ctx: dict, options: dict) -> list:
 
 @pass_context
 async def root_flags_by_ids(ctx: dict, options: dict) -> list:
-    if not ctx[GraphContext.USER_SESSION].get().is_authenticated:
+    if not ctx[GraphContext.USER_SESSION].is_authenticated:
         return []
 
     ids = list(filter(is_valid_uuid, options["ids"]))
@@ -129,7 +129,7 @@ async def root_flags_by_ids(ctx: dict, options: dict) -> list:
 
 @pass_context
 async def root_projects(ctx: dict) -> list:
-    if not ctx[GraphContext.USER_SESSION].get().is_authenticated:
+    if not ctx[GraphContext.USER_SESSION].is_authenticated:
         return []
 
     return await exec_expression(
@@ -139,7 +139,7 @@ async def root_projects(ctx: dict) -> list:
 
 @pass_context
 async def root_changes(ctx: dict, options: dict) -> list:
-    if not ctx[GraphContext.USER_SESSION].get().is_authenticated:
+    if not ctx[GraphContext.USER_SESSION].is_authenticated:
         return []
 
     project_ids = options.get("project_ids")
@@ -159,7 +159,7 @@ async def root_changes(ctx: dict, options: dict) -> list:
 
 @pass_context
 async def root_authenticated(ctx: dict, _options: dict) -> list:
-    return [ctx[GraphContext.USER_SESSION].get().is_authenticated]
+    return [ctx[GraphContext.USER_SESSION].is_authenticated]
 
 
 async def check_variable(ids: list[int]) -> list[int]:
@@ -495,7 +495,7 @@ GRAPH = Graph(
 
 @pass_context
 async def sing_in(ctx: dict, options: dict) -> AuthResult:
-    if ctx[GraphContext.USER_SESSION].get().is_authenticated:
+    if ctx[GraphContext.USER_SESSION].is_authenticated:
         return AuthResult(None)
 
     username = options["username"]
@@ -511,7 +511,7 @@ async def sing_in(ctx: dict, options: dict) -> AuthResult:
             username,
             password,
             db_connection=conn,
-            session=ctx[GraphContext.USER_SESSION].get(),
+            session=ctx[GraphContext.USER_SESSION],
             ldap=ctx[GraphContext.LDAP_SERVICE],
         )
 
@@ -521,12 +521,12 @@ async def sing_in(ctx: dict, options: dict) -> AuthResult:
 
 @pass_context
 async def sing_out(ctx: dict) -> AuthResult:
-    if not ctx[GraphContext.USER_SESSION].get().is_authenticated:
+    if not ctx[GraphContext.USER_SESSION].is_authenticated:
         return AuthResult(None)
     async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
         await actions.sign_out(
             db_connection=conn,
-            session=ctx[GraphContext.USER_SESSION].get(),
+            session=ctx[GraphContext.USER_SESSION],
         )
     return AuthResult(None)
 
@@ -590,7 +590,7 @@ async def save_flag(ctx: dict, options: dict) -> SaveFlagResult:
             db_connection=conn, dirty=ctx[GraphContext.DIRTY_PROJECTS]
         )
         await actions.update_changelog(
-            session=ctx[GraphContext.USER_SESSION].get(),
+            session=ctx[GraphContext.USER_SESSION],
             db_connection=conn,
             changes=ctx[GraphContext.CHANGES],
         )
@@ -611,7 +611,7 @@ async def reset_flag(ctx: dict, options: dict) -> ResetFlagResult:
             db_connection=conn, dirty=ctx[GraphContext.DIRTY_PROJECTS]
         )
         await actions.update_changelog(
-            session=ctx[GraphContext.USER_SESSION].get(),
+            session=ctx[GraphContext.USER_SESSION],
             db_connection=conn,
             changes=ctx[GraphContext.CHANGES],
         )
@@ -697,7 +697,7 @@ async def exec_graph(
     graph_engine: Engine,
     query: Node,
     db_engine: aiopg.sa.Engine,
-    session: contextvars.ContextVar[UserSession],
+    session: UserSession,
 ) -> Proxy:
     return await graph_engine.execute(
         GRAPH,
@@ -713,7 +713,7 @@ async def exec_denormalize_graph(
     graph_engine: Engine,
     query: Node,
     db_engine: aiopg.sa.Engine,
-    session: contextvars.ContextVar[UserSession],
+    session: UserSession,
 ) -> dict:
     result_proxy = await exec_graph(
         graph_engine=graph_engine,

@@ -92,7 +92,7 @@ async def test_sign_in_new(db_connection):
         password,
         db_connection=db_connection,
         session=session,
-        ldap=DummyLDAP(bound=True),
+        ldap=DummyLDAP(user_is_bound=True),
     )
 
     assert session.ident
@@ -136,7 +136,7 @@ async def test_sign_in_existent(db_connection, db_engine):
         password,
         db_connection=db_connection,
         session=session,
-        ldap=DummyLDAP(bound=True),
+        ldap=DummyLDAP(user_is_bound=True),
     )
 
     assert session.ident
@@ -162,7 +162,7 @@ async def test_sign_in_invalid(db_connection):
         password,
         db_connection=db_connection,
         session=session,
-        ldap=DummyLDAP(bound=False),
+        ldap=DummyLDAP(user_is_bound=False),
     )
 
     assert session.ident is None

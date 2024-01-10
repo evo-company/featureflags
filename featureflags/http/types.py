@@ -1,5 +1,4 @@
 from typing import Any
-from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -7,7 +6,6 @@ from featureflags.models import Operator, VariableType
 
 
 class CheckVariable(BaseModel):
-    id: UUID
     name: str
     type: VariableType
 
@@ -22,7 +20,6 @@ CHECK_VALUE_FIELDS = (
 
 
 class Check(BaseModel):
-    id: UUID
     variable: CheckVariable
     operator: Operator
     value: str | float | list | None = None
@@ -40,12 +37,10 @@ class Check(BaseModel):
 
 
 class Condition(BaseModel):
-    id: UUID
     checks: list[Check]
 
 
 class Flag(BaseModel):
-    id: UUID
     name: str
     enabled: bool
     overridden: bool

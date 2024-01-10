@@ -91,7 +91,7 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
                 graph_engine=self._graph_engine,
                 query=protobuf.transform(request.query),
                 db_engine=self._db_engine,
-                session=user_session,
+                session=user_session.get(),
             )
             populate_result_proto(result, exchange_reply.result)
 

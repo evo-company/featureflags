@@ -59,6 +59,13 @@ class AppSettings(BaseSettings):
     thread_limiter_total_tokens: int = 40
 
 
+class HttpSettings(BaseSettings):
+    port: int = 8080
+    host: str = "0.0.0.0"
+    reload: bool = False
+    thread_limiter_total_tokens: int = 40
+
+
 class RpcSettings(BaseSettings):
     port: int = 8000
     host: str = "0.0.0.0"
@@ -76,6 +83,7 @@ class Config(BaseSettings):
 
     app: AppSettings
     rpc: RpcSettings
+    http: HttpSettings
 
 
 def _load_config() -> Config:

@@ -94,7 +94,7 @@ class FlagsRepository:
             graph_engine=self._graph_engine,
             query=load_flags_query(request.project),
             db_engine=self._db_engine,
-            session=user_session,
+            session=user_session.get(),
         )
         flags = [Flag(**flag) for flag in result["flags"]]
 
@@ -116,7 +116,7 @@ class FlagsRepository:
                 graph_engine=self._graph_engine,
                 query=load_flags_query(request.project),
                 db_engine=self._db_engine,
-                session=user_session,
+                session=user_session.get(),
             )
             flags = [Flag(**flag) for flag in result["flags"]]
         else:

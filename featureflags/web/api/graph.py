@@ -31,7 +31,7 @@ async def graphql(
 ) -> ORJSONResponse:
     query = await request.json()
     ctx = init_graph_context(
-        session=user_session,
+        session=user_session.get(),
         ldap=ldap_service,
         engine=db_engine,
     )

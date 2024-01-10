@@ -42,6 +42,6 @@ class Container(containers.DeclarativeContainer):
         ),
         testing=providers.Factory(
             DummyLDAP,
-            bound=True,
+            user_is_bound=True,
         ),
     )

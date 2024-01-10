@@ -1,5 +1,3 @@
-import contextvars
-
 import aiopg.sa
 
 from featureflags.graph.types import Changes, DirtyProjects, GraphContext
@@ -8,7 +6,7 @@ from featureflags.services.ldap import BaseLDAP
 
 
 def init_graph_context(
-    session: contextvars.ContextVar[BaseUserSession],
+    session: BaseUserSession,
     ldap: BaseLDAP,
     engine: aiopg.sa.Engine,
 ) -> dict:
