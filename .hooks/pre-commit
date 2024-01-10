@@ -1,0 +1,29 @@
+#!/bin/bash
+
+HAS_STAGED_PY=$(git diff --staged --diff-filter=d --name-only '*.py')
+
+if [ -n "$HAS_STAGED_PY" ]; then
+
+  echo "Running mypy ..."
+  STAGED_PY=$(git diff --staged --diff-filter=d --name-only '*.py' | tr '\r\n' ' ')
+  echo "$STAGED_PY"
+  lets mypy "$STAGED_PY"
+  if [[ $? -ne 0 ]]; then
+    exit 1
+  fi
+
+  echo "Running black ..."
+  lets black --diff --check
+  if [[ $? -ne 0 ]]; then
+    exit 1
+  fi
+
+  echo "Running ruff ..."
+  lets ruff-diff
+  if [[ $? -ne 0 ]]; then
+    exit 1
+  fi
+
+fi
+
+exit 0

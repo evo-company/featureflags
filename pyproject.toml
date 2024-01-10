@@ -197,6 +197,8 @@ exclude = [
     ".venv",
     "venv",
     ".ve",
+    "featureflags/migrations",
+    "featureflags_protobuf/",
 ]
 
 [[tool.mypy.overrides]]
