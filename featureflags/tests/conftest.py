@@ -1,5 +1,5 @@
-import contextvars
 import uuid
+from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING
 
 import aiopg.sa
@@ -7,10 +7,13 @@ import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from hiku.engine import Engine
+from sqlalchemy import text
 
+from featureflags.alembic import main as alembic_main
 from featureflags.graph.types import Changes, DirtyProjects
-from featureflags.services.auth import TestSession
-from featureflags.tests.state import mk_session_var
+from featureflags.models import metadata
+from featureflags.services.auth import TestSession, user_session
+from featureflags.services.ldap import BaseLDAP
 from featureflags.web.app import create_app
 
 if TYPE_CHECKING:
@@ -23,24 +26,61 @@ def app() -> FastAPI:
 
 
 @pytest.fixture
-def container(app: FastAPI) -> "Container":
-    return app.container  # type: ignore
+async def container(app: FastAPI) -> AsyncGenerator["Container", None]:
+    try:
+        yield app.container  # type: ignore
+    finally:
+        await app.container.shutdown_resources()  # type: ignore
+
+
+def migrate_up() -> None:
+    alembic_main(["upgrade", "head"])
+
+
+async def migrate_down(
+    db_engine: aiopg.sa.Engine,
+    skip_tables: list | None = None,
+) -> None:
+    skip_tables = skip_tables or []
+    table_names = ", ".join(
+        [
+            f'"{table.name}"'
+            for table in metadata.sorted_tables
+            if table.name not in skip_tables
+        ]
+    )
+
+    if table_names:
+        async with db_engine.acquire() as connection:
+            await connection.execute(
+                text(f"TRUNCATE TABLE {table_names} RESTART IDENTITY CASCADE")
+            )
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def db_engine(
+    container: "Container",
+) -> AsyncGenerator[aiopg.sa.Engine, None]:
+    engine = await container.db_engine()
+    try:
+        migrate_up()
+        yield engine
+    finally:
+        await migrate_down(engine)
 
 
 @pytest_asyncio.fixture
-async def db_engine(container: "Container") -> aiopg.sa.Engine:
-    return await container.db_engine()
+async def db_connection(
+    db_engine: aiopg.sa.Engine,
+) -> AsyncGenerator[aiopg.sa.SAConnection, None]:
+    async with db_engine.acquire() as connection:
+        yield connection
 
 
-@pytest_asyncio.fixture
-async def db_connection(db_engine: aiopg.sa.Engine) -> aiopg.sa.SAConnection:
-    async with db_engine.acquire() as conn:
-        yield conn
-
-
-@pytest.fixture
-def test_session() -> contextvars.ContextVar[TestSession]:
-    return mk_session_var(TestSession(user=uuid.uuid4()))  # type: ignore
+@pytest.fixture(autouse=True)
+def test_session() -> TestSession:
+    user_session.set(TestSession(user=uuid.uuid4()))  # type: ignore
+    return user_session.get()  # type: ignore
 
 
 @pytest.fixture
@@ -58,25 +98,6 @@ def graph_engine(container: "Container") -> Engine:
     return container.graph_engine()
 
 
-# @pytest.fixture(scope="session")
-# def dsn(request):
-#
-#     pg_engine.raw_connection().set_isolation_level(
-#         psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
-#
-#
-#     def fin():
-#         pg_engine.raw_connection().set_isolation_level(
-#             psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
-#
-#
-
-# @pytest_asyncio.fixture
-# async def sa(dsn):
-#         yield engine
-#
-
-# @pytest_asyncio.fixture
-# async def db(sa):
-#         yield conn
-#
+@pytest.fixture
+def ldap(container: "Container") -> BaseLDAP:
+    return container.ldap_service()

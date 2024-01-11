@@ -1,4 +1,3 @@
-import contextvars
 from datetime import datetime
 from uuid import uuid4
 
@@ -310,11 +309,9 @@ async def test_projects(db_engine, graph_engine, test_session):
 async def test_authenticated(state, value, db_engine, graph_engine):
     query = build([Q.authenticated])
 
-    session = contextvars.ContextVar("session")
     user_session = UserSession(ident=None, state=state, secret="secret")
-    session.set(user_session)
+    result = await exec_graph(graph_engine, query, db_engine, user_session)
 
-    result = await exec_graph(graph_engine, query, db_engine, session)
     assert result["authenticated"] is value
     result_proto = populate_result_proto(result, graph_pb2.Result())
     assert result_proto.Root.authenticated is value

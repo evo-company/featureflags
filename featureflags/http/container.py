@@ -18,7 +18,7 @@ class Container(containers.DeclarativeContainer):
         ]
     )
 
-    graph_engine = providers.Factory(
+    graph_engine: Engine = providers.Factory(
         Engine,
         providers.Callable(AsyncIOExecutor),
     )

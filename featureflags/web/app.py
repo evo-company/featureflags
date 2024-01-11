@@ -20,7 +20,7 @@ def create_app() -> FastAPI:
     )
 
     container = Container()
-    app.container = container
+    app.container = container  # type: ignore
 
     app.include_router(health_router)
     app.include_router(index_router)

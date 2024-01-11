@@ -5,9 +5,7 @@ HAS_STAGED_PY=$(git diff --staged --diff-filter=d --name-only '*.py')
 if [ -n "$HAS_STAGED_PY" ]; then
 
   echo "Running mypy ..."
-  STAGED_PY=$(git diff --staged --diff-filter=d --name-only '*.py' | tr '\r\n' ' ')
-  echo "$STAGED_PY"
-  lets mypy "$STAGED_PY"
+  lets mypy
   if [[ $? -ne 0 ]]; then
     exit 1
   fi

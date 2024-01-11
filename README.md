@@ -65,6 +65,11 @@ Pre-commit
 
 ``./scripts/disable-hooks.sh``
 
+TODO:
+
+- add docs, automate docs build
+- add tests
+
 .. _fastapi: https://github.com/tiangolo/fastapi
 .. _hiku: https://github.com/vmagamedov/hiku
 .. _aiopg: https://github.com/aio-libs/aiopg

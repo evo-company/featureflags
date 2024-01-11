@@ -13,4 +13,4 @@ from featureflags.config import CONFIG_PATH_ENV_VAR, CONFIGS_DIR, _load_config
 def test_configs_smoke(path: PosixPath) -> None:
     """Test that the config loads."""
     os.environ[CONFIG_PATH_ENV_VAR] = path.as_posix()
-    _load_config.__wrapped__()
+    _load_config()

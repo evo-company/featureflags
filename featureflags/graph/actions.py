@@ -33,7 +33,7 @@ from featureflags.services.ldap import BaseLDAP
 from featureflags.utils import select_scalar
 
 
-async def gen_id(local_id: LocalId, *, db_connection: SAConnection):
+async def gen_id(local_id: LocalId, *, db_connection: SAConnection) -> UUID:
     assert local_id.scope and local_id.value, local_id
 
     id_ = await select_scalar(
@@ -155,14 +155,14 @@ async def enable_flag(
 ) -> None:
     assert flag_id, "Flag id is required"
 
-    flag_id = UUID(hex=flag_id)
+    flag_uuid = UUID(hex=flag_id)
     await db_connection.execute(
         Flag.__table__.update()
-        .where(Flag.id == flag_id)
+        .where(Flag.id == flag_uuid)
         .values({Flag.enabled: True})
     )
-    dirty.by_flag.add(flag_id)
-    changes.add(flag_id, Action.ENABLE_FLAG)
+    dirty.by_flag.add(flag_uuid)
+    changes.add(flag_uuid, Action.ENABLE_FLAG)
 
 
 @auth_required
@@ -176,14 +176,14 @@ async def disable_flag(
 ) -> None:
     assert flag_id, "Flag id is required"
 
-    flag_id = UUID(hex=flag_id)
+    flag_uuid = UUID(hex=flag_id)
     await db_connection.execute(
         Flag.__table__.update()
-        .where(Flag.id == flag_id)
+        .where(Flag.id == flag_uuid)
         .values({Flag.enabled: False})
     )
-    dirty.by_flag.add(flag_id)
-    changes.add(flag_id, Action.DISABLE_FLAG)
+    dirty.by_flag.add(flag_uuid)
+    changes.add(flag_uuid, Action.DISABLE_FLAG)
 
 
 @auth_required
@@ -197,17 +197,17 @@ async def reset_flag(
 ) -> None:
     assert flag_id, "Flag id is required"
 
-    flag_id = UUID(hex=flag_id)
+    flag_uuid = UUID(hex=flag_id)
     await db_connection.execute(
         Flag.__table__.update()
-        .where(Flag.id == flag_id)
+        .where(Flag.id == flag_uuid)
         .values({Flag.enabled: None})
     )
     await db_connection.execute(
-        Condition.__table__.delete().where(Condition.flag == flag_id)
+        Condition.__table__.delete().where(Condition.flag == flag_uuid)
     )
-    dirty.by_flag.add(flag_id)
-    changes.add(flag_id, Action.RESET_FLAG)
+    dirty.by_flag.add(flag_uuid)
+    changes.add(flag_uuid, Action.RESET_FLAG)
 
 
 @auth_required
@@ -217,15 +217,15 @@ async def delete_flag(
 ) -> None:
     assert flag_id, "Flag id is required"
 
-    flag_id = UUID(hex=flag_id)
+    flag_uuid = UUID(hex=flag_id)
     await db_connection.execute(
-        Condition.__table__.delete().where(Condition.flag == flag_id)
+        Condition.__table__.delete().where(Condition.flag == flag_uuid)
     )
     await db_connection.execute(
-        Flag.__table__.delete().where(Flag.id == flag_id)
+        Flag.__table__.delete().where(Flag.id == flag_uuid)
     )
 
-    changes.add(flag_id, Action.DELETE_FLAG)
+    changes.add(flag_uuid, Action.DELETE_FLAG)
 
 
 @auth_required
@@ -240,7 +240,7 @@ async def add_check(
         Check.variable: variable_id,
         Check.operator: Operator(op.operator),
     }
-    values.update(Check.value_from_op(op))
+    values.update(Check.value_from_op(op))  # type: ignore
     await db_connection.execute(
         insert(Check.__table__).values(values).on_conflict_do_nothing()
     )
@@ -293,12 +293,11 @@ async def disable_condition(
 ) -> None:
     assert condition_id, "Condition id is required"
 
-    condition_id = UUID(hex=condition_id)
     flag_id = await select_scalar(
         db_connection,
         (
             Condition.__table__.delete()
-            .where(Condition.id == condition_id)
+            .where(Condition.id == UUID(hex=condition_id))
             .returning(Condition.flag)
         ),
     )

@@ -7,9 +7,13 @@ from featureflags.config import config
 
 async def init_db_engine() -> AsyncGenerator[aiopg.sa.Engine, None]:
     async with aiopg.sa.create_engine(
-        config.postgres.dsn,
+        dsn=config.postgres.dsn,
         echo=config.debug,
         enable_hstore=False,
         timeout=config.postgres.timeout,
     ) as engine:
-        yield engine
+        try:
+            yield engine
+        finally:
+            engine.close()
+            await engine.wait_closed()

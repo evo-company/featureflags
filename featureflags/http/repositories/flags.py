@@ -1,7 +1,7 @@
 import aiopg.sa
 from hiku.builder import Q, build
 from hiku.engine import Engine
-from hiku.expr.nodes import Node
+from hiku.query import Node as QueryNode
 from sqlalchemy import select
 
 from featureflags.graph.graph import exec_denormalize_graph
@@ -18,7 +18,7 @@ from featureflags.services.auth import user_session
 from featureflags.utils import EntityCache, select_scalar
 
 
-def load_flags_query(project: str) -> Node:
+def load_flags_query(project: str) -> QueryNode:
     return build(
         [
             Q.flags(project_name=project)[
@@ -58,7 +58,7 @@ class FlagsRepository:
 
         self._entity_cache = EntityCache()
 
-    async def get_current_version(self, project: str) -> str:
+    async def get_current_version(self, project: str) -> int:
         async with self._db_engine.acquire() as db_connection:
             return await select_scalar(
                 db_connection,

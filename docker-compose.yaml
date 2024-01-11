@@ -21,6 +21,21 @@ services:
       retries: 5
       start_period: 80s
 
+  postgres-test:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: featureflags-test
+    networks:
+      - main
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready", "-d", "featureflags-test" ]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 80s
+
   backend: &backend
     image: featureflags-server-dev
     init: true

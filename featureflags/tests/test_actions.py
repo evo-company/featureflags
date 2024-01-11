@@ -104,7 +104,7 @@ async def test_sign_in_new(db_connection):
         db_connection,
         (
             select([AuthSession.expiration_time]).where(
-                AuthSession.user_session == session.ident
+                AuthSession.session == session.ident
             )
         ),
     )
@@ -164,8 +164,6 @@ async def test_sign_in_invalid(db_connection):
         session=session,
         ldap=DummyLDAP(user_is_bound=False),
     )
-
-    assert session.ident is None
     assert session.get_access_token() is None
 
 
@@ -175,14 +173,13 @@ async def test_sign_out(db_connection, db_engine):
 
     r1 = await db_connection.execute(
         select([AuthSession.expiration_time]).where(
-            AuthSession.user_session
-            == auth_session.set_user_session_from_cookie
+            AuthSession.session == auth_session.session
         )
     )
     assert await r1.fetchall() == [(auth_session.expiration_time,)]
 
     session = UserSession(
-        ident=auth_session.set_user_session_from_cookie,
+        ident=auth_session.session,
         state=ValidAccessTokenState(auth_session.auth_user),
         secret="secret",
     )
@@ -201,8 +198,7 @@ async def test_sign_out(db_connection, db_engine):
 
     r2 = await db_connection.execute(
         select([AuthSession.expiration_time]).where(
-            AuthSession.user_session
-            == auth_session.set_user_session_from_cookie
+            AuthSession.session == auth_session.session
         )
     )
     assert await r2.fetchall() == []

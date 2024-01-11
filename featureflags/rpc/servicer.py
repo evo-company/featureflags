@@ -36,7 +36,7 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
         self._db_engine = db_engine
 
         # for debugging
-        self._tasks = weakref.WeakSet()
+        self._tasks = weakref.WeakSet()  # type: ignore
 
     async def exchange(self, stream: Stream) -> None:
         # backward compatibility

@@ -33,8 +33,8 @@ class Action(Enum):
 
 class DirtyProjects:
     def __init__(self) -> None:
-        self.by_flag = set()
-        self.by_variable = set()
+        self.by_flag: set[UUID] = set()
+        self.by_variable: set[UUID] = set()
 
 
 class Changes:

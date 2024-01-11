@@ -151,7 +151,11 @@ class BaseUserSession(ABC):
 class UserSession(BaseUserSession):
     state: BaseState
     secret: str
-    ident: str = field(default_factory=lambda: uuid4().hex)
+    ident: str = field(default=None)
+
+    def __post_init__(self) -> None:
+        if self.ident is None:
+            self.ident = uuid4().hex
 
     @property
     def is_authenticated(self) -> bool:
@@ -203,6 +207,7 @@ async def create_user_session(
             secret=secret,
         )
 
+    state: BaseState
     try:
         payload = decode_jwt_token(secret, access_token)
     except jwt.ExpiredSignatureError:

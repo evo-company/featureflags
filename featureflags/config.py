@@ -33,7 +33,7 @@ class PostgresSettings(BaseSettings):
     timeout: int = 10
 
     @property
-    def dsn(self):
+    def dsn(self) -> str:
         return (
             f"postgresql://{self.user}"
             f":{self.password}"

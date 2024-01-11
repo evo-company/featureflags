@@ -26,9 +26,9 @@ f = faker.Faker()
 def mk_session_var(
     session: BaseUserSession,
 ) -> contextvars.ContextVar[BaseUserSession]:
-    session_var = contextvars.ContextVar("session")
-    session_var.set(session)
-    return session_var
+    test_user_session = contextvars.ContextVar("user_session")
+    test_user_session.set(session)
+    return test_user_session
 
 
 async def _flush(db_engine, model, data):

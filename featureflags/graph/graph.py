@@ -1,4 +1,3 @@
-import contextvars
 from uuid import UUID
 
 import aiopg.sa
@@ -17,6 +16,7 @@ from hiku.graph import (
     Root,
     apply,
 )
+from hiku.query import Node as QueryNode
 from hiku.result import Proxy, denormalize
 from hiku.sources.aiopg import (
     FieldsQuery,
@@ -103,9 +103,7 @@ async def root_flags(ctx: dict, options: dict) -> list:
     if project_name is not None:
         expr = expr.where(
             Flag.project.in_(
-                select([Project.id]).where(
-                    Project.name == project_name
-                )
+                select([Project.id]).where(Project.name == project_name)
             )
         )
 
@@ -391,7 +389,7 @@ async def auth_info(
 ) -> list[list]:
     [auth_result] = auth_results
 
-    def get_field(name):
+    def get_field(name: str) -> str | None:
         if name == "error":
             return auth_result.error
 
@@ -420,7 +418,7 @@ async def save_flag_info(
 ) -> list[list]:
     [result] = results
 
-    def get_field(name):
+    def get_field(name: str) -> list[str] | None:
         if name == "errors":
             return result.errors
 
@@ -434,7 +432,7 @@ async def reset_flag_info(
 ) -> list[list]:
     [result] = results
 
-    def get_field(name):
+    def get_field(name: str) -> str | None:
         if name == "error":
             return result.error
 
@@ -463,7 +461,7 @@ async def delete_flag_info(
 ) -> list[list]:
     [result] = results
 
-    def get_field(name):
+    def get_field(name: str) -> str | None:
         if name == "error":
             return result.error
 
@@ -695,11 +693,11 @@ MUTATION_GRAPH = apply(MUTATION_GRAPH, [AsyncGraphMetrics("mutation")])
 @wrap_metric(GRAPH_PULL_ERRORS_COUNTER.count_exceptions())
 async def exec_graph(
     graph_engine: Engine,
-    query: Node,
+    query: QueryNode,
     db_engine: aiopg.sa.Engine,
     session: UserSession,
 ) -> Proxy:
-    return await graph_engine.execute(
+    return await graph_engine.execute(  # type: ignore
         GRAPH,
         query,
         ctx={
@@ -711,7 +709,7 @@ async def exec_graph(
 
 async def exec_denormalize_graph(
     graph_engine: Engine,
-    query: Node,
+    query: QueryNode,
     db_engine: aiopg.sa.Engine,
     session: UserSession,
 ) -> dict:

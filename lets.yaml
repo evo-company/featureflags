@@ -87,6 +87,10 @@ commands:
     description: Run postgres
     cmd: docker-compose up postgres
 
+  postgres-test:
+    description: Run postgres test db
+    cmd: docker-compose up postgres-test
+
   apply-migrations-dev:
     description: Apply migrations to local postgres
     depends: [ build-dev ]
