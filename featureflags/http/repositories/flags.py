@@ -59,9 +59,9 @@ class FlagsRepository:
         self._entity_cache = EntityCache()
 
     async def get_current_version(self, project: str) -> int:
-        async with self._db_engine.acquire() as db_connection:
+        async with self._db_engine.acquire() as conn:
             return await select_scalar(
-                db_connection,
+                conn,
                 select([Project.version]).where(Project.name == project),
             )
 
@@ -73,10 +73,10 @@ class FlagsRepository:
         Initialize project from request, create/update entities in the database.
         """
 
-        async with self._db_engine.acquire() as db_connection:
+        async with self._db_engine.acquire() as conn:
             await prepare_flags_project(
                 request,
-                db_connection=db_connection,
+                conn=conn,
                 entity_cache=self._entity_cache,
             )
 

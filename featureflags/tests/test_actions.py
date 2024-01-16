@@ -55,27 +55,27 @@ from featureflags.utils import select_scalar
 f = faker.Faker()
 
 
-async def get_version(project, *, db_connection):
-    result = await db_connection.execute(
+async def get_version(project, *, conn):
+    result = await conn.execute(
         select([Project.version]).where(Project.id == project)
     )
     return await result.scalar()
 
 
-async def check_flag(flag, *, db_connection):
-    result = await db_connection.execute(
+async def check_flag(flag, *, conn):
+    result = await conn.execute(
         select([Flag.enabled]).where(Flag.id == flag)
     )
     return await result.scalar()
 
 
 @pytest.mark.asyncio
-async def test_sign_in_new(db_connection):
+async def test_sign_in_new(conn):
     username = "user@host.com"
     password = "trust-me"
 
     user_id = await select_scalar(
-        db_connection,
+        conn,
         (select([AuthUser.id]).where(AuthUser.username == username)),
     )
     assert user_id is None
@@ -90,7 +90,7 @@ async def test_sign_in_new(db_connection):
     await sign_in(
         username,
         password,
-        db_connection=db_connection,
+        conn=conn,
         session=session,
         ldap=DummyLDAP(user_is_bound=True),
     )
@@ -101,7 +101,7 @@ async def test_sign_in_new(db_connection):
     assert session.get_access_token()
 
     expiration_time = await select_scalar(
-        db_connection,
+        conn,
         (
             select([AuthSession.expiration_time]).where(
                 AuthSession.session == session.ident
@@ -112,7 +112,7 @@ async def test_sign_in_new(db_connection):
     assert expiration_time > datetime.utcnow() + timedelta(minutes=1)
 
     user_id = await select_scalar(
-        db_connection,
+        conn,
         (select([AuthUser.id]).where(AuthUser.username == username)),
     )
     assert user_id is not None
@@ -120,7 +120,7 @@ async def test_sign_in_new(db_connection):
 
 
 @pytest.mark.asyncio
-async def test_sign_in_existent(db_connection, db_engine):
+async def test_sign_in_existent(conn, db_engine):
     user = await mk_auth_user(db_engine)
     password = "trust-me"
 
@@ -134,7 +134,7 @@ async def test_sign_in_existent(db_connection, db_engine):
     await sign_in(
         user.username,
         password,
-        db_connection=db_connection,
+        conn=conn,
         session=session,
         ldap=DummyLDAP(user_is_bound=True),
     )
@@ -146,7 +146,7 @@ async def test_sign_in_existent(db_connection, db_engine):
 
 
 @pytest.mark.asyncio
-async def test_sign_in_invalid(db_connection):
+async def test_sign_in_invalid(conn):
     username = "user@host.com"
     password = "trust-me"
 
@@ -160,7 +160,7 @@ async def test_sign_in_invalid(db_connection):
     await sign_in(
         username,
         password,
-        db_connection=db_connection,
+        conn=conn,
         session=session,
         ldap=DummyLDAP(user_is_bound=False),
     )
@@ -168,10 +168,10 @@ async def test_sign_in_invalid(db_connection):
 
 
 @pytest.mark.asyncio
-async def test_sign_out(db_connection, db_engine):
+async def test_sign_out(conn, db_engine):
     auth_session = await mk_auth_session(db_engine)
 
-    r1 = await db_connection.execute(
+    r1 = await conn.execute(
         select([AuthSession.expiration_time]).where(
             AuthSession.session == auth_session.session
         )
@@ -185,7 +185,7 @@ async def test_sign_out(db_connection, db_engine):
     )
     assert session.get_access_token() is None
 
-    await sign_out(db_connection=db_connection, session=session)
+    await sign_out(conn=conn, session=session)
 
     access_token = session.get_access_token()
     assert access_token
@@ -196,7 +196,7 @@ async def test_sign_out(db_connection, db_engine):
     )
     assert session.is_authenticated is False
 
-    r2 = await db_connection.execute(
+    r2 = await conn.execute(
         select([AuthSession.expiration_time]).where(
             AuthSession.session == auth_session.session
         )
@@ -205,11 +205,11 @@ async def test_sign_out(db_connection, db_engine):
 
 
 @pytest.mark.asyncio
-async def test_gen_id(db_connection):
+async def test_gen_id(conn):
     local_id = LocalId(scope="marston", value="minuit")
 
     async def get_count():
-        result = await db_connection.execute(
+        result = await conn.execute(
             select([func.count("*")]).where(
                 and_(
                     LocalIdMap.scope == local_id.scope,
@@ -220,9 +220,9 @@ async def test_gen_id(db_connection):
         return await result.scalar()
 
     assert await get_count() == 0
-    id1 = await gen_id(local_id, db_connection=db_connection)
-    id2 = await gen_id(local_id, db_connection=db_connection)
-    id3 = await gen_id(local_id, db_connection=db_connection)
+    id1 = await gen_id(local_id, conn=conn)
+    id2 = await gen_id(local_id, conn=conn)
+    id3 = await gen_id(local_id, conn=conn)
     assert id1 == id2 == id3
     assert await get_count() == 1
 
@@ -238,7 +238,7 @@ async def test_gen_id(db_connection):
     ],
 )
 async def test_switching_flag(
-    db_connection,
+    conn,
     db_engine,
     dirty_projects,
     changes,
@@ -248,29 +248,29 @@ async def test_switching_flag(
     action_type,
 ):
     flag = await mk_flag(db_engine, enabled=before)
-    assert await check_flag(flag.id, db_connection=db_connection) == before
+    assert await check_flag(flag.id, conn=conn) == before
 
     await action(
         flag_id=flag.id.hex,
-        db_connection=db_connection,
+        conn=conn,
         dirty=dirty_projects,
         changes=changes,
     )
     assert dirty_projects.by_flag == {flag.id}
     assert changes.get_actions() == [(flag.id, [action_type])]
-    assert await check_flag(flag.id, db_connection=db_connection) is after
+    assert await check_flag(flag.id, conn=conn) is after
 
 
 @pytest.mark.asyncio
-async def test_reset_flag(db_connection, db_engine, dirty_projects, changes):
+async def test_reset_flag(conn, db_engine, dirty_projects, changes):
     project = await mk_project(db_engine)
     flag = await mk_flag(db_engine, enabled=True, project=project)
     condition = await mk_condition(db_engine, flag=flag, project=project)
 
-    assert await check_flag(flag.id, db_connection=db_connection) is True
+    assert await check_flag(flag.id, conn=conn) is True
     assert (
         await (
-            await db_connection.execute(
+            await conn.execute(
                 select([exists().where(Condition.id == condition.id)])
             )
         ).scalar()
@@ -279,17 +279,17 @@ async def test_reset_flag(db_connection, db_engine, dirty_projects, changes):
 
     await reset_flag(
         flag_id=flag.id.hex,
-        db_connection=db_connection,
+        conn=conn,
         dirty=dirty_projects,
         changes=changes,
     )
     assert dirty_projects.by_flag == {flag.id}
     assert changes.get_actions() == [(flag.id, [Action.RESET_FLAG])]
 
-    assert await check_flag(flag.id, db_connection=db_connection) is None
+    assert await check_flag(flag.id, conn=conn) is None
     assert (
         await (
-            await db_connection.execute(
+            await conn.execute(
                 select([exists().where(Condition.id == condition.id)])
             )
         ).scalar()
@@ -298,7 +298,7 @@ async def test_reset_flag(db_connection, db_engine, dirty_projects, changes):
 
 
 @pytest.mark.asyncio
-async def test_add_check(db_connection, db_engine, dirty_projects):
+async def test_add_check(conn, db_engine, dirty_projects):
     variable = await mk_variable(db_engine)
 
     local_id = LocalId(scope="spatted", value="widget")
@@ -313,14 +313,14 @@ async def test_add_check(db_connection, db_engine, dirty_projects):
                 "value_string": "sandino",
             }
         ),
-        db_connection=db_connection,
+        conn=conn,
         dirty=dirty_projects,
     )
     assert dirty_projects.by_variable == {variable.id}
 
     id_ = ids[local_id]
 
-    result = await db_connection.execute(
+    result = await conn.execute(
         select(
             [
                 Check.variable,
@@ -344,7 +344,7 @@ async def test_add_check(db_connection, db_engine, dirty_projects):
 
 
 @pytest.mark.asyncio
-async def test_add_condition(db_connection, db_engine, dirty_projects, changes):
+async def test_add_condition(conn, db_engine, dirty_projects, changes):
     project = await mk_project(db_engine)
     flag = await mk_flag(db_engine, project=project)
     check = await mk_check(db_engine, variable_project=project)
@@ -359,7 +359,7 @@ async def test_add_condition(db_connection, db_engine, dirty_projects, changes):
                 "checks": [{"id": check.id.hex}],
             }
         ),
-        db_connection=db_connection,
+        conn=conn,
         ids={},
         dirty=dirty_projects,
         changes=changes,
@@ -369,7 +369,7 @@ async def test_add_condition(db_connection, db_engine, dirty_projects, changes):
 
     id_ = ids[local_id]
 
-    result = await db_connection.execute(
+    result = await conn.execute(
         select([Condition.flag, Condition.checks]).where(Condition.id == id_)
     )
     row = await result.first()
@@ -378,7 +378,7 @@ async def test_add_condition(db_connection, db_engine, dirty_projects, changes):
 
 @pytest.mark.asyncio
 async def test_add_condition_and_check(
-    db_engine, db_connection, dirty_projects, changes
+    db_engine, conn, dirty_projects, changes
 ):
     project = await mk_project(db_engine)
     flag = await mk_flag(db_engine, project=project)
@@ -410,7 +410,7 @@ async def test_add_condition_and_check(
     ids.update(
         await add_condition(
             op,
-            db_connection=db_connection,
+            conn=conn,
             ids=ids,
             dirty=dirty_projects,
             changes=changes,
@@ -421,7 +421,7 @@ async def test_add_condition_and_check(
 
     id_ = ids[local_id]
 
-    result = await db_connection.execute(
+    result = await conn.execute(
         select([Condition.flag, Condition.checks]).where(Condition.id == id_)
     )
     row = await result.first()
@@ -430,12 +430,12 @@ async def test_add_condition_and_check(
 
 @pytest.mark.asyncio
 async def test_disable_condition(
-    db_connection, db_engine, dirty_projects, changes
+    conn, db_engine, dirty_projects, changes
 ):
     condition = await mk_condition(db_engine)
 
     async def check_condition():
-        result = await db_connection.execute(
+        result = await conn.execute(
             select([Condition.id]).where(Condition.id == condition.id)
         )
         row = await result.first()
@@ -445,7 +445,7 @@ async def test_disable_condition(
 
     await disable_condition(
         condition.id.hex,
-        db_connection=db_connection,
+        conn=conn,
         dirty=dirty_projects,
         changes=changes,
     )
@@ -458,7 +458,7 @@ async def test_disable_condition(
 
     await disable_condition(
         condition.id.hex,
-        db_connection=db_connection,
+        conn=conn,
         dirty=dirty_projects,
         changes=changes,
     )
@@ -471,35 +471,35 @@ async def test_disable_condition(
 
 
 @pytest.mark.asyncio
-async def test_postprocess_by_flag(db_connection, db_engine, dirty_projects):
+async def test_postprocess_by_flag(conn, db_engine, dirty_projects):
     version = f.pyint()
     project = await mk_project(db_engine, version=version)
     flag = await mk_flag(db_engine, project=project)
     dirty_projects.by_flag.add(flag.id)
-    await postprocess(db_connection=db_connection, dirty=dirty_projects)
+    await postprocess(conn=conn, dirty=dirty_projects)
     assert (
-        await get_version(project.id, db_connection=db_connection)
+        await get_version(project.id, conn=conn)
         == version + 1
     )
 
 
 @pytest.mark.asyncio
 async def test_postprocess_by_variable(
-    db_connection, db_engine, dirty_projects
+    conn, db_engine, dirty_projects
 ):
     version = f.pyint()
     project = await mk_project(db_engine, version=version)
     variable = await mk_variable(db_engine, project=project)
     dirty_projects.by_variable.add(variable.id)
-    await postprocess(db_connection=db_connection, dirty=dirty_projects)
+    await postprocess(conn=conn, dirty=dirty_projects)
     assert (
-        await get_version(project.id, db_connection=db_connection)
+        await get_version(project.id, conn=conn)
         == version + 1
     )
 
 
 @pytest.mark.asyncio
-async def test_postprocess_by_all(db_connection, db_engine, dirty_projects):
+async def test_postprocess_by_all(conn, db_engine, dirty_projects):
     version = f.pyint()
     project = await mk_project(db_engine, version=version)
     project_dub = await mk_project(db_engine, version=version)
@@ -510,19 +510,19 @@ async def test_postprocess_by_all(db_connection, db_engine, dirty_projects):
     variable = await mk_variable(db_engine, project=project)
     dirty_projects.by_variable.add(variable.id)
 
-    await postprocess(db_connection=db_connection, dirty=dirty_projects)
+    await postprocess(conn=conn, dirty=dirty_projects)
     assert (
-        await get_version(project.id, db_connection=db_connection)
+        await get_version(project.id, conn=conn)
         == version + 1
     )
     assert (
-        await get_version(project_dub.id, db_connection=db_connection)
+        await get_version(project_dub.id, conn=conn)
         == version
     )
 
 
 @pytest.mark.asyncio
-async def test_update_changelog(db_connection, db_engine):
+async def test_update_changelog(conn, db_engine):
     flag = await mk_flag(db_engine)
     user = await mk_auth_user(db_engine)
     session = auth.TestSession(user.id)
@@ -534,11 +534,11 @@ async def test_update_changelog(db_connection, db_engine):
     changes.add(flag.id, Action.ADD_CONDITION)
 
     await update_changelog(
-        session=session, db_connection=db_connection, changes=changes
+        session=session, conn=conn, changes=changes
     )
 
     actions = await select_scalar(
-        db_connection,
+        conn,
         (select([Changelog.actions]).where(Changelog.flag == flag.id)),
     )
     assert actions == (

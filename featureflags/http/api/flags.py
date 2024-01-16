@@ -13,9 +13,9 @@ from featureflags.http.types import (
 router = APIRouter(prefix="/flags", tags=["flags"])
 
 
-@router.post("/preload")
+@router.post("/load")
 @inject
-async def preload_flags(
+async def load_flags(
     request: PreloadFlagsRequest,
     flags_repo: FlagsRepository = Depends(Provide[Container.flags_repo]),
 ) -> PreloadFlagsResponse:

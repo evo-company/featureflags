@@ -19,15 +19,15 @@ from featureflags.models import Flag, Project, Variable
 from featureflags.utils import EntityCache
 
 
-async def _select_project(name: str, *, db_connection: SAConnection) -> UUID:
-    result = await db_connection.execute(
+async def _select_project(name: str, *, conn: SAConnection) -> UUID:
+    result = await conn.execute(
         select([Project.id]).where(Project.name == name)
     )
     return await result.scalar()
 
 
-async def _insert_project(name: str, *, db_connection: SAConnection) -> UUID:
-    result = await db_connection.execute(
+async def _insert_project(name: str, *, conn: SAConnection) -> UUID:
+    result = await conn.execute(
         insert(Project.__table__)
         .values({Project.id: uuid4(), Project.name: name, Project.version: 0})
         .on_conflict_do_nothing()
@@ -39,26 +39,26 @@ async def _insert_project(name: str, *, db_connection: SAConnection) -> UUID:
 async def _get_or_create_project(
     name: str,
     *,
-    db_connection: SAConnection,
+    conn: SAConnection,
     entity_cache: EntityCache,
 ) -> UUID:
     assert name
     id_ = entity_cache.project.get(name)
     if id_ is None:  # not in cache
-        id_ = await _select_project(name, db_connection=db_connection)
+        id_ = await _select_project(name, conn=conn)
         if id_ is None:  # not in db
-            id_ = await _insert_project(name, db_connection=db_connection)
+            id_ = await _insert_project(name, conn=conn)
             if id_ is None:  # conflicting insert
-                id_ = await _select_project(name, db_connection=db_connection)
+                id_ = await _select_project(name, conn=conn)
                 assert id_ is not None  # must be in db
         entity_cache.project[name] = id_
     return id_
 
 
 async def _select_variable(
-    project: UUID, variable: RequestVariable, *, db_connection: SAConnection
+    project: UUID, variable: RequestVariable, *, conn: SAConnection
 ) -> UUID:
-    result = await db_connection.execute(
+    result = await conn.execute(
         select([Variable.id]).where(
             and_(Variable.project == project, Variable.name == variable.name)
         )
@@ -67,9 +67,9 @@ async def _select_variable(
 
 
 async def _insert_variable(
-    project: UUID, variable: RequestVariable, *, db_connection: SAConnection
+    project: UUID, variable: RequestVariable, *, conn: SAConnection
 ) -> UUID:
-    result = await db_connection.execute(
+    result = await conn.execute(
         insert(Variable.__table__)
         .values(
             {
@@ -89,22 +89,22 @@ async def _get_or_create_variable(
     project: UUID,
     variable: RequestVariable,
     *,
-    db_connection: SAConnection,
+    conn: SAConnection,
     entity_cache: EntityCache,
 ) -> UUID:
     assert project and variable, (project, variable)
     id_ = entity_cache.variable[project].get(variable.name)
     if id_ is None:  # not in cache
         id_ = await _select_variable(
-            project, variable, db_connection=db_connection
+            project, variable, conn=conn
         )
         if id_ is None:  # not in db
             id_ = await _insert_variable(
-                project, variable, db_connection=db_connection
+                project, variable, conn=conn
             )
             if id_ is None:  # conflicting insert
                 id_ = await _select_variable(
-                    project, variable, db_connection=db_connection
+                    project, variable, conn=conn
                 )
                 assert id_ is not None  # must be in db
         entity_cache.variable[project][variable.name] = id_
@@ -112,9 +112,9 @@ async def _get_or_create_variable(
 
 
 async def _select_flag(
-    project: UUID, name: str, *, db_connection: SAConnection
+    project: UUID, name: str, *, conn: SAConnection
 ) -> UUID:
-    result = await db_connection.execute(
+    result = await conn.execute(
         select([Flag.id]).where(
             and_(Flag.project == project, Flag.name == name)
         )
@@ -123,9 +123,9 @@ async def _select_flag(
 
 
 async def _insert_flag(
-    project: UUID, name: str, *, db_connection: SAConnection
+    project: UUID, name: str, *, conn: SAConnection
 ) -> UUID:
-    result = await db_connection.execute(
+    result = await conn.execute(
         insert(Flag.__table__)
         .values({Flag.id: uuid4(), Flag.project: project, Flag.name: name})
         .on_conflict_do_nothing()
@@ -138,18 +138,18 @@ async def _get_or_create_flag(
     project: UUID,
     flag: str,
     *,
-    db_connection: SAConnection,
+    conn: SAConnection,
     entity_cache: EntityCache,
 ) -> UUID:
     assert project and flag, (project, flag)
     id_ = entity_cache.flag[project].get(flag)
     if id_ is None:  # not in cache
-        id_ = await _select_flag(project, flag, db_connection=db_connection)
+        id_ = await _select_flag(project, flag, conn=conn)
         if id_ is None:  # not in db
-            id_ = await _insert_flag(project, flag, db_connection=db_connection)
+            id_ = await _insert_flag(project, flag, conn=conn)
             if id_ is None:  # conflicting insert
                 id_ = await _select_flag(
-                    project, flag, db_connection=db_connection
+                    project, flag, conn=conn
                 )
                 assert id_ is not None  # must be in db
         entity_cache.flag[project][flag] = id_
@@ -158,25 +158,25 @@ async def _get_or_create_flag(
 
 async def prepare_flags_project(
     request: PreloadFlagsRequest,
-    db_connection: SAConnection,
+    conn: SAConnection,
     entity_cache: EntityCache,
 ) -> None:
     project = await _get_or_create_project(
         request.project,
-        db_connection=db_connection,
+        conn=conn,
         entity_cache=entity_cache,
     )
     for variable in request.variables:
         await _get_or_create_variable(
             project,
             variable,
-            db_connection=db_connection,
+            conn=conn,
             entity_cache=entity_cache,
         )
     for flag in request.flags:
         await _get_or_create_flag(
             project,
             flag,
-            db_connection=db_connection,
+            conn=conn,
             entity_cache=entity_cache,
         )

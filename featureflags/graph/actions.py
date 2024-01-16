@@ -33,11 +33,11 @@ from featureflags.services.ldap import BaseLDAP
 from featureflags.utils import select_scalar
 
 
-async def gen_id(local_id: LocalId, *, db_connection: SAConnection) -> UUID:
+async def gen_id(local_id: LocalId, *, conn: SAConnection) -> UUID:
     assert local_id.scope and local_id.value, local_id
 
     id_ = await select_scalar(
-        db_connection,
+        conn,
         (
             insert(LocalIdMap.__table__)
             .values(
@@ -54,7 +54,7 @@ async def gen_id(local_id: LocalId, *, db_connection: SAConnection) -> UUID:
     )
     if id_ is None:
         id_ = await select_scalar(
-            db_connection,
+            conn,
             (
                 select([LocalIdMap.id]).where(
                     and_(
@@ -67,12 +67,12 @@ async def gen_id(local_id: LocalId, *, db_connection: SAConnection) -> UUID:
     return id_
 
 
-async def get_auth_user(username: str, *, db_connection: SAConnection) -> UUID:
+async def get_auth_user(username: str, *, conn: SAConnection) -> UUID:
     user_id_select = select([AuthUser.id]).where(AuthUser.username == username)
-    user_id = await select_scalar(db_connection, user_id_select)
+    user_id = await select_scalar(conn, user_id_select)
     if user_id is None:
         user_id = await select_scalar(
-            db_connection,
+            conn,
             (
                 insert(AuthUser.__table__)
                 .values(
@@ -86,7 +86,7 @@ async def get_auth_user(username: str, *, db_connection: SAConnection) -> UUID:
             ),
         )
         if user_id is None:
-            user_id = await select_scalar(db_connection, user_id_select)
+            user_id = await select_scalar(conn, user_id_select)
             assert user_id is not None
     return user_id
 
@@ -96,7 +96,7 @@ async def sign_in(
     username: str,
     password: str,
     *,
-    db_connection: SAConnection,
+    conn: SAConnection,
     session: UserSession,
     ldap: BaseLDAP,
 ) -> bool:
@@ -104,11 +104,11 @@ async def sign_in(
     if not await ldap.check_credentials(username, password):
         return False
 
-    user_id = await get_auth_user(username, db_connection=db_connection)
+    user_id = await get_auth_user(username, conn=conn)
 
     now = datetime.utcnow()
     expiration_time = now + AUTH_SESSION_TTL
-    await db_connection.execute(
+    await conn.execute(
         insert(AuthSession.__table__)
         .values(
             {
@@ -133,10 +133,10 @@ async def sign_in(
 
 @track
 async def sign_out(
-    *, db_connection: SAConnection, session: UserSession
+    *, conn: SAConnection, session: UserSession
 ) -> None:
     if session.ident:
-        await db_connection.execute(
+        await conn.execute(
             AuthSession.__table__.delete().where(
                 AuthSession.session == session.ident
             )
@@ -149,14 +149,14 @@ async def sign_out(
 async def enable_flag(
     flag_id: str,
     *,
-    db_connection: SAConnection,
+    conn: SAConnection,
     dirty: DirtyProjects,
     changes: Changes,
 ) -> None:
     assert flag_id, "Flag id is required"
 
     flag_uuid = UUID(hex=flag_id)
-    await db_connection.execute(
+    await conn.execute(
         Flag.__table__.update()
         .where(Flag.id == flag_uuid)
         .values({Flag.enabled: True})
@@ -170,14 +170,14 @@ async def enable_flag(
 async def disable_flag(
     flag_id: str,
     *,
-    db_connection: SAConnection,
+    conn: SAConnection,
     dirty: DirtyProjects,
     changes: Changes,
 ) -> None:
     assert flag_id, "Flag id is required"
 
     flag_uuid = UUID(hex=flag_id)
-    await db_connection.execute(
+    await conn.execute(
         Flag.__table__.update()
         .where(Flag.id == flag_uuid)
         .values({Flag.enabled: False})
@@ -191,19 +191,19 @@ async def disable_flag(
 async def reset_flag(
     flag_id: str,
     *,
-    db_connection: SAConnection,
+    conn: SAConnection,
     dirty: DirtyProjects,
     changes: Changes,
 ) -> None:
     assert flag_id, "Flag id is required"
 
     flag_uuid = UUID(hex=flag_id)
-    await db_connection.execute(
+    await conn.execute(
         Flag.__table__.update()
         .where(Flag.id == flag_uuid)
         .values({Flag.enabled: None})
     )
-    await db_connection.execute(
+    await conn.execute(
         Condition.__table__.delete().where(Condition.flag == flag_uuid)
     )
     dirty.by_flag.add(flag_uuid)
@@ -213,15 +213,15 @@ async def reset_flag(
 @auth_required
 @track
 async def delete_flag(
-    flag_id: str, *, db_connection: SAConnection, changes: Changes
+    flag_id: str, *, conn: SAConnection, changes: Changes
 ) -> None:
     assert flag_id, "Flag id is required"
 
     flag_uuid = UUID(hex=flag_id)
-    await db_connection.execute(
+    await conn.execute(
         Condition.__table__.delete().where(Condition.flag == flag_uuid)
     )
-    await db_connection.execute(
+    await conn.execute(
         Flag.__table__.delete().where(Flag.id == flag_uuid)
     )
 
@@ -231,9 +231,9 @@ async def delete_flag(
 @auth_required
 @track
 async def add_check(
-    op: AddCheckOp, *, db_connection: SAConnection, dirty: DirtyProjects
+    op: AddCheckOp, *, conn: SAConnection, dirty: DirtyProjects
 ) -> dict[LocalId, UUID]:
-    id_ = await gen_id(op.local_id, db_connection=db_connection)
+    id_ = await gen_id(op.local_id, conn=conn)
     variable_id = UUID(hex=op.variable)
     values = {
         Check.id: id_,
@@ -241,7 +241,7 @@ async def add_check(
         Check.operator: Operator(op.operator),
     }
     values.update(Check.value_from_op(op))  # type: ignore
-    await db_connection.execute(
+    await conn.execute(
         insert(Check.__table__).values(values).on_conflict_do_nothing()
     )
     dirty.by_variable.add(variable_id)
@@ -253,12 +253,12 @@ async def add_check(
 async def add_condition(
     op: AddConditionOp,
     *,
-    db_connection: SAConnection,
+    conn: SAConnection,
     ids: dict,
     dirty: DirtyProjects,
     changes: Changes,
 ) -> dict:
-    id_ = await gen_id(op.local_id, db_connection=db_connection)
+    id_ = await gen_id(op.local_id, conn=conn)
 
     flag_id = UUID(hex=op.flag_id)
     checks = [
@@ -266,7 +266,7 @@ async def add_condition(
         for check in op.checks
     ]
 
-    await db_connection.execute(
+    await conn.execute(
         insert(Condition.__table__)
         .values(
             {
@@ -287,14 +287,14 @@ async def add_condition(
 async def disable_condition(
     condition_id: str,
     *,
-    db_connection: SAConnection,
+    conn: SAConnection,
     dirty: DirtyProjects,
     changes: Changes,
 ) -> None:
     assert condition_id, "Condition id is required"
 
     flag_id = await select_scalar(
-        db_connection,
+        conn,
         (
             Condition.__table__.delete()
             .where(Condition.id == UUID(hex=condition_id))
@@ -307,7 +307,7 @@ async def disable_condition(
 
 
 async def postprocess(
-    *, db_connection: SAConnection, dirty: DirtyProjects
+    *, conn: SAConnection, dirty: DirtyProjects
 ) -> None:
     selections = []
     for flag_id in dirty.by_flag:
@@ -317,7 +317,7 @@ async def postprocess(
             select([Variable.project]).where(Variable.id == variable_id)
         )
     if selections:
-        await db_connection.execute(
+        await conn.execute(
             update(Project.__table__)
             .where(or_(*[Project.id.in_(sel) for sel in selections]))
             .values({Project.version: Project.version + 1})
@@ -325,14 +325,14 @@ async def postprocess(
 
 
 async def update_changelog(
-    *, session: UserSession, db_connection: SAConnection, changes: Changes
+    *, session: UserSession, conn: SAConnection, changes: Changes
 ) -> None:
     actions = changes.get_actions()
     if actions:
         assert session.user is not None
         for flag, flag_actions in actions:
             assert flag_actions, repr(flag_actions)
-            await db_connection.execute(
+            await conn.execute(
                 insert(Changelog.__table__).values(
                     {
                         Changelog.timestamp: datetime.utcnow(),

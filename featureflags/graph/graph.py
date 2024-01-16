@@ -508,7 +508,7 @@ async def sing_in(ctx: dict, options: dict) -> AuthResult:
         success = await actions.sign_in(
             username,
             password,
-            db_connection=conn,
+            conn=conn,
             session=ctx[GraphContext.USER_SESSION],
             ldap=ctx[GraphContext.LDAP_SERVICE],
         )
@@ -523,7 +523,7 @@ async def sing_out(ctx: dict) -> AuthResult:
         return AuthResult(None)
     async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
         await actions.sign_out(
-            db_connection=conn,
+            conn=conn,
             session=ctx[GraphContext.USER_SESSION],
         )
     return AuthResult(None)
@@ -545,21 +545,21 @@ async def save_flag(ctx: dict, options: dict) -> SaveFlagResult:
                 case Operation.ENABLE_FLAG:
                     await actions.enable_flag(
                         operation_payload["flag_id"],
-                        db_connection=conn,
+                        conn=conn,
                         dirty=ctx[GraphContext.DIRTY_PROJECTS],
                         changes=ctx[GraphContext.CHANGES],
                     )
                 case Operation.DISABLE_FLAG:
                     await actions.disable_flag(
                         operation_payload["flag_id"],
-                        db_connection=conn,
+                        conn=conn,
                         dirty=ctx[GraphContext.DIRTY_PROJECTS],
                         changes=ctx[GraphContext.CHANGES],
                     )
                 case Operation.ADD_CHECK:
                     new_ids = await actions.add_check(
                         AddCheckOp(operation_payload),
-                        db_connection=conn,
+                        conn=conn,
                         dirty=ctx[GraphContext.DIRTY_PROJECTS],
                     )
                     if new_ids is not None:
@@ -567,7 +567,7 @@ async def save_flag(ctx: dict, options: dict) -> SaveFlagResult:
                 case Operation.ADD_CONDITION:
                     new_ids = await actions.add_condition(
                         AddConditionOp(operation_payload),
-                        db_connection=conn,
+                        conn=conn,
                         ids=ctx[GraphContext.CHECK_IDS],
                         dirty=ctx[GraphContext.DIRTY_PROJECTS],
                         changes=ctx[GraphContext.CHANGES],
@@ -577,7 +577,7 @@ async def save_flag(ctx: dict, options: dict) -> SaveFlagResult:
                 case Operation.DISABLE_CONDITION:
                     await actions.disable_condition(
                         operation_payload["condition_id"],
-                        db_connection=conn,
+                        conn=conn,
                         dirty=ctx[GraphContext.DIRTY_PROJECTS],
                         changes=ctx[GraphContext.CHANGES],
                     )
@@ -585,11 +585,11 @@ async def save_flag(ctx: dict, options: dict) -> SaveFlagResult:
                     raise ValueError(f"Unknown operation: {operation_type}")
 
         await actions.postprocess(
-            db_connection=conn, dirty=ctx[GraphContext.DIRTY_PROJECTS]
+            conn=conn, dirty=ctx[GraphContext.DIRTY_PROJECTS]
         )
         await actions.update_changelog(
             session=ctx[GraphContext.USER_SESSION],
-            db_connection=conn,
+            conn=conn,
             changes=ctx[GraphContext.CHANGES],
         )
 
@@ -601,16 +601,16 @@ async def reset_flag(ctx: dict, options: dict) -> ResetFlagResult:
     async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
         await actions.reset_flag(
             options["id"],
-            db_connection=conn,
+            conn=conn,
             dirty=ctx[GraphContext.DIRTY_PROJECTS],
             changes=ctx[GraphContext.CHANGES],
         )
         await actions.postprocess(
-            db_connection=conn, dirty=ctx[GraphContext.DIRTY_PROJECTS]
+            conn=conn, dirty=ctx[GraphContext.DIRTY_PROJECTS]
         )
         await actions.update_changelog(
             session=ctx[GraphContext.USER_SESSION],
-            db_connection=conn,
+            conn=conn,
             changes=ctx[GraphContext.CHANGES],
         )
 
@@ -622,7 +622,7 @@ async def delete_flag(ctx: dict, options: dict) -> DeleteFlagResult:
     async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
         await actions.delete_flag(
             options["id"],
-            db_connection=conn,
+            conn=conn,
             changes=ctx[GraphContext.CHANGES],
         )
 

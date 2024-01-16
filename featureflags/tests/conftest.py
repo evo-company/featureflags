@@ -70,7 +70,7 @@ async def db_engine(
 
 
 @pytest_asyncio.fixture
-async def db_connection(
+async def conn(
     db_engine: aiopg.sa.Engine,
 ) -> AsyncGenerator[aiopg.sa.SAConnection, None]:
     async with db_engine.acquire() as connection:

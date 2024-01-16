@@ -70,15 +70,15 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
             )
             raise
 
-        async with self._db_engine.acquire() as db_connection:
+        async with self._db_engine.acquire() as conn:
             await add_statistics(
                 request,
-                db_connection=db_connection,
+                conn=conn,
                 entity_cache=self._entity_cache,
                 flag_agg_stats=self._flag_agg_stats,
             )
             version = select_scalar(
-                db_connection,
+                conn,
                 select([Project.version]).where(
                     Project.name == request.project
                 ),

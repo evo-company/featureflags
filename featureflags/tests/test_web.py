@@ -11,15 +11,15 @@ from featureflags.services import auth
 from featureflags.tests.state import mk_auth_user, mk_flag
 
 
-async def check_flag(flag, db_connection):
-    result = await db_connection.execute(
+async def check_flag(flag, conn):
+    result = await conn.execute(
         select([Flag.enabled]).where(Flag.id == flag)
     )
     return await result.scalar()
 
 
-async def get_flag(flag, db_connection):
-    result = await db_connection.execute(
+async def get_flag(flag, conn):
+    result = await conn.execute(
         select([Flag.id]).where(Flag.id == flag)
     )
     return await result.scalar()
@@ -30,7 +30,7 @@ async def get_flag(flag, db_connection):
 async def test_reset_flag_graph(
     authenticated,
     db_engine,
-    db_connection,
+    conn,
     graph_engine,
     ldap,
 ):
@@ -63,7 +63,7 @@ async def test_reset_flag_graph(
     if authenticated:
         user = await mk_auth_user(db_engine)
         await make_call(user=user.id)
-        assert await check_flag(flag.id, db_connection) is None
+        assert await check_flag(flag.id, conn) is None
     else:
         with pytest.raises(AssertionError):
             await make_call(user=None)
@@ -72,7 +72,7 @@ async def test_reset_flag_graph(
 @pytest.mark.asyncio
 async def test_delete_flag_graph(
     db_engine,
-    db_connection,
+    conn,
     graph_engine,
     ldap,
 ):
@@ -102,4 +102,4 @@ async def test_delete_flag_graph(
     res = await graphql_endpoint.dispatch(query, ctx)
     assert res["data"]["deleteFlag"]["error"] is None
 
-    assert await get_flag(flag.id, db_connection) is None
+    assert await get_flag(flag.id, conn) is None

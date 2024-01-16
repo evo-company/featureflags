@@ -78,10 +78,13 @@ commands:
 
   test:
     description: Run tests
-    depends: [ build-test ]
+    depends:
+      - build-test
+      - postgres-test
     cmd: |
       export ARGS="$@"
       docker-compose run --rm test
+      docker-compose down postgres-test
 
   postgres:
     description: Run postgres
@@ -89,7 +92,7 @@ commands:
 
   postgres-test:
     description: Run postgres test db
-    cmd: docker-compose up postgres-test
+    cmd: docker-compose up -d postgres-test
 
   apply-migrations-dev:
     description: Apply migrations to local postgres
