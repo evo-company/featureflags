@@ -1,7 +1,7 @@
 import enum
 from collections.abc import Callable
 from datetime import datetime
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from sqlalchemy import Index, Integer, UniqueConstraint
 from sqlalchemy.dialects.postgresql import (
@@ -14,21 +14,13 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.schema import Column, ForeignKey, MetaData
 from sqlalchemy.types import Boolean, Enum, String
 
+from featureflags.graph.types import Action
 from featureflags.utils import ArrayOfEnum
 from featureflags_protobuf.graph_pb2 import Check as CheckProto
 from featureflags_protobuf.graph_pb2 import Variable as VariableProto
 
 metadata = MetaData()
-Base = declarative_base(metadata)  # type: ignore
-
-
-class Action(enum.Enum):
-    ENABLE_FLAG = 1
-    DISABLE_FLAG = 2
-    ADD_CONDITION = 3
-    DISABLE_CONDITION = 4
-    RESET_FLAG = 5
-    DELETE_FLAG = 6
+Base = declarative_base(metadata=metadata)
 
 
 class VariableType(enum.Enum):
@@ -38,10 +30,10 @@ class VariableType(enum.Enum):
     SET = 4
 
     @classmethod
-    def from_pb(cls, value):
+    def from_pb(cls, value: int) -> "VariableType":
         return cls.__members__[VariableProto.Type.Name(value)]
 
-    def to_pb(self):
+    def to_pb(self) -> VariableProto.Type:
         return VariableProto.Type.Value(self.name)
 
 
@@ -59,10 +51,10 @@ class Operator(enum.Enum):
     SUPERSET = 11
 
     @classmethod
-    def from_pb(cls, value):
+    def from_pb(cls, value: int) -> "Operator":
         return cls.__members__[CheckProto.Operator.Name(value)]
 
-    def to_pb(self):
+    def to_pb(self) -> CheckProto.Operator:
         return CheckProto.Operator.Value(self.name)
 
 
@@ -79,7 +71,7 @@ class AuthSession(Base):
     __tablename__ = "auth_session"
 
     session = Column(String, primary_key=True)
-    auth_user = Column(ForeignKey("auth_user.id"), nullable=False)
+    auth_user: UUID = Column(ForeignKey("auth_user.id"), nullable=False)
     creation_time = Column(TIMESTAMP, nullable=False)
     expiration_time = Column(TIMESTAMP, nullable=False)
 
@@ -114,7 +106,7 @@ class Variable(Base):
     name = Column(String, nullable=False)
     type = Column(Enum(VariableType, name="variable_type"), nullable=False)
 
-    project = Column(ForeignKey("project.id"), nullable=False)
+    project: UUID = Column(ForeignKey("project.id"), nullable=False)
 
     __table_args__ = (
         UniqueConstraint(project, name),
@@ -129,7 +121,7 @@ class Flag(Base):
     name = Column(String, nullable=False)
     enabled = Column(Boolean)
 
-    project = Column(ForeignKey("project.id"), nullable=False)
+    project: UUID = Column(ForeignKey("project.id"), nullable=False)
 
     __table_args__ = (
         UniqueConstraint(project, name),
@@ -141,7 +133,7 @@ class Condition(Base):
     __tablename__ = "condition"
 
     id = Column(UUID(as_uuid=True), primary_key=True)
-    flag = Column(ForeignKey("flag.id"), nullable=False)
+    flag: UUID = Column(ForeignKey("flag.id"), nullable=False)
 
     checks = Column("checks", ARRAY(UUID(as_uuid=True), as_tuple=True))
 
@@ -156,7 +148,7 @@ class Check(Base):
     value_timestamp = Column(TIMESTAMP)
     value_set = Column(ARRAY(String))
 
-    variable = Column(ForeignKey("variable.id"), nullable=False)
+    variable: UUID = Column(ForeignKey("variable.id"), nullable=False)
 
     __value_from_op__: ClassVar[dict[str, Callable]] = {
         "value_string": lambda m: {
@@ -174,7 +166,7 @@ class Check(Base):
     }
 
     @classmethod
-    def value_from_op(cls, check):
+    def value_from_op(cls, check: Any) -> dict[str, Any]:
         return cls.__value_from_op__[check.kind](check)
 
 
@@ -184,8 +176,10 @@ class Changelog(Base):
     id = Column(Integer, primary_key=True)
 
     timestamp = Column(TIMESTAMP, nullable=False)
-    auth_user = Column(ForeignKey("auth_user.id"), nullable=False)
-    flag = Column(ForeignKey("flag.id", ondelete="CASCADE"), nullable=False)
+    auth_user: UUID = Column(ForeignKey("auth_user.id"), nullable=False)
+    flag: UUID = Column(
+        ForeignKey("flag.id", ondelete="CASCADE"), nullable=False
+    )
     actions = Column(
         ArrayOfEnum(Enum(Action, name="changelog_actions"), as_tuple=True)
     )

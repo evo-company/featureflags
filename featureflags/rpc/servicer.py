@@ -36,7 +36,7 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
         self._db_engine = db_engine
 
         # for debugging
-        self._tasks = weakref.WeakSet()
+        self._tasks = weakref.WeakSet()  # type: ignore
 
     async def exchange(self, stream: Stream) -> None:
         # backward compatibility
@@ -48,7 +48,7 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
         self._tasks.add(asyncio.current_task())
         try:
             request: service_pb2.ExchangeRequest = await stream.recv_message()
-        except asyncio.CancelledError as exc:
+        except asyncio.CancelledError:
             h2_conn = stream._stream._h2_connection
             window = h2_conn._inbound_flow_control_window_manager
             log.info(
@@ -68,17 +68,17 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
                 stream.user_agent,
                 stream.metadata,
             )
-            raise from exc
+            raise
 
-        async with self._db_engine.acquire() as db_connection:
+        async with self._db_engine.acquire() as conn:
             await add_statistics(
                 request,
-                db_connection=db_connection,
+                conn=conn,
                 entity_cache=self._entity_cache,
                 flag_agg_stats=self._flag_agg_stats,
             )
             version = select_scalar(
-                db_connection,
+                conn,
                 select([Project.version]).where(
                     Project.name == request.project
                 ),
@@ -91,7 +91,7 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
                 graph_engine=self._graph_engine,
                 query=protobuf.transform(request.query),
                 db_engine=self._db_engine,
-                session=user_session,
+                session=user_session.get(),
             )
             populate_result_proto(result, exchange_reply.result)
 

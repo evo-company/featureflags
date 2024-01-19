@@ -1,21 +1,33 @@
-from uuid import uuid4
 from datetime import datetime
+from uuid import uuid4
 
 import pytest
-
+from google.protobuf.wrappers_pb2 import BoolValue  # type: ignore
+from hiku.builder import Q, build
 from hiku.result import denormalize
-from hiku.builder import build, Q
-from google.protobuf.wrappers_pb2 import BoolValue
 
-from featureflags_protobuf import graph_pb2
-
-from featureflags.services import auth
-from featureflags.graph.graph import GRAPH, exec_graph, _is_uuid
+from featureflags.graph.graph import GRAPH, exec_graph
 from featureflags.graph.proto_adapter import populate_result_proto
-from featureflags.models import Action
-
-from state import mk_condition, mk_project, mk_variable, mk_flag, mk_auth_user
-from state import mk_check, mk_changelog_entry
+from featureflags.graph.types import Action
+from featureflags.graph.utils import is_valid_uuid
+from featureflags.services.auth import (
+    EmptyAccessTokenState,
+    ExpiredAccessTokenState,
+    SignedOutState,
+    UnknownState,
+    UserSession,
+    ValidAccessTokenState,
+)
+from featureflags.tests.state import (
+    mk_auth_user,
+    mk_changelog_entry,
+    mk_check,
+    mk_condition,
+    mk_flag,
+    mk_project,
+    mk_variable,
+)
+from featureflags_protobuf import graph_pb2
 
 
 @pytest.mark.parametrize(
@@ -27,19 +39,17 @@ from state import mk_check, mk_changelog_entry
     ],
 )
 def test_is_uuid(value, result):
-    assert _is_uuid(value) is result
+    assert is_valid_uuid(value) is result
 
 
 @pytest.mark.asyncio
-async def test_root_flag_invalid(sa, hiku_engine):
+async def test_root_flag_invalid(db_engine, graph_engine, test_session):
     query = build(
         [
-            Q.flag(id="invalid-uuid")[Q.id,],
+            Q.flag(id=str(uuid4()))[Q.id,],
         ]
     )
-    result = await exec_graph(
-        hiku_engine, query, sa=sa, session=auth.TestSession(uuid4())
-    )
+    result = await exec_graph(graph_engine, query, db_engine, test_session)
     assert denormalize(GRAPH, result) == {"flag": None}
 
 
@@ -52,15 +62,17 @@ async def test_root_flag_invalid(sa, hiku_engine):
         (False, True),
     ],
 )
-async def test_flags(enabled, overridden, db, sa, hiku_engine):
-    project = await mk_project(db)
-    variable = await mk_variable(db, project=project)
-    flag = await mk_flag(db, enabled=enabled, project=project)
-    check = await mk_check(db, variable=variable)
-    condition = await mk_condition(db, flag=flag, checks=[check.id])
+async def test_flags(
+    enabled, overridden, db_engine, graph_engine, test_session
+):
+    project = await mk_project(db_engine)
+    variable = await mk_variable(db_engine, project=project)
+    flag = await mk_flag(db_engine, enabled=enabled, project=project)
+    check = await mk_check(db_engine, variable=variable)
+    condition = await mk_condition(db_engine, flag=flag, checks=[check.id])
 
     # generate some other flag in other project
-    await mk_flag(db)
+    await mk_flag(db_engine)
 
     query = build(
         [
@@ -97,9 +109,7 @@ async def test_flags(enabled, overridden, db, sa, hiku_engine):
             ],
         ]
     )
-    result = await exec_graph(
-        hiku_engine, query, sa=sa, session=auth.TestSession(uuid4())
-    )
+    result = await exec_graph(graph_engine, query, db_engine, test_session)
     assert denormalize(GRAPH, result) == {
         "flags": [
             {
@@ -142,7 +152,9 @@ async def test_flags(enabled, overridden, db, sa, hiku_engine):
         ],
     }
 
-    assert populate_result_proto(result, graph_pb2.Result()) == graph_pb2.Result(
+    assert populate_result_proto(
+        result, graph_pb2.Result()
+    ) == graph_pb2.Result(
         Root=graph_pb2.Root(
             flags=[graph_pb2.Ref(Flag=flag.id.hex)],
         ),
@@ -188,10 +200,10 @@ async def test_flags(enabled, overridden, db, sa, hiku_engine):
 
 
 @pytest.mark.asyncio
-async def test_flags_by_ids(db, sa, hiku_engine):
-    flag = await mk_flag(db)
+async def test_flags_by_ids(db_engine, graph_engine, test_session):
+    flag = await mk_flag(db_engine)
     # generate some other flag
-    await mk_flag(db)
+    await mk_flag(db_engine)
 
     query = build(
         [
@@ -201,9 +213,7 @@ async def test_flags_by_ids(db, sa, hiku_engine):
             ],
         ]
     )
-    result = await exec_graph(
-        hiku_engine, query, sa=sa, session=auth.TestSession(uuid4())
-    )
+    result = await exec_graph(graph_engine, query, db_engine, test_session)
     assert denormalize(GRAPH, result) == {
         "flags_by_ids": [
             {
@@ -212,7 +222,9 @@ async def test_flags_by_ids(db, sa, hiku_engine):
             },
         ],
     }
-    assert populate_result_proto(result, graph_pb2.Result()) == graph_pb2.Result(
+    assert populate_result_proto(
+        result, graph_pb2.Result()
+    ) == graph_pb2.Result(
         Root=graph_pb2.Root(
             flags_by_ids=[graph_pb2.Ref(Flag=flag.id.hex)],
         ),
@@ -226,9 +238,9 @@ async def test_flags_by_ids(db, sa, hiku_engine):
 
 
 @pytest.mark.asyncio
-async def test_projects(db, sa, hiku_engine):
-    project = await mk_project(db)
-    variable = await mk_variable(db, project=project)
+async def test_projects(db_engine, graph_engine, test_session):
+    project = await mk_project(db_engine)
+    variable = await mk_variable(db_engine, project=project)
 
     query = build(
         [
@@ -243,9 +255,7 @@ async def test_projects(db, sa, hiku_engine):
             ]
         ]
     )
-    result = await exec_graph(
-        hiku_engine, query, sa=sa, session=auth.TestSession(uuid4())
-    )
+    result = await exec_graph(graph_engine, query, db_engine, test_session)
     plain_result = denormalize(GRAPH, result)
     expected = {
         "id": project.id,
@@ -278,32 +288,40 @@ async def test_projects(db, sa, hiku_engine):
 @pytest.mark.parametrize(
     "state, value",
     [
-        (auth.Unknown(), False),
-        (auth.ValidAccessToken(uuid4()), True),
+        (UnknownState(user=None), False),
+        (ValidAccessTokenState(uuid4()), True),
         (
-            auth.ExpiredAccessToken(
-                uuid4(), "secret", "session_key", datetime.utcnow()
+            ExpiredAccessTokenState(
+                user=uuid4(),
+                secret="secret",
+                ident="session_key",
+                session_exp=datetime.utcnow(),
             ),
             True,
         ),
-        (auth.SignedOutSession("session_key", "secret"), False),
-        (auth.EmptyAccessToken(), False),
+        (
+            SignedOutState(user=None, ident="session_key", secret="secret"),
+            False,
+        ),
+        (EmptyAccessTokenState(user=None), False),
     ],
 )
-async def test_authenticated(state, value, sa, hiku_engine):
+async def test_authenticated(state, value, db_engine, graph_engine):
     query = build([Q.authenticated])
-    session = auth.Session(None, state, secret="secret")
-    result = await exec_graph(hiku_engine, query, sa=sa, session=session)
+
+    user_session = UserSession(ident=None, state=state, secret="secret")
+    result = await exec_graph(graph_engine, query, db_engine, user_session)
+
     assert result["authenticated"] is value
     result_proto = populate_result_proto(result, graph_pb2.Result())
     assert result_proto.Root.authenticated is value
 
 
 @pytest.mark.asyncio
-async def test_changes(db, hiku_engine, sa):
-    flag = await mk_flag(db)
-    auth_user = await mk_auth_user(db)
-    entry = await mk_changelog_entry(db, flag=flag, auth_user=auth_user)
+async def test_changes(db_engine, graph_engine, test_session):
+    flag = await mk_flag(db_engine)
+    auth_user = await mk_auth_user(db_engine)
+    entry = await mk_changelog_entry(db_engine, flag=flag, auth_user=auth_user)
     query = build(
         [
             Q.changes[
@@ -315,25 +333,23 @@ async def test_changes(db, hiku_engine, sa):
             ],
         ]
     )
-    session = auth.TestSession(uuid4())
-    result = await exec_graph(hiku_engine, query, sa=sa, session=session)
+    result = await exec_graph(graph_engine, query, db_engine, test_session)
     plain_result = denormalize(GRAPH, result)
     assert plain_result["changes"][0] == {  # 0 == latest
         "id": entry.id,
         "timestamp": entry.timestamp,
-        "actions": tuple(),
+        "actions": (),
         "flag": {"name": flag.name},
         "user": {"username": auth_user.username},
     }
 
 
 @pytest.mark.asyncio
-async def test_changes_by_project_ids(db, hiku_engine, sa):
-    session = auth.TestSession(uuid4())
-    flag = await mk_flag(db)
-    auth_user = await mk_auth_user(db)
+async def test_changes_by_project_ids(db_engine, graph_engine, test_session):
+    flag = await mk_flag(db_engine)
+    auth_user = await mk_auth_user(db_engine)
     entry = await mk_changelog_entry(
-        db, flag=flag, auth_user=auth_user, actions=[Action.RESET_FLAG]
+        db_engine, flag=flag, auth_user=auth_user, actions=[Action.RESET_FLAG]
     )
     q1 = build(
         [
@@ -346,7 +362,7 @@ async def test_changes_by_project_ids(db, hiku_engine, sa):
             ],
         ]
     )
-    r1 = await exec_graph(hiku_engine, q1, sa=sa, session=session)
+    r1 = await exec_graph(graph_engine, q1, db_engine, test_session)
     assert denormalize(GRAPH, r1) == {"changes": []}
 
     q2 = build(
@@ -360,7 +376,7 @@ async def test_changes_by_project_ids(db, hiku_engine, sa):
             ],
         ]
     )
-    r2 = await exec_graph(hiku_engine, q2, sa=sa, session=session)
+    r2 = await exec_graph(graph_engine, q2, db_engine, test_session)
     assert denormalize(GRAPH, r2) == {
         "changes": [
             {

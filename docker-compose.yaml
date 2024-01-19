@@ -4,7 +4,7 @@ services:
   postgres:
     image: postgres:13-alpine
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -16,6 +16,21 @@ services:
       - main
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready", "-d", "featureflags" ]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 80s
+
+  postgres-test:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: featureflags-test
+    networks:
+      - main
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready", "-d", "featureflags-test" ]
       interval: 30s
       timeout: 60s
       retries: 5
@@ -59,6 +74,15 @@ services:
     ports:
       - "127.0.0.1:50051:50051"
     command: pdm run watchfiles --filter python "python3 -m featureflags rpc" featureflags
+
+  http:
+    <<: *backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+    command: pdm run watchfiles --filter python "python3 -m featureflags http" featureflags
 
   ishell:
     <<: *backend

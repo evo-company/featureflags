@@ -1,72 +1,103 @@
 import uuid
+from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING
 
-import pytest
 import aiopg.sa
-import sqlalchemy
-import psycopg2.extensions
-
+import pytest
+import pytest_asyncio
+from fastapi import FastAPI
 from hiku.engine import Engine
-from hiku.executors.asyncio import AsyncIOExecutor
+from sqlalchemy import text
 
+from featureflags.alembic import main as alembic_main
+from featureflags.graph.types import Changes, DirtyProjects
 from featureflags.models import metadata
+from featureflags.services.auth import TestSession, user_session
+from featureflags.services.ldap import BaseLDAP
+from featureflags.web.app import create_app
+
+if TYPE_CHECKING:
+    from featureflags.container import Container
 
 
-@pytest.fixture(name="loop")
-def loop_fixture(event_loop):
-    return event_loop
+@pytest.fixture
+def app() -> FastAPI:
+    return create_app()
 
 
-@pytest.fixture(name="dsn", scope="session")
-def dsn_fixture(request):
-    name = "test_{}".format(uuid.uuid4().hex)
-    pg_dsn = "postgresql://postgres:postgres@postgres:5432/postgres"
-    db_dsn = "postgresql://postgres:postgres@postgres:5432/{}".format(name)
-
-    pg_engine = sqlalchemy.create_engine(pg_dsn)
-    pg_engine.raw_connection().set_isolation_level(
-        psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
-    )
-    pg_engine.execute("CREATE DATABASE {0}".format(name))
-    pg_engine.dispose()
-
-    db_engine = sqlalchemy.create_engine(db_dsn)
-    metadata.create_all(db_engine)
-    db_engine.dispose()
-
-    def fin():
-        pg_engine = sqlalchemy.create_engine(pg_dsn)
-        pg_engine.raw_connection().set_isolation_level(
-            psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
-        )
-        pg_engine.execute("DROP DATABASE {0}".format(name))
-        pg_engine.dispose()
-
-    request.addfinalizer(fin)
-    return db_dsn
-
-
-@pytest.fixture(name="sa")
-def sa_fixture(loop, dsn):
-    engine_ctx = aiopg.sa.create_engine(
-        dsn, loop=loop, echo=True, enable_hstore=False
-    )
-    engine = loop.run_until_complete(engine_ctx.__aenter__())
+@pytest.fixture
+async def container(app: FastAPI) -> AsyncGenerator["Container", None]:
     try:
+        yield app.container  # type: ignore
+    finally:
+        await app.container.shutdown_resources()  # type: ignore
+
+
+def migrate_up() -> None:
+    alembic_main(["upgrade", "head"])
+
+
+async def migrate_down(
+    db_engine: aiopg.sa.Engine,
+    skip_tables: list | None = None,
+) -> None:
+    skip_tables = skip_tables or []
+    table_names = ", ".join(
+        [
+            f'"{table.name}"'
+            for table in metadata.sorted_tables
+            if table.name not in skip_tables
+        ]
+    )
+
+    if table_names:
+        async with db_engine.acquire() as connection:
+            await connection.execute(
+                text(f"TRUNCATE TABLE {table_names} RESTART IDENTITY CASCADE")
+            )
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def db_engine(
+    container: "Container",
+) -> AsyncGenerator[aiopg.sa.Engine, None]:
+    engine = await container.db_engine()
+    try:
+        migrate_up()
         yield engine
     finally:
-        loop.run_until_complete(engine_ctx.__aexit__(None, None, None))
+        await migrate_down(engine)
 
 
-@pytest.fixture(name="db")
-def db_fixture(loop, sa):
-    conn_ctx = sa.acquire()
-    conn = loop.run_until_complete(conn_ctx.__aenter__())
-    try:
-        yield conn
-    finally:
-        loop.run_until_complete(conn_ctx.__aexit__(None, None, None))
+@pytest_asyncio.fixture
+async def conn(
+    db_engine: aiopg.sa.Engine,
+) -> AsyncGenerator[aiopg.sa.SAConnection, None]:
+    async with db_engine.acquire() as connection:
+        yield connection
 
 
-@pytest.fixture(name="hiku_engine")
-def hiku_engine_fixture(loop):
-    return Engine(AsyncIOExecutor(loop=loop))
+@pytest.fixture(autouse=True)
+def test_session() -> TestSession:
+    user_session.set(TestSession(user=uuid.uuid4()))  # type: ignore
+    return user_session.get()  # type: ignore
+
+
+@pytest.fixture
+def dirty_projects() -> DirtyProjects:
+    return DirtyProjects()
+
+
+@pytest.fixture
+def changes() -> Changes:
+    return Changes()
+
+
+@pytest.fixture
+def graph_engine(container: "Container") -> Engine:
+    return container.graph_engine()
+
+
+@pytest.fixture
+def ldap(container: "Container") -> BaseLDAP:
+    return container.ldap_service()

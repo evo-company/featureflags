@@ -27,7 +27,7 @@ Check important architecture decisions in ``adr/`` directory.
 
 Installation
 ------------
-TODO: update after deploy configuration 
+TODO: update after deploy configuration
 
 On PyPi: https://pypi.org/project/evo-featureflags-client
 
@@ -58,6 +58,17 @@ to start API handlers (not required for web application):
 
 - ``lets http`` # in separate terminal
 - ``lets rpc`` # in separate terminal
+
+Pre-commit
+
+``./scripts/enable-hooks.sh``
+
+``./scripts/disable-hooks.sh``
+
+TODO:
+
+- add docs, automate docs build
+- add tests
 
 .. _fastapi: https://github.com/tiangolo/fastapi
 .. _hiku: https://github.com/vmagamedov/hiku
