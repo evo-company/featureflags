@@ -1,6 +1,7 @@
 """
     This module defines client -> server feedback, which is used to
     notify server about new projects/variables/flags
+    TODO: refactor.
 """
 from uuid import UUID, uuid4
 
@@ -8,9 +9,14 @@ from aiopg.sa import SAConnection
 from sqlalchemy import and_, select
 from sqlalchemy.dialects.postgresql import insert
 
-from featureflags.models import Flag, Project, Variable, VariableType
-from featureflags.utils import EntityCache, FlagAggStats
-from featureflags_protobuf import service_pb2
+from featureflags.http.types import (
+    PreloadFlagsRequest,
+)
+from featureflags.http.types import (
+    Variable as RequestVariable,
+)
+from featureflags.models import Flag, Project, Variable
+from featureflags.utils import EntityCache
 
 
 async def _select_project(name: str, *, conn: SAConnection) -> UUID:
@@ -50,22 +56,18 @@ async def _get_or_create_project(
 
 
 async def _select_variable(
-    project: UUID, name: str, *, conn: SAConnection
+    project: UUID, variable: RequestVariable, *, conn: SAConnection
 ) -> UUID:
     result = await conn.execute(
         select([Variable.id]).where(
-            and_(Variable.project == project, Variable.name == name)
+            and_(Variable.project == project, Variable.name == variable.name)
         )
     )
     return await result.scalar()
 
 
 async def _insert_variable(
-    project: UUID,
-    name: str,
-    type_: VariableType,
-    *,
-    conn: SAConnection,
+    project: UUID, variable: RequestVariable, *, conn: SAConnection
 ) -> UUID:
     result = await conn.execute(
         insert(Variable.__table__)
@@ -73,8 +75,8 @@ async def _insert_variable(
             {
                 Variable.id: uuid4(),
                 Variable.project: project,
-                Variable.name: name,
-                Variable.type: type_,
+                Variable.name: variable.name,
+                Variable.type: variable.type,
             }
         )
         .on_conflict_do_nothing()
@@ -85,26 +87,27 @@ async def _insert_variable(
 
 async def _get_or_create_variable(
     project: UUID,
-    name: str,
-    type_: VariableType,
+    variable: RequestVariable,
     *,
     conn: SAConnection,
     entity_cache: EntityCache,
 ) -> UUID:
-    assert project and name and type_, (project, name, type_)
-    id_ = entity_cache.variable[project].get(name)
+    assert project and variable, (project, variable)
+    id_ = entity_cache.variable[project].get(variable.name)
     if id_ is None:  # not in cache
-        id_ = await _select_variable(project, name, conn=conn)
+        id_ = await _select_variable(
+            project, variable, conn=conn
+        )
         if id_ is None:  # not in db
             id_ = await _insert_variable(
-                project, name, type_, conn=conn
+                project, variable, conn=conn
             )
             if id_ is None:  # conflicting insert
                 id_ = await _select_variable(
-                    project, name, conn=conn
+                    project, variable, conn=conn
                 )
                 assert id_ is not None  # must be in db
-        entity_cache.variable[project][name] = id_
+        entity_cache.variable[project][variable.name] = id_
     return id_
 
 
@@ -133,54 +136,47 @@ async def _insert_flag(
 
 async def _get_or_create_flag(
     project: UUID,
-    name: str,
+    flag: str,
     *,
     conn: SAConnection,
     entity_cache: EntityCache,
 ) -> UUID:
-    assert project and name, (project, name)
-    id_ = entity_cache.flag[project].get(name)
+    assert project and flag, (project, flag)
+    id_ = entity_cache.flag[project].get(flag)
     if id_ is None:  # not in cache
-        id_ = await _select_flag(project, name, conn=conn)
+        id_ = await _select_flag(project, flag, conn=conn)
         if id_ is None:  # not in db
-            id_ = await _insert_flag(project, name, conn=conn)
+            id_ = await _insert_flag(project, flag, conn=conn)
             if id_ is None:  # conflicting insert
                 id_ = await _select_flag(
-                    project, name, conn=conn
+                    project, flag, conn=conn
                 )
                 assert id_ is not None  # must be in db
-        entity_cache.flag[project][name] = id_
+        entity_cache.flag[project][flag] = id_
     return id_
 
 
-async def add_statistics(
-    op: service_pb2.ExchangeRequest,
-    *,
+async def prepare_flags_project(
+    request: PreloadFlagsRequest,
     conn: SAConnection,
     entity_cache: EntityCache,
-    flag_agg_stats: FlagAggStats,
 ) -> None:
     project = await _get_or_create_project(
-        op.project,
+        request.project,
         conn=conn,
         entity_cache=entity_cache,
     )
-    for v in op.variables:
+    for variable in request.variables:
         await _get_or_create_variable(
             project,
-            v.name,
-            VariableType.from_pb(v.type),
+            variable,
             conn=conn,
             entity_cache=entity_cache,
         )
-    for flag_usage in op.flags:
-        flag = await _get_or_create_flag(
+    for flag in request.flags:
+        await _get_or_create_flag(
             project,
-            flag_usage.name,
+            flag,
             conn=conn,
             entity_cache=entity_cache,
         )
-
-        s = flag_agg_stats[flag][flag_usage.interval.ToDatetime()]
-        s[0] += flag_usage.positive_count
-        s[1] += flag_usage.negative_count

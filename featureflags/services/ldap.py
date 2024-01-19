@@ -24,8 +24,8 @@ class BaseLDAP(ABC):
 
 
 class DummyLDAP(BaseLDAP):
-    def __init__(self, *, bound=False):
-        self._bound = bound
+    def __init__(self, *, user_is_bound: bool = False) -> None:
+        self.user_is_bound = user_is_bound
 
     async def check_credentials(
         self,
@@ -35,11 +35,11 @@ class DummyLDAP(BaseLDAP):
         connect_timeout: int = 5,
         receive_timeout: int = 5,
     ) -> bool:
-        return self._bound
+        return self.user_is_bound
 
 
 class LDAP(BaseLDAP):
-    def __init__(self, host, base_dn):
+    def __init__(self, host: str, base_dn: str) -> None:
         self._host = host
         self._base_dn = base_dn
 

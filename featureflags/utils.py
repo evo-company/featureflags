@@ -1,10 +1,10 @@
 from collections import defaultdict
 from typing import Any
+from uuid import UUID
 
 from aiopg.sa import Engine, SAConnection
 from sqlalchemy import cast
 from sqlalchemy.dialects.postgresql import ARRAY
-from sqlalchemy.orm import Query
 
 
 class ArrayOfEnum(ARRAY):
@@ -40,9 +40,9 @@ class EntityCache:
     """
 
     def __init__(self) -> None:
-        self.project = {}
-        self.flag = defaultdict(dict)
-        self.variable = defaultdict(dict)
+        self.project: dict[str, UUID] = {}
+        self.flag: defaultdict[UUID, dict[str, UUID]] = defaultdict(dict)
+        self.variable: defaultdict[UUID, dict[str, UUID]] = defaultdict(dict)
 
 
 class FlagAggStats(defaultdict):
@@ -56,17 +56,17 @@ class FlagAggStats(defaultdict):
         super().__init__(lambda: defaultdict(lambda: [0, 0]))
 
 
-async def select_scalar(conn: SAConnection, stmt: Query) -> Any:
+async def select_scalar(conn: SAConnection, stmt: Any) -> Any:
     result = await conn.execute(stmt)
     return await result.scalar()
 
 
-async def exec_scalar(engine: Engine, stmt: Query) -> Any:
+async def exec_scalar(engine: Engine, stmt: Any) -> Any:
     async with engine.acquire() as conn:
         return await select_scalar(conn, stmt)
 
 
-async def select_first(conn: SAConnection, stmt: Query) -> Any:
+async def select_first(conn: SAConnection, stmt: Any) -> Any:
     result = await conn.execute(stmt)
     row = await result.first()
     if row is not None:
@@ -75,7 +75,7 @@ async def select_first(conn: SAConnection, stmt: Query) -> Any:
         return None
 
 
-async def exec_expression(engine: Engine, stmt: Query) -> Any:
+async def exec_expression(engine: Engine, stmt: Any) -> Any:
     async with engine.acquire() as conn:
         result = await conn.execute(stmt)
         return [r[0] for r in await result.fetchall()]

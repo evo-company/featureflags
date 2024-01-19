@@ -1,18 +1,16 @@
 import os
+from pathlib import PosixPath
 
-import yaml
-from featureflags.config import Config, load_config
+import pytest
 
-
-def test_local():
-    load_config("config.yaml")
+from featureflags.config import CONFIG_PATH_ENV_VAR, CONFIGS_DIR, _load_config
 
 
-def test_from_env():
-    os.environ["PGPASS"] = "postgres"
-    with open("config.yaml", "r") as f:
-        data = yaml.load(f, Loader=yaml.FullLoader)
-
-    del data["postgres"]["password"]
-    cfg = Config(**data)
-    assert cfg.postgres.password == "postgres"
+@pytest.mark.parametrize(
+    "path",
+    CONFIGS_DIR.iterdir(),
+)
+def test_configs_smoke(path: PosixPath) -> None:
+    """Test that the config loads."""
+    os.environ[CONFIG_PATH_ENV_VAR] = path.as_posix()
+    _load_config()

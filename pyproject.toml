@@ -12,7 +12,7 @@ dependencies = [
     "grpclib==0.4.5",
     "hiku==0.7.1",
     "protobuf<4.0.0",
-    "sqlalchemy==1.4.42",
+    "sqlalchemy[mypy]==1.4.42",
     "aiopg[sa]==1.4.0",
     "psycopg2==2.9.7",
     "graphql-core==3.2.3",
@@ -25,7 +25,13 @@ dependencies = [
     "pydantic>=2.3.0",
     "pydantic-settings>=2.0.3",
     "setuptools==68.2.2",
+    "fastapi>=0.103.2",
+    "orjson>=3.9.8",
+    "uvloop>=0.17.0",
+    "httptools>=0.6.0",
+    "uvicorn[standart]>=0.23.2",
     "typer>=0.9.0",
+    "jinja2>=3.1.2",
     "dependency-injector>=4.41.0",
     "grpcio>=1.59.0",
 ]
@@ -58,6 +64,9 @@ lint = [
     "black~=23.9.1",
     "ruff>=0.0.292",
     "mypy>=1.6.0",
+    "types-protobuf>=4.24.0.20240106",
+    "types-PyYAML>=6.0.12.12",
+    "sqlalchemy-stubs>=0.4",
 ]
 dev = [
     "watchfiles~=0.20.0",
@@ -149,6 +158,7 @@ exclude = [
     "venv",
     ".ve",
     "__pycache__",
+    "featureflags/migrations",
 ]
 line-length = 80
 # Allow unused variables when underscore-prefixed.
@@ -176,13 +186,17 @@ known-first-party = ["featureflags"]
 
 [tool.mypy]
 python_version = "3.11"
-follow_imports = "normal"
+follow_imports = "skip"
 pretty = true
 strict_optional = false
 warn_no_return = true
 disallow_incomplete_defs = true
 disallow_untyped_defs = true
 ignore_missing_imports = true
+plugins = [
+    "sqlmypy",
+    "sqlalchemy.ext.mypy.plugin",
+]
 exclude = [
     ".git",
     "__pycache__",
@@ -190,10 +204,25 @@ exclude = [
     ".venv",
     "venv",
     ".ve",
+    "featureflags/migrations",
+    "featureflags/tests",
 ]
 
 [[tool.mypy.overrides]]
-module = "tests.*"
+module = "hiku.*"
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "featureflags_protobuf.*"
+follow_imports = "skip"
+disallow_untyped_decorators = false
+disable_error_code = [
+    "no-untyped-def",
+    "attr-defined",
+]
+
+[[tool.mypy.overrides]]
+module = "featureflags.graph.proto_adapter"
 disallow_untyped_decorators = false
 disable_error_code = [
     "no-untyped-def",

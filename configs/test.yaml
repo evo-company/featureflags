@@ -8,6 +8,12 @@ app:
   reload: True
   thread_limiter_total_tokens: 40
 
+http:
+  port: 8080
+  host: 0.0.0.0
+  reload: True
+  thread_limiter_total_tokens: 40
+
 rpc:
   port: 50051
   host: 0.0.0.0
@@ -23,11 +29,11 @@ logging:
   syslog_defaults: null
 
 postgres:
-  host: postgres
+  host: postgres-test
   port: 5432
   user: postgres
   password: postgres
-  database: featureflags
+  database: featureflags-test
   timeout: 10
 
 ldap:

@@ -1,6 +1,5 @@
 import logging
 import os
-from functools import lru_cache
 from pathlib import Path
 
 import yaml
@@ -34,7 +33,7 @@ class PostgresSettings(BaseSettings):
     timeout: int = 10
 
     @property
-    def dsn(self):
+    def dsn(self) -> str:
         return (
             f"postgresql://{self.user}"
             f":{self.password}"
@@ -60,6 +59,13 @@ class AppSettings(BaseSettings):
     thread_limiter_total_tokens: int = 40
 
 
+class HttpSettings(BaseSettings):
+    port: int = 8080
+    host: str = "0.0.0.0"
+    reload: bool = False
+    thread_limiter_total_tokens: int = 40
+
+
 class RpcSettings(BaseSettings):
     port: int = 8000
     host: str = "0.0.0.0"
@@ -77,9 +83,9 @@ class Config(BaseSettings):
 
     app: AppSettings
     rpc: RpcSettings
+    http: HttpSettings
 
 
-@lru_cache(maxsize=1)
 def _load_config() -> Config:
     config_path = os.environ.get(CONFIG_PATH_ENV_VAR, DEFAULT_CONFIG_PATH)
     log.info("Reading config from %s", config_path)
