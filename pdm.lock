@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "lint", "test"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:28e656ac476bcfa61e63d7d98db7b2b71431d7dd82e1ad788d2eab8648497656"
+content_hash = "sha256:5f67547e53728d0973ce9e9ab10a615555c2f18545d2f634985b2deb973e885a"
 
 [[package]]
 name = "aiopg"
@@ -339,12 +339,13 @@ files = [
 
 [[package]]
 name = "evo-featureflags-protobuf"
-version = "0.2.1"
+version = "0.3.0"
+requires_python = ">=3.7"
 summary = "Protocol Buffers stub files for feature flags service"
 groups = ["default"]
 files = [
-    {file = "evo-featureflags-protobuf-0.2.1.tar.gz", hash = "sha256:edbfbf8c8c669fe8b0c9ca0b9846971b0be76b38d147fba39946a036471cb396"},
-    {file = "evo_featureflags_protobuf-0.2.1-py3-none-any.whl", hash = "sha256:04087bf39c6bac5a135935c6706763a3b071c7747b96e58789d50f7bb62e19c8"},
+    {file = "evo_featureflags_protobuf-0.3.0-py3-none-any.whl", hash = "sha256:3ebeabef9d1171da56146a2a9e0e21f6950ec12d48437fc36fbb0eee99aed2d0"},
+    {file = "evo_featureflags_protobuf-0.3.0.tar.gz", hash = "sha256:d1a5a998d3d77f46aabbfb1a098baea60ed4903b1b639d80e20a4484d0d8846b"},
 ]
 
 [[package]]

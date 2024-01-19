@@ -84,7 +84,9 @@ commands:
     cmd: |
       export ARGS="$@"
       docker-compose run --rm test
+      TESTS_EXIT_CODE=$?
       docker-compose down postgres-test
+      exit $TESTS_EXIT_CODE
 
   postgres:
     description: Run postgres

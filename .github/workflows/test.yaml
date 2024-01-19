@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - migrate-to-http-client
     types:
       - assigned
       - opened
