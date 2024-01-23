@@ -25,7 +25,6 @@ mypy.ini
 .gitignore
 .gitlab-ci.yml
 .python-version
-README.md
 .hooks
 .lets
 helm

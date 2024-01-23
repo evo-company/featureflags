@@ -26,11 +26,12 @@ def create_app() -> FastAPI:
     app.include_router(index_router)
     app.include_router(graphql_router)
 
-    app.mount(
-        "/static",
-        app=StaticFiles(directory=STATIC_DIR, html=True),
-        name="static",
+    static_files = StaticFiles(
+        directory=STATIC_DIR,
+        check_dir=not config.debug,
+        html=True,
     )
+    app.mount("/static", static_files, name="static")
 
     configure_metrics(port=config.instrumentation.prometheus_port)
     configure_middlewares(app, container)

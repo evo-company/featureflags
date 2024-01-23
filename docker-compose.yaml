@@ -54,8 +54,9 @@ services:
       - ./scripts:/app/scripts
       - ./configs:/app/configs
       - ./.ipython:/app/.ipython
+      - ./README.md:/app/README.md
       # Uncomment to mount local build of `featureflags_protobuf`
-      - ./featureflags_protobuf:/app/featureflags_protobuf
+      #- ./featureflags_protobuf:/app/featureflags_protobuf
 
   web:
     <<: *backend

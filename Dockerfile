@@ -10,7 +10,10 @@ WORKDIR /app
 COPY ./pyproject.toml .
 COPY ./pdm.lock .
 
-COPY ./scripts/pre-install.sh .
+# for pyproject.toml to extract version
+COPY ./featureflags/__init__.py ./featureflags/__init__.py
+# for pyproject.toml to read readme
+COPY ./README.md .
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -25,8 +28,6 @@ RUN apt-get update && \
     # configure
     pdm config cache_dir /pdm_cache && \
     pdm config check_update false && \
-    # custom pre-install script
-    /app/pre-install.sh && \
     # install base deps \
     pdm install --no-lock --prod --no-editable  && \
     # cleanup base layer to keep image size small

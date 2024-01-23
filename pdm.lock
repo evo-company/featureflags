@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "lint", "test"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:28e656ac476bcfa61e63d7d98db7b2b71431d7dd82e1ad788d2eab8648497656"
+content_hash = "sha256:9a1107332d22df98c9218951c14639bd8bb105feb9f863b950dffa542b7bdd82"
 
 [[package]]
 name = "aiopg"
@@ -339,12 +339,13 @@ files = [
 
 [[package]]
 name = "evo-featureflags-protobuf"
-version = "0.2.1"
+version = "0.3.0"
+requires_python = ">=3.7"
 summary = "Protocol Buffers stub files for feature flags service"
 groups = ["default"]
 files = [
-    {file = "evo-featureflags-protobuf-0.2.1.tar.gz", hash = "sha256:edbfbf8c8c669fe8b0c9ca0b9846971b0be76b38d147fba39946a036471cb396"},
-    {file = "evo_featureflags_protobuf-0.2.1-py3-none-any.whl", hash = "sha256:04087bf39c6bac5a135935c6706763a3b071c7747b96e58789d50f7bb62e19c8"},
+    {file = "evo_featureflags_protobuf-0.3.0-py3-none-any.whl", hash = "sha256:3ebeabef9d1171da56146a2a9e0e21f6950ec12d48437fc36fbb0eee99aed2d0"},
+    {file = "evo_featureflags_protobuf-0.3.0.tar.gz", hash = "sha256:d1a5a998d3d77f46aabbfb1a098baea60ed4903b1b639d80e20a4484d0d8846b"},
 ]
 
 [[package]]
@@ -469,7 +470,7 @@ files = [
 
 [[package]]
 name = "grpclib"
-version = "0.4.5"
+version = "0.4.6"
 requires_python = ">=3.7"
 summary = "Pure-Python gRPC implementation for asyncio"
 groups = ["default"]
@@ -478,7 +479,7 @@ dependencies = [
     "multidict",
 ]
 files = [
-    {file = "grpclib-0.4.5.tar.gz", hash = "sha256:bf83ed55aca59497e168761d9555056efc54a8f865316c3b39becd007e9f9a73"},
+    {file = "grpclib-0.4.6.tar.gz", hash = "sha256:595d05236ca8b8f8e433f5bf6095e6354c1d8777d003ddaf5288efa9611e3fd6"},
 ]
 
 [[package]]

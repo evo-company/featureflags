@@ -1,15 +1,16 @@
 [project]
-name = "evo-featureflags"
-version = "1.0.0"
+name = "evo-featureflags-server"
+dynamic = ["version"]
 description = "Feature flags server"
+readme = "README.md"
 authors = [
     {name = "d.zakharchuk", email = "d.zakharchuk@smartweb.com.ua"},
     {name = "m.kindritskiy", email = "m.kindritskiy@smartweb.com.ua"},
     {name = "Vladimir Magamedov", email = "vladimir@magamedov.com"},
 ]
 dependencies = [
-    "evo-featureflags-protobuf==0.2.1",  # TODO: change to 0.3.0
-    "grpclib==0.4.5",
+    "evo-featureflags-protobuf==0.3.0",
+    "grpclib==0.4.6",
     "hiku==0.7.1",
     "protobuf<4.0.0",
     "sqlalchemy[mypy]==1.4.42",
@@ -44,7 +45,12 @@ build-backend = "pdm.backend"
 
 [tool]
 
+[tool.pdm.version]
+source = "file"
+path = "featureflags/__init__.py"
+
 [tool.pdm.scripts]
+release = "./scripts/release.sh"
 test = "python -m pytest {args}"
 docs = "sphinx-build -a -b html docs public"
 ruff = "ruff check featureflags {args} --fix"
