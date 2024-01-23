@@ -2,46 +2,27 @@ name: Build & publish
 
 on:
   push:
-    branches: [ "**" ]
     tags:
-    - "client-v*"
-    - "proto-v*"
-  pull_request:
-    branches: [main]
+    - "v*"
 
 jobs:
-  deploy-client:
+  deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./client
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/client-')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     strategy:
       matrix:
         python-version: [3.7]
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Python with PDM ${{ matrix.python-version }}
       uses: pdm-project/setup-pdm@v3
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Upload package to pypi.org
-      run: pdm publish --username ${{ secrets.TWINE_USERNAME }} --password ${{ secrets.TWINE_PASSWORD }}
 
-  deploy-proto:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./protobuf
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/proto-')
-    strategy:
-      matrix:
-        python-version: [3.7]
-    steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
-      with:
-        python-version: ${{ matrix.python-version }}
+    - name: Build and copy UI bundle
+      run: ./scripts/build-copy-ui-dist.sh
+
     - name: Upload package to pypi.org
-      run: pdm publish --username ${{ secrets.TWINE_USERNAME }} --password ${{ secrets.TWINE_PASSWORD }}
+      run: pdm publish -u "__token__" -P ${{ secrets.PYPI_TOKEN }}

@@ -1,0 +1,44 @@
+debug: true
+secret: 023517f06f444118986877e636b4a226
+test_environ: true
+
+app:
+  port: 8000
+  host: 0.0.0.0
+  reload: True
+  thread_limiter_total_tokens: 40
+
+http:
+  port: 8080
+  host: 0.0.0.0
+  reload: True
+  thread_limiter_total_tokens: 40
+
+rpc:
+  port: 50051
+  host: 0.0.0.0
+
+logging:
+  level_app: debug
+  level_libs: info
+  handlers: [console]
+
+  syslog_app: null
+  syslog_facility: null
+  syslog_mapping: null
+  syslog_defaults: null
+
+postgres:
+  host: postgres
+  port: 5432
+  user: postgres
+  password: postgres
+  database: featureflags
+  timeout: 10
+
+ldap:
+  host: null
+  base_dn: null
+
+instrumentation:
+  prometheus_port: 9100

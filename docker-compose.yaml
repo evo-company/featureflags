@@ -1,77 +1,108 @@
-version: "3.8"
+version: "3.9"
 
 services:
   postgres:
-    image: postgres:10
+    image: postgres:13-alpine
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: featureflags
     volumes:
       - "pg-data:/var/lib/postgresql/data"
+      - "./seeds:/var/lib/postgresql/seeds"
     networks:
       - main
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready", "-d", "featureflags" ]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 80s
+
+  postgres-test:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: featureflags-test
+    networks:
+      - main
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready", "-d", "featureflags-test" ]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 80s
 
   backend: &backend
-    image: featureflags-server
-    user: ${CURRENT_UID}
+    image: featureflags-server-dev
+    init: true
+    tty: true
+    stdin_open: true
     environment: &env
       LANG: C.UTF-8
       LC_ALL: C.UTF-8
       PYTHONIOENCODING: UTF-8
-      PYTHONPATH: server:client:protobuf
       PYTHONUNBUFFERED: 1
+      CONFIG_PATH: configs/local.yaml
     networks:
       - main
     volumes:
-      - ./server:/app/server
-      - ./client:/app/client
-      - ./protobuf:/app/protobuf
+      - ./featureflags:/app/featureflags
       - ./scripts:/app/scripts
-      - ./config.yaml:/app/config.yaml
+      - ./configs:/app/configs
+      - ./.ipython:/app/.ipython
+      - ./README.md:/app/README.md
+      # Uncomment to mount local build of `featureflags_protobuf`
+      #- ./featureflags_protobuf:/app/featureflags_protobuf
 
   web:
     <<: *backend
-    init: true
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     ports:
-      - "8000:8000"
-    command: pdm run watchfiles --filter python "python3 -m featureflags.server config.yaml web --port 8000" server
+      - "127.0.0.1:8000:8000"
+    command: pdm run watchfiles --filter python "python3 -m featureflags web" featureflags
 
   rpc:
     <<: *backend
-    init: true
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     ports:
-      - "50051:50051"
-    command: pdm run watchfiles --filter python "python3 -m featureflags.server config.yaml rpc --port 50051" server
+      - "127.0.0.1:50051:50051"
+    command: pdm run watchfiles --filter python "python3 -m featureflags rpc" featureflags
+
+  http:
+    <<: *backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+    command: pdm run watchfiles --filter python "python3 -m featureflags http" featureflags
+
+  ishell:
+    <<: *backend
+    command: pdm run ipython --ipython-dir=/app/.ipython
 
   test:
     <<: *backend
     image: featureflags-server-test
-    init: true
-    depends_on:
-      - postgres
     environment:
       <<: *env
-      PYTHONPATH: "server:client:protobuf"
-    command:
-      - sh
-      - -c
-      - |
-        /app/scripts/wait-for-it.sh -h postgres -p 5432;
-        pdm run test ${ARGS}
+      CONFIG_PATH: configs/test.yaml
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: pdm run test ${ARGS}
 
   docs:
     <<: *backend
-    image: featureflags-docs
-    environment:
-      <<: *env
-      PYTHONPATH: client:server:protobuf
+    image: featureflags-server-docs
     command: sphinx-build -a -b html docs public
 
 volumes:

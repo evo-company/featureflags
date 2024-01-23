@@ -1,72 +1,87 @@
 [project]
-name = "evo-featureflags"
-version = "0.0.1"
-description = "Feature flags"
+name = "evo-featureflags-server"
+dynamic = ["version"]
+description = "Feature flags server"
+readme = "README.md"
 authors = [
+    {name = "d.zakharchuk", email = "d.zakharchuk@smartweb.com.ua"},
     {name = "m.kindritskiy", email = "m.kindritskiy@smartweb.com.ua"},
-    {name = "Vladimir Magamedov",email = "vladimir@magamedov.com"},
+    {name = "Vladimir Magamedov", email = "vladimir@magamedov.com"},
 ]
 dependencies = [
-    "evo-featureflags-protobuf",
-    'grpclib>=0.4.3',
-    "click==8",
-    "hiku==0.6.0",
-    "protobuf==3.20.1",
-    "sqlalchemy==1.4.42",
+    "evo-featureflags-protobuf==0.3.0",
+    "grpclib==0.4.6",
+    "hiku==0.7.1",
+    "protobuf<4.0.0",
+    "sqlalchemy[mypy]==1.4.42",
     "aiopg[sa]==1.4.0",
-    "psycopg2==2.9.5",
+    "psycopg2==2.9.7",
     "graphql-core==3.2.3",
-    "prometheus-client==0.15.0",
-    "alembic==1.5.8",
-    "metricslog",
-    "pyyaml",
-    "pyjwt",
-    "ldap3",
-    "pydantic>=1.10.7",
-    "sanic>=23.3.0",
-    "setuptools",
+    "prometheus-client==0.17.1",
+    "alembic==1.12.0",
+    "metricslog==0.1.3",
+    "pyyaml==6.0.1",
+    "pyjwt==2.8.0",
+    "ldap3==2.9.1",
+    "pydantic>=2.3.0",
+    "pydantic-settings>=2.0.3",
+    "setuptools==68.2.2",
+    "fastapi>=0.103.2",
+    "orjson>=3.9.8",
+    "uvloop>=0.17.0",
+    "httptools>=0.6.0",
+    "uvicorn[standart]>=0.23.2",
+    "typer>=0.9.0",
+    "jinja2>=3.1.2",
+    "dependency-injector>=4.41.0",
+    "grpcio>=1.59.0",
 ]
 requires-python = ">=3.11"
 license = {text = "MIT"}
 
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
 [tool]
 
-[tool.pdm]
-excludes = [
-    "server/tests",
-]
-includes = [
-    "server",
-    "client",
-    "protobuf"
-]
-version = {use_scm = true}
+[tool.pdm.version]
+source = "file"
+path = "featureflags/__init__.py"
 
 [tool.pdm.scripts]
-test = "python -m pytest"
+release = "./scripts/release.sh"
+test = "python -m pytest {args}"
 docs = "sphinx-build -a -b html docs public"
-fmt = "black server"
+ruff = "ruff check featureflags {args} --fix"
+ruff-diff = "ruff check featureflags {args}"
+mypy = "mypy featureflags {args}"
+black = "black featureflags {args}"
+fmt = {composite = ["black", "ruff"]}
 
 [tool.pdm.dev-dependencies]
-
 test = [
-    "pytest~=7.1",
-    "pytest-asyncio~=0.18",
-    "faker",
-    "tox-pdm"
+    "pytest~=7.4",
+    "pytest-asyncio~=0.21",
+    "faker~=19.6.1",
+    "tox-pdm~=0.7.0"
 ]
 lint = [
-    "black",
-    "flake8~=5.0",
+    "black~=23.9.1",
+    "ruff>=0.0.292",
+    "mypy>=1.6.0",
+    "types-protobuf>=4.24.0.20240106",
+    "types-PyYAML>=6.0.12.12",
+    "sqlalchemy-stubs>=0.4",
 ]
 dev = [
-    "watchfiles",
-    "ipython>=8.4.0",
+    "watchfiles~=0.20.0",
+    "ipython~=8.15.0",
 ]
 docs = [
-    "sphinx",
-    "sphinx-rtd-theme",
-    "sphinxcontrib-asyncio",
+    "sphinx==7.2.5",
+    "sphinx-rtd-theme==1.3.0",
+    "sphinxcontrib-asyncio==0.3.0",
 ]
 
 [tool.pytest.ini_options]
@@ -76,10 +91,146 @@ filterwarnings = [
 ]
 log_cli = true
 testpaths = [
-    "server/tests",
+    "featureflags/tests",
 ]
 asyncio_mode = "auto"
 
 [tool.black]
 line-length = 80
 target-version = ['py311']
+extend-exclude = '''
+/(
+  | .git
+  | __pycache__
+  | __pypackages__
+  | .venv
+  | venv
+  | .ve
+)/
+'''
+
+[tool.ruff]
+select = [
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # Pyflakes
+    "C90", # McCabe
+    "I", # isort
+    "N", # pep8-naming
+    "UP", # pyupgrade
+    "ASYNC", # flake8-async
+    "S", # bandit
+    "DTZ", # flake8-datetimez
+    "A", # flake8-builtins
+    "B", # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "T20", # flake8-print
+    "SIM", # flake8-simplify
+    "ERA", # eradicate
+    "PL", # pylint
+    "RUF", # ruff-specific
+]
+ignore = [
+    "S101",
+    "S104",
+    "S105",
+    "DTZ003",
+    "DTZ006",
+    "A003",
+    "B008",
+]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    ".venv",
+    "venv",
+    ".ve",
+    "__pycache__",
+    "featureflags/migrations",
+]
+line-length = 80
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+target-version = "py311"
+
+[tool.ruff.per-file-ignores]
+"featureflags/tests/*" = [
+    "A002",
+    "E501",
+    "S101",
+    "S105",
+    "S106",
+    "PLR2004",
+    "PLR0913",
+    "DTZ005",
+    "DTZ003",
+]
+
+[tool.ruff.mccabe]
+max-complexity = 10
+
+[tool.ruff.isort]
+known-first-party = ["featureflags"]
+
+[tool.mypy]
+python_version = "3.11"
+follow_imports = "skip"
+pretty = true
+strict_optional = false
+warn_no_return = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+plugins = [
+    "sqlmypy",
+    "sqlalchemy.ext.mypy.plugin",
+]
+exclude = [
+    ".git",
+    "__pycache__",
+    "__pypackages__",
+    ".venv",
+    "venv",
+    ".ve",
+    "featureflags/migrations",
+    "featureflags/tests",
+]
+
+[[tool.mypy.overrides]]
+module = "hiku.*"
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "featureflags_protobuf.*"
+follow_imports = "skip"
+disallow_untyped_decorators = false
+disable_error_code = [
+    "no-untyped-def",
+    "attr-defined",
+]
+
+[[tool.mypy.overrides]]
+module = "featureflags.graph.proto_adapter"
+disallow_untyped_decorators = false
+disable_error_code = [
+    "no-untyped-def",
+    "attr-defined",
+]

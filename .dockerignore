@@ -1,2 +1,44 @@
-node_modules/
-.git/
+# Ignore Python bytecode files / cache
+*.pyc
+*.pyo
+*.pyd
+.mypy_cache
+.pytest_cache
+.ruff_cache
+__pycache__
+__pypackages__
+
+# Ignore Python virtual environment files
+venv/
+.venv/
+.ve/
+.pdm.toml
+.pdm-build
+.pdm-python
+
+# Ignore local development configuration files
+.git
+.env
+.flake8
+mypy.ini
+.dockerignore
+.gitignore
+.gitlab-ci.yml
+.python-version
+.hooks
+.lets
+helm
+.ipython
+.ptpython
+.secrets
+
+# Ignore IDE settings
+.vscode
+.idea
+
+# Ignore any compiled Python extension modules
+*.so
+
+# Ignore any build artifacts
+build/
+dist/
