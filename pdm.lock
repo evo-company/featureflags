@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "lint", "test"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:5f67547e53728d0973ce9e9ab10a615555c2f18545d2f634985b2deb973e885a"
+content_hash = "sha256:9a1107332d22df98c9218951c14639bd8bb105feb9f863b950dffa542b7bdd82"
 
 [[package]]
 name = "aiopg"
@@ -470,7 +470,7 @@ files = [
 
 [[package]]
 name = "grpclib"
-version = "0.4.5"
+version = "0.4.6"
 requires_python = ">=3.7"
 summary = "Pure-Python gRPC implementation for asyncio"
 groups = ["default"]
@@ -479,7 +479,7 @@ dependencies = [
     "multidict",
 ]
 files = [
-    {file = "grpclib-0.4.5.tar.gz", hash = "sha256:bf83ed55aca59497e168761d9555056efc54a8f865316c3b39becd007e9f9a73"},
+    {file = "grpclib-0.4.6.tar.gz", hash = "sha256:595d05236ca8b8f8e433f5bf6095e6354c1d8777d003ddaf5288efa9611e3fd6"},
 ]
 
 [[package]]

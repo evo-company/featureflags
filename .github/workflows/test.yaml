@@ -12,7 +12,7 @@ on:
       - reopened
 
 jobs:
-  test-web:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,5 +22,19 @@ jobs:
       - name: Install lets
         uses: lets-cli/lets-action@v1.1
 
-      - name: Run test
+      - name: Set up Node
+        uses: actions/setup-node@v4.0.1
+        with:
+          node-version: 20
+          cache-dependency-path: ./ui/package-lock.json
+          cache: 'npm'
+
+      - name: Install dependencies
+        working-directory: ./ui
+        run: npm install
+
+      - name: Build UI
+        run: lets build-copy-ui-bundle
+
+      - name: Run server tests
         run: lets test

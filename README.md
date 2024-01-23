@@ -27,21 +27,11 @@ Check important architecture decisions in ``adr/`` directory.
 
 Installation
 ------------
-TODO: update after deploy configuration
 
-On PyPi: https://pypi.org/project/evo-featureflags-client
+On PyPi: https://pypi.org/project/evo-featureflags-server
 
-To install client library for synchronous app:
-
-.. code-block:: shell
-
-    $ pip install evo-featureflags grpcio
-
-To install client library for asynchronous app:
-
-.. code-block:: shell
-
-    $ pip install evo-featureflags grpclib
+To install client library follow instructions
+here: [evo-featureflags-client](https://github.com/evo-company/featureflags-py)
 
 Development
 -----------
@@ -54,10 +44,18 @@ Run all this commands:
 - ``lets web`` # in separate terminal
 - ``lets ui`` # in separate terminal
 
-to start API handlers (not required for web application):
+To start API handlers (not required for web application):
 
 - ``lets http`` # in separate terminal
 - ``lets rpc`` # in separate terminal
+
+To build UI and copy it to ``web/static`` directory:
+
+- ``lets build-copy-ui-bundle``
+
+To release package:
+
+- ``lets release 1.0.0 --message="Added feature"``
 
 Pre-commit
 
@@ -68,7 +66,7 @@ Pre-commit
 TODO:
 
 - add docs, automate docs build
-- add tests
+- add more tests
 
 .. _fastapi: https://github.com/tiangolo/fastapi
 .. _hiku: https://github.com/vmagamedov/hiku

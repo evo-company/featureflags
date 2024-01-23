@@ -82,11 +82,7 @@ commands:
       - build-test
       - postgres-test
     cmd: |
-      export ARGS="$@"
       docker-compose run --rm test
-      TESTS_EXIT_CODE=$?
-      docker-compose down postgres-test
-      exit $TESTS_EXIT_CODE
 
   postgres:
     description: Run postgres
@@ -140,7 +136,7 @@ commands:
       docker-compose run --rm docs \
         sphinx-build -a -b html docs public
 
-  copy-ui-bundle:
+  build-copy-ui-bundle:
     description: Build and copy UI bundle to server
     cmd: ./scripts/build-copy-ui-dist.sh
 
@@ -183,3 +179,18 @@ commands:
     cmd: |
       docker-compose run -T --rm backend \
         pdm run fmt
+
+  release:
+    description: |
+      Update version in featureflags/__init__.py
+      Create new annotated tag
+      Push changes to remote
+    options: |
+      Usage: lets release <version> --message=<message>
+      Options:
+        <version>       Set version
+        --message=<message>, -m    Release message
+      Example:
+        lets release 1.0.0 --message="Added feature"
+    cmd: |
+      VERSION=${LETSOPT_VERSION} MESSAGE=${LETSOPT_MESSAGE} pdm run release
