@@ -2,11 +2,11 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
 
-from featureflags.container import Container
 from featureflags.services.auth import (
     set_user_session_from_cookie,
     set_user_session_to_response,
 )
+from featureflags.web.container import Container
 
 
 def configure_middlewares(app: FastAPI, container: Container) -> None:

@@ -3,6 +3,7 @@ import logging
 import weakref
 
 import aiopg.sa
+from featureflags_protobuf import service_grpc, service_pb2
 from google.protobuf.empty_pb2 import Empty
 from grpclib.server import Stream
 from hiku.engine import Engine
@@ -19,7 +20,6 @@ from featureflags.services.auth import (
     user_session,
 )
 from featureflags.utils import EntityCache, FlagAggStats, select_scalar
-from featureflags_protobuf import service_grpc, service_pb2
 
 log = logging.getLogger(__name__)
 

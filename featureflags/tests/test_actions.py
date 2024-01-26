@@ -63,9 +63,7 @@ async def get_version(project, *, conn):
 
 
 async def check_flag(flag, *, conn):
-    result = await conn.execute(
-        select([Flag.enabled]).where(Flag.id == flag)
-    )
+    result = await conn.execute(select([Flag.enabled]).where(Flag.id == flag))
     return await result.scalar()
 
 
@@ -429,9 +427,7 @@ async def test_add_condition_and_check(
 
 
 @pytest.mark.asyncio
-async def test_disable_condition(
-    conn, db_engine, dirty_projects, changes
-):
+async def test_disable_condition(conn, db_engine, dirty_projects, changes):
     condition = await mk_condition(db_engine)
 
     async def check_condition():
@@ -477,25 +473,17 @@ async def test_postprocess_by_flag(conn, db_engine, dirty_projects):
     flag = await mk_flag(db_engine, project=project)
     dirty_projects.by_flag.add(flag.id)
     await postprocess(conn=conn, dirty=dirty_projects)
-    assert (
-        await get_version(project.id, conn=conn)
-        == version + 1
-    )
+    assert await get_version(project.id, conn=conn) == version + 1
 
 
 @pytest.mark.asyncio
-async def test_postprocess_by_variable(
-    conn, db_engine, dirty_projects
-):
+async def test_postprocess_by_variable(conn, db_engine, dirty_projects):
     version = f.pyint()
     project = await mk_project(db_engine, version=version)
     variable = await mk_variable(db_engine, project=project)
     dirty_projects.by_variable.add(variable.id)
     await postprocess(conn=conn, dirty=dirty_projects)
-    assert (
-        await get_version(project.id, conn=conn)
-        == version + 1
-    )
+    assert await get_version(project.id, conn=conn) == version + 1
 
 
 @pytest.mark.asyncio
@@ -511,14 +499,8 @@ async def test_postprocess_by_all(conn, db_engine, dirty_projects):
     dirty_projects.by_variable.add(variable.id)
 
     await postprocess(conn=conn, dirty=dirty_projects)
-    assert (
-        await get_version(project.id, conn=conn)
-        == version + 1
-    )
-    assert (
-        await get_version(project_dub.id, conn=conn)
-        == version
-    )
+    assert await get_version(project.id, conn=conn) == version + 1
+    assert await get_version(project_dub.id, conn=conn) == version
 
 
 @pytest.mark.asyncio
@@ -533,9 +515,7 @@ async def test_update_changelog(conn, db_engine):
     changes.add(flag.id, Action.DISABLE_CONDITION)
     changes.add(flag.id, Action.ADD_CONDITION)
 
-    await update_changelog(
-        session=session, conn=conn, changes=changes
-    )
+    await update_changelog(session=session, conn=conn, changes=changes)
 
     actions = await select_scalar(
         conn,

@@ -12,16 +12,12 @@ from featureflags.tests.state import mk_auth_user, mk_flag
 
 
 async def check_flag(flag, conn):
-    result = await conn.execute(
-        select([Flag.enabled]).where(Flag.id == flag)
-    )
+    result = await conn.execute(select([Flag.enabled]).where(Flag.id == flag))
     return await result.scalar()
 
 
 async def get_flag(flag, conn):
-    result = await conn.execute(
-        select([Flag.id]).where(Flag.id == flag)
-    )
+    result = await conn.execute(select([Flag.id]).where(Flag.id == flag))
     return await result.scalar()
 
 

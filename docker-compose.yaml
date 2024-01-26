@@ -92,11 +92,12 @@ services:
   test:
     <<: *backend
     image: featureflags-server-test
+
     environment:
       <<: *env
       CONFIG_PATH: configs/test.yaml
     depends_on:
-      postgres:
+      postgres-test:
         condition: service_healthy
     command: pdm run test ${ARGS}
 
