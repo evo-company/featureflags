@@ -132,9 +132,7 @@ async def sign_in(
 
 
 @track
-async def sign_out(
-    *, conn: SAConnection, session: UserSession
-) -> None:
+async def sign_out(*, conn: SAConnection, session: UserSession) -> None:
     if session.ident:
         await conn.execute(
             AuthSession.__table__.delete().where(
@@ -221,9 +219,7 @@ async def delete_flag(
     await conn.execute(
         Condition.__table__.delete().where(Condition.flag == flag_uuid)
     )
-    await conn.execute(
-        Flag.__table__.delete().where(Flag.id == flag_uuid)
-    )
+    await conn.execute(Flag.__table__.delete().where(Flag.id == flag_uuid))
 
     changes.add(flag_uuid, Action.DELETE_FLAG)
 
@@ -306,9 +302,7 @@ async def disable_condition(
         changes.add(flag_id, Action.DISABLE_CONDITION)
 
 
-async def postprocess(
-    *, conn: SAConnection, dirty: DirtyProjects
-) -> None:
+async def postprocess(*, conn: SAConnection, dirty: DirtyProjects) -> None:
     selections = []
     for flag_id in dirty.by_flag:
         selections.append(select([Flag.project]).where(Flag.id == flag_id))

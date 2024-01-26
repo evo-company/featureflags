@@ -17,7 +17,7 @@ from featureflags.services.ldap import BaseLDAP
 from featureflags.web.app import create_app
 
 if TYPE_CHECKING:
-    from featureflags.container import Container
+    from featureflags.web.container import Container
 
 
 @pytest.fixture

@@ -95,25 +95,17 @@ async def _get_or_create_variable(
     assert project and variable, (project, variable)
     id_ = entity_cache.variable[project].get(variable.name)
     if id_ is None:  # not in cache
-        id_ = await _select_variable(
-            project, variable, conn=conn
-        )
+        id_ = await _select_variable(project, variable, conn=conn)
         if id_ is None:  # not in db
-            id_ = await _insert_variable(
-                project, variable, conn=conn
-            )
+            id_ = await _insert_variable(project, variable, conn=conn)
             if id_ is None:  # conflicting insert
-                id_ = await _select_variable(
-                    project, variable, conn=conn
-                )
+                id_ = await _select_variable(project, variable, conn=conn)
                 assert id_ is not None  # must be in db
         entity_cache.variable[project][variable.name] = id_
     return id_
 
 
-async def _select_flag(
-    project: UUID, name: str, *, conn: SAConnection
-) -> UUID:
+async def _select_flag(project: UUID, name: str, *, conn: SAConnection) -> UUID:
     result = await conn.execute(
         select([Flag.id]).where(
             and_(Flag.project == project, Flag.name == name)
@@ -122,9 +114,7 @@ async def _select_flag(
     return await result.scalar()
 
 
-async def _insert_flag(
-    project: UUID, name: str, *, conn: SAConnection
-) -> UUID:
+async def _insert_flag(project: UUID, name: str, *, conn: SAConnection) -> UUID:
     result = await conn.execute(
         insert(Flag.__table__)
         .values({Flag.id: uuid4(), Flag.project: project, Flag.name: name})
@@ -148,9 +138,7 @@ async def _get_or_create_flag(
         if id_ is None:  # not in db
             id_ = await _insert_flag(project, flag, conn=conn)
             if id_ is None:  # conflicting insert
-                id_ = await _select_flag(
-                    project, flag, conn=conn
-                )
+                id_ = await _select_flag(project, flag, conn=conn)
                 assert id_ is not None  # must be in db
         entity_cache.flag[project][flag] = id_
     return id_

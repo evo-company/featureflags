@@ -10,8 +10,8 @@ from grpclib.utils import graceful_exit
 from hiku.engine import Engine
 
 from featureflags.config import config
-from featureflags.container import Container
 from featureflags.metrics import configure_metrics
+from featureflags.rpc.container import Container
 from featureflags.rpc.servicer import FeatureFlagsServicer
 from featureflags.services.auth import set_internal_user_session
 

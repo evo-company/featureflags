@@ -5,12 +5,12 @@
 from uuid import UUID, uuid4
 
 from aiopg.sa import SAConnection
+from featureflags_protobuf import service_pb2
 from sqlalchemy import and_, select
 from sqlalchemy.dialects.postgresql import insert
 
 from featureflags.models import Flag, Project, Variable, VariableType
 from featureflags.utils import EntityCache, FlagAggStats
-from featureflags_protobuf import service_pb2
 
 
 async def _select_project(name: str, *, conn: SAConnection) -> UUID:
@@ -96,21 +96,15 @@ async def _get_or_create_variable(
     if id_ is None:  # not in cache
         id_ = await _select_variable(project, name, conn=conn)
         if id_ is None:  # not in db
-            id_ = await _insert_variable(
-                project, name, type_, conn=conn
-            )
+            id_ = await _insert_variable(project, name, type_, conn=conn)
             if id_ is None:  # conflicting insert
-                id_ = await _select_variable(
-                    project, name, conn=conn
-                )
+                id_ = await _select_variable(project, name, conn=conn)
                 assert id_ is not None  # must be in db
         entity_cache.variable[project][name] = id_
     return id_
 
 
-async def _select_flag(
-    project: UUID, name: str, *, conn: SAConnection
-) -> UUID:
+async def _select_flag(project: UUID, name: str, *, conn: SAConnection) -> UUID:
     result = await conn.execute(
         select([Flag.id]).where(
             and_(Flag.project == project, Flag.name == name)
@@ -119,9 +113,7 @@ async def _select_flag(
     return await result.scalar()
 
 
-async def _insert_flag(
-    project: UUID, name: str, *, conn: SAConnection
-) -> UUID:
+async def _insert_flag(project: UUID, name: str, *, conn: SAConnection) -> UUID:
     result = await conn.execute(
         insert(Flag.__table__)
         .values({Flag.id: uuid4(), Flag.project: project, Flag.name: name})
@@ -145,9 +137,7 @@ async def _get_or_create_flag(
         if id_ is None:  # not in db
             id_ = await _insert_flag(project, name, conn=conn)
             if id_ is None:  # conflicting insert
-                id_ = await _select_flag(
-                    project, name, conn=conn
-                )
+                id_ = await _select_flag(project, name, conn=conn)
                 assert id_ is not None  # must be in db
         entity_cache.flag[project][name] = id_
     return id_

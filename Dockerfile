@@ -76,12 +76,10 @@ ENV GRPC_HEALTH_PROBE_VERSION=v0.4.19
 ADD "https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64" "/usr/local/bin/grpc_health_probe"
 RUN chmod +x /usr/local/bin/grpc_health_probe
 
-ENV PYTHONPATH=/app
-
 COPY ./featureflags /app/featureflags
 
-COPY --from=builder /app/__pypackages__/3.11/lib /app
-COPY --from=builder /app/__pypackages__/3.11/bin/* /bin/
+COPY --from=base /app/__pypackages__/3.11/lib /app
+COPY --from=base /app/__pypackages__/3.11/bin/* /bin/
 
 COPY --from=assets-prod "ui/dist" "app/featureflags/web/static"
 
