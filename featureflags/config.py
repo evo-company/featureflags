@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 import yaml
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 log = logging.getLogger(__name__)
@@ -17,7 +18,6 @@ class LoggingSettings(BaseSettings):
     level_app: str
     level_libs: str
     handlers: list[str]
-
     syslog_app: str | None
     syslog_facility: str | None
     syslog_mapping: dict | None
@@ -27,8 +27,8 @@ class LoggingSettings(BaseSettings):
 class PostgresSettings(BaseSettings):
     host: str
     port: int
-    user: str
-    password: str
+    user: str = Field(..., alias="PGUSER")
+    password: str = Field(..., alias="PGPASS")
     database: str
     timeout: int = 10
 
@@ -56,14 +56,14 @@ class AppSettings(BaseSettings):
     port: int = 8000
     host: str = "0.0.0.0"
     reload: bool = False
-    thread_limiter_total_tokens: int = 40
+    max_concurrent_threads: int = 40
 
 
 class HttpSettings(BaseSettings):
     port: int = 8080
     host: str = "0.0.0.0"
     reload: bool = False
-    thread_limiter_total_tokens: int = 40
+    max_concurrent_threads: int = 40
 
 
 class RpcSettings(BaseSettings):

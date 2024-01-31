@@ -47,6 +47,8 @@ services:
       PYTHONIOENCODING: UTF-8
       PYTHONUNBUFFERED: 1
       CONFIG_PATH: configs/local.yaml
+      PGUSER: postgres
+      PGPASS: postgres
     networks:
       - main
     volumes:
