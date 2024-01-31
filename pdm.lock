@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "lint", "test"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:9a1107332d22df98c9218951c14639bd8bb105feb9f863b950dffa542b7bdd82"
+content_hash = "sha256:400f203a046e8f97666641339bfa745307ed4777610d79f5fff9dc8591fc63e7"
 
 [[package]]
 name = "aiopg"

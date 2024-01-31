@@ -35,21 +35,6 @@ def configure_logging(package: str) -> None:
     logging.root.setLevel(config.logging.level_libs.upper())
     logging.getLogger(package).setLevel(config.logging.level_app.upper())
 
-    if "logevo" in config.logging.handlers:
-        if len(config.logging.handlers) > 1:
-            raise ValueError("logevo handler must be used alone")
-
-        try:
-            import logevo
-
-            logevo.configure_logging()
-        except ImportError as e:
-            raise ImportError(
-                "logevo handler is used but 'logevo' package is not installed"
-            ) from e
-        else:
-            log.info("Logevo configured")
-
     if "console" in config.logging.handlers:
         logging.root.addHandler(create_console_handler())
 

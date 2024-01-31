@@ -6,13 +6,11 @@ app:
   port: 8000
   host: 0.0.0.0
   reload: True
-  thread_limiter_total_tokens: 40
 
 http:
   port: 8080
   host: 0.0.0.0
   reload: True
-  thread_limiter_total_tokens: 40
 
 rpc:
   port: 50051
@@ -22,7 +20,6 @@ logging:
   level_app: debug
   level_libs: info
   handlers: [console]
-
   syslog_app: null
   syslog_facility: null
   syslog_mapping: null
@@ -31,8 +28,6 @@ logging:
 postgres:
   host: postgres
   port: 5432
-  user: postgres
-  password: postgres
   database: featureflags
   timeout: 10
 

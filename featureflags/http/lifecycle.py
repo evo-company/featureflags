@@ -13,8 +13,9 @@ def configure_lifecycle(app: FastAPI, container: DeclarativeContainer) -> None:
         """Application startup functions."""
 
         # https://github.com/tiangolo/fastapi/discussions/8587
+        # Adjust this value to limit the number of concurrent threads.
         limiter = anyio.to_thread.current_default_thread_limiter()
-        limiter.total_tokens = config.http.thread_limiter_total_tokens
+        limiter.total_tokens = config.http.max_concurrent_threads
 
         await container.init_resources()
 
