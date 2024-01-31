@@ -49,6 +49,7 @@ services:
       CONFIG_PATH: configs/local.yaml
       PGUSER: postgres
       PGPASS: postgres
+      SECRET: 023517f06f444118986877e636b4a226
     networks:
       - main
     volumes:

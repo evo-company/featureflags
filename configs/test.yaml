@@ -1,5 +1,4 @@
 debug: true
-secret: 023517f06f444118986877e636b4a226
 test_environ: true
 
 app:

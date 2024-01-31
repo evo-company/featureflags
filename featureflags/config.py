@@ -73,7 +73,7 @@ class RpcSettings(BaseSettings):
 
 class Config(BaseSettings):
     debug: bool
-    secret: str
+    secret: str = Field(..., alias="SECRET")
     test_environ: bool = False
 
     postgres: PostgresSettings
