@@ -5,7 +5,7 @@
 from uuid import UUID, uuid4
 
 from aiopg.sa import SAConnection
-from featureflags_protobuf import service_pb2
+from featureflags.protobuf import service_pb2
 from sqlalchemy import and_, select
 from sqlalchemy.dialects.postgresql import insert
 
@@ -163,7 +163,7 @@ async def add_statistics(
             conn=conn,
             entity_cache=entity_cache,
         )
-    for flag_usage in op.flags:
+    for flag_usage in op.flags_usage:
         flag = await _get_or_create_flag(
             project,
             flag_usage.name,

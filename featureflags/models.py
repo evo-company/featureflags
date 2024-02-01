@@ -3,8 +3,8 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any, ClassVar
 
-from featureflags_protobuf.graph_pb2 import Check as CheckProto
-from featureflags_protobuf.graph_pb2 import Variable as VariableProto
+from featureflags.protobuf.graph_pb2 import Check as CheckProto
+from featureflags.protobuf.graph_pb2 import Variable as VariableProto
 from sqlalchemy import Index, Integer, UniqueConstraint
 from sqlalchemy.dialects.postgresql import (
     ARRAY,

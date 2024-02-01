@@ -3,7 +3,7 @@ import logging
 import weakref
 
 import aiopg.sa
-from featureflags_protobuf import service_grpc, service_pb2
+from featureflags.protobuf import service_grpc, service_pb2
 from google.protobuf.empty_pb2 import Empty
 from grpclib.server import Stream
 from hiku.engine import Engine
@@ -77,7 +77,7 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
                 entity_cache=self._entity_cache,
                 flag_agg_stats=self._flag_agg_stats,
             )
-            version = select_scalar(
+            version = await select_scalar(
                 conn,
                 select([Project.version]).where(
                     Project.name == request.project
