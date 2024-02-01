@@ -9,7 +9,6 @@ authors = [
     {name = "Vladimir Magamedov", email = "vladimir@magamedov.com"},
 ]
 dependencies = [
-    "evo-featureflags-protobuf==0.3.0",
     "grpclib==0.4.6",
     "hiku==0.7.1",
     "protobuf<4.0.0",

@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package featureflags.graph;
+
+import 'google/protobuf/timestamp.proto';
+import 'google/protobuf/wrappers.proto';
+
+message Ref {
+    oneof to {
+        string Project = 1;
+        string Flag = 2;
+        string Condition = 3;
+        string Check = 4;
+        string Variable = 5;
+    }
+}
+
+message Set {
+    repeated string items = 1;
+}
+
+message Variable {
+    enum Type {
+        __DEFAULT__ = 0;
+        STRING = 1;
+        NUMBER = 2;
+        TIMESTAMP = 3;
+        SET = 4;
+    }
+    string id = 1;
+    string name = 2;
+    Type type = 3;
+}
+
+message Check {
+    enum Operator {
+        __DEFAULT__ = 0;
+        EQUAL = 1;
+        LESS_THAN = 2;
+        LESS_OR_EQUAL = 3;
+        GREATER_THAN = 4;
+        GREATER_OR_EQUAL = 5;
+        CONTAINS = 6;
+        PERCENT = 7;
+        REGEXP = 8;
+        WILDCARD = 9;
+        SUBSET = 10;
+        SUPERSET = 11;
+    }
+    string id = 1;
+    Ref variable = 2;
+    Operator operator = 3;
+    oneof kind {
+        string value_string = 4;
+        double value_number = 5;
+        google.protobuf.Timestamp value_timestamp = 6;
+        Set value_set = 7;
+    }
+}
+
+message Condition {
+    string id = 1;
+    repeated Ref checks = 2;
+}
+
+message Flag {
+    string id = 1;
+    string name = 2;
+    Ref project = 3;
+    google.protobuf.BoolValue enabled = 4;
+    repeated Ref conditions = 5;
+    google.protobuf.BoolValue overridden = 6;
+}
+
+message Project {
+    string id = 1;
+    string name = 2;
+    uint32 version = 4;
+    repeated Ref variables = 3;
+}
+
+message Root {
+    Ref flag = 1;
+    repeated Ref flags = 2;
+    repeated Ref projects = 3;
+//    string access_token = 4;
+    bool authenticated = 5;
+    repeated Ref flags_by_ids = 6;
+}
+
+message Result {
+    Root Root = 1;
+    map<string, Project> Project = 2;
+    map<string, Flag> Flag = 3;
+    map<string, Condition> Condition = 4;
+    map<string, Check> Check = 5;
+    map<string, Variable> Variable = 6;
+}

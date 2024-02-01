@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package featureflags.backend;
+
+import 'hiku/protobuf/query.proto';
+import 'google/protobuf/timestamp.proto';
+import 'featureflags/protobuf/graph.proto';
+
+message Id {
+    string value = 1;
+}
+
+message LocalId {
+    string value = 1;
+    string scope = 2;
+}
+
+message EitherId {
+    oneof kind {
+        Id id = 1;
+        LocalId local_id = 2;
+    }
+}
+
+message SignIn {
+//    string session = 1;
+    string username = 2;
+    string password = 3;
+}
+
+message SignOut {
+//    string session = 1;
+}
+
+message EnableFlag {
+    Id flag_id = 1;
+}
+
+message DisableFlag {
+    Id flag_id = 1;
+}
+
+message ResetFlag {
+    Id flag_id = 1;
+}
+
+message AddCheck {
+    LocalId local_id = 1;
+    Id variable = 2;
+    featureflags.graph.Check.Operator operator = 3;
+    oneof kind {
+        string value_string = 4;
+        double value_number = 5;
+        google.protobuf.Timestamp value_timestamp = 6;
+        featureflags.graph.Set value_set = 7;
+    }
+}
+
+message AddCondition {
+    Id flag_id = 1;
+    LocalId local_id = 2;
+    repeated EitherId checks = 3;
+}
+
+message DisableCondition {
+    Id condition_id = 1;
+}
+
+message Operation {
+    oneof op {
+        EnableFlag enable_flag = 1;
+        DisableFlag disable_flag = 2;
+        AddCondition add_condition = 3;
+        DisableCondition disable_condition = 4;
+        AddCheck add_check = 5;
+        ResetFlag reset_flag = 6;
+        SignIn sign_in = 7;
+        SignOut sign_out = 8;
+    }
+}
+
+message Request {
+    repeated Operation operations = 1;
+    hiku.protobuf.query.Node query = 2;
+}
+
+message Reply {
+    featureflags.graph.Result result = 1;
+}
+
+service Backend {
+    rpc call (Request) returns (Reply) {
+        option deprecated = true;
+    };
+    rpc Call (Request) returns (Reply) {};
+}

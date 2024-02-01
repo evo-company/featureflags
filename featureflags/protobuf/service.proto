@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package featureflags.service;
+
+import 'hiku/protobuf/query.proto';
+import "google/protobuf/empty.proto";
+import 'google/protobuf/timestamp.proto';
+import 'featureflags/protobuf/graph.proto';
+
+message Variable {
+    string name = 1;
+    featureflags.graph.Variable.Type type = 2;
+}
+
+message FlagUsage {
+    string name = 1;
+    google.protobuf.Timestamp interval = 2;
+    uint32 negative_count = 3;
+    uint32 positive_count = 4;
+}
+
+message ExchangeRequest {
+    string project = 1;
+    uint32 version = 2;
+    repeated Variable variables = 3;
+    repeated FlagUsage flags_usage = 4;
+    hiku.protobuf.query.Node query = 5;
+}
+
+message ExchangeReply {
+    uint32 version = 1;
+    featureflags.graph.Result result = 2;
+}
+
+message StoreStatsTask {
+    string flag_id = 1;
+    google.protobuf.Timestamp interval = 2;
+    uint32 negative_count = 3;
+    uint32 positive_count = 4;
+}
+
+service FeatureFlags {
+    rpc exchange (ExchangeRequest) returns (ExchangeReply) {
+        option deprecated = true;
+    };
+    rpc Exchange (ExchangeRequest) returns (ExchangeReply) {};
+    rpc store_stats (StoreStatsTask) returns (google.protobuf.Empty) {
+        option deprecated = true;
+    };
+    rpc StoreStats (StoreStatsTask) returns (google.protobuf.Empty) {};
+}

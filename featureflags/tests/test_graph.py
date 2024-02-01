@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import uuid4
 
 import pytest
-from featureflags_protobuf import graph_pb2
+from featureflags.protobuf import graph_pb2
 from google.protobuf.wrappers_pb2 import BoolValue  # type: ignore
 from hiku.builder import Q, build
 from hiku.result import denormalize
