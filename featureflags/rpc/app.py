@@ -43,6 +43,11 @@ async def main() -> None:
         log.info("Using internal user session")
         set_internal_user_session()
 
+        if config.sentry.enabled:
+            from featureflags.sentry import configure_sentry
+
+            configure_sentry(config.sentry, env_prefix="rpc")
+
         server = await create_server()
         stack.enter_context(graceful_exit([server]))  # type: ignore
 

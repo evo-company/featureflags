@@ -39,6 +39,11 @@ dependencies = [
 requires-python = ">=3.11"
 license = {text = "MIT"}
 
+[project.optional-dependencies]
+sentry = [
+    "sentry-sdk[fastapi]>=1.40.4",
+]
+
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"

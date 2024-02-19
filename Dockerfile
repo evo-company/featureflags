@@ -55,7 +55,7 @@ RUN cd ui \
     && npm run build
 
 FROM base as dev
-RUN pdm install --no-lock -G dev -G lint --no-editable
+RUN pdm install --no-lock -G dev -G sentry -G lint --no-editable
 
 FROM base as test
 RUN pdm install --no-lock -G test

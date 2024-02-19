@@ -71,6 +71,15 @@ class RpcSettings(BaseSettings):
     host: str = "0.0.0.0"
 
 
+class SentrySettings(BaseSettings):
+    enabled: bool = False
+    dsn: str | None = None
+    env: str | None = None
+    enable_tracing: bool = True
+    traces_sample_rate: float = 1.0
+    shutdown_timeout: int = 1
+
+
 class Config(BaseSettings):
     debug: bool
     secret: str = Field(..., alias="SECRET")
@@ -80,6 +89,7 @@ class Config(BaseSettings):
     ldap: LdapSettings
     logging: LoggingSettings
     instrumentation: InstrumentationSettings
+    sentry: SentrySettings
 
     app: AppSettings
     rpc: RpcSettings

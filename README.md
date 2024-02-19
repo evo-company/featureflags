@@ -30,6 +30,9 @@ Installation
 
 On PyPi: https://pypi.org/project/evo-featureflags-server
 
+To install with Sentry integration:
+`pip3 install evo-featureflags-server[sentry]`
+
 To install client library follow instructions
 here: [evo-featureflags-client](https://github.com/evo-company/featureflags-py)
 
