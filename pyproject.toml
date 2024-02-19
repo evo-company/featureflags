@@ -34,9 +34,15 @@ dependencies = [
     "jinja2>=3.1.2",
     "dependency-injector>=4.41.0",
     "grpcio>=1.59.0",
+    "prometheus-fastapi-instrumentator>=6.1.0",
 ]
 requires-python = ">=3.11"
 license = {text = "MIT"}
+
+[project.optional-dependencies]
+sentry = [
+    "sentry-sdk[fastapi]>=1.40.4",
+]
 
 [build-system]
 requires = ["pdm-backend"]

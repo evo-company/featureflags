@@ -33,9 +33,14 @@ def create_app() -> FastAPI:
     )
     app.mount("/static", static_files, name="static")
 
-    configure_metrics(port=config.instrumentation.prometheus_port)
+    configure_metrics(port=config.instrumentation.prometheus_port, app=app)
     configure_middlewares(app, container)
     configure_lifecycle(app, container)
+
+    if config.sentry.enabled:
+        from featureflags.sentry import configure_sentry
+
+        configure_sentry(config.sentry, env_prefix="web", app=app)
 
     return app
 
@@ -51,4 +56,5 @@ def main() -> None:
         loop="uvloop",
         http="httptools",
         reload=config.app.reload,
+        log_level="debug" if config.debug else "info",
     )

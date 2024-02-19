@@ -6,8 +6,6 @@ from metricslog.ext.formatter import CEELogstashFormatter, ColorFormatter
 
 from featureflags.config import config
 
-log = logging.getLogger(__name__)
-
 
 def create_console_handler() -> StreamHandler:
     handler = StreamHandler()

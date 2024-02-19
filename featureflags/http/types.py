@@ -29,6 +29,11 @@ class Check(BaseModel):
         cls,  # noqa: N805
         values: dict[str, Any],
     ) -> dict[str, Any]:
+        """
+        Value can be any type from `CHECK_VALUE_FIELDS`, but we want
+        to find one that is not not and assign to `Check.value`.
+        """
+
         for field in CHECK_VALUE_FIELDS:
             if field in values and values[field] is not None:
                 values["value"] = values[field]

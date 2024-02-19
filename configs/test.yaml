@@ -36,3 +36,11 @@ ldap:
 
 instrumentation:
   prometheus_port: null
+
+sentry:
+  enabled: false
+  dsn: null
+  env: local
+  enable_tracing: true
+  traces_sample_rate: 1
+  shutdown_timeout: 1
