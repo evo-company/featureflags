@@ -33,7 +33,7 @@ def create_app() -> FastAPI:
     )
     app.mount("/static", static_files, name="static")
 
-    configure_metrics(port=config.instrumentation.prometheus_port)
+    configure_metrics(port=config.instrumentation.prometheus_port, app=app)
     configure_middlewares(app, container)
     configure_lifecycle(app, container)
 

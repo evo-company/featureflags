@@ -5,7 +5,7 @@
 groups = ["default", "dev", "docs", "lint", "test"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:26bc77c5bac3d57bf72c17831eb85804d3b512ce4b5907e21ede287959fbc3ea"
+content_hash = "sha256:3376fac4d5747895e6d57ce3d93d368a0a1efba13b8c0fda1ac17cebdaafd755"
 
 [[package]]
 name = "aiopg"
@@ -898,6 +898,21 @@ groups = ["default"]
 files = [
     {file = "prometheus_client-0.17.1-py3-none-any.whl", hash = "sha256:e537f37160f6807b8202a6fc4764cdd19bac5480ddd3e0d463c3002b34462101"},
     {file = "prometheus_client-0.17.1.tar.gz", hash = "sha256:21e674f39831ae3f8acde238afd9a27a37d0d2fb5a28ea094f0ce25d2cbf2091"},
+]
+
+[[package]]
+name = "prometheus-fastapi-instrumentator"
+version = "6.1.0"
+requires_python = ">=3.7.0,<4.0.0"
+summary = "Instrument your FastAPI with Prometheus metrics."
+groups = ["default"]
+dependencies = [
+    "fastapi<1.0.0,>=0.38.1",
+    "prometheus-client<1.0.0,>=0.8.0",
+]
+files = [
+    {file = "prometheus_fastapi_instrumentator-6.1.0-py3-none-any.whl", hash = "sha256:2279ac1cf5b9566a4c3a07f78c9c5ee19648ed90976ab87d73d672abc1bfa017"},
+    {file = "prometheus_fastapi_instrumentator-6.1.0.tar.gz", hash = "sha256:1820d7a90389ce100f7d1285495ead388818ae0882e761c1f3e6e62a410bdf13"},
 ]
 
 [[package]]

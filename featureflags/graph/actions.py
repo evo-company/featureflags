@@ -1,8 +1,8 @@
 from datetime import datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from aiopg.sa import SAConnection
-from sqlalchemy import and_, or_, select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from featureflags.graph.constants import AUTH_SESSION_TTL
@@ -15,15 +15,13 @@ from featureflags.graph.types import (
     DirtyProjects,
     LocalId,
 )
-from featureflags.graph.utils import update_map
+from featureflags.graph.utils import gen_id, get_auth_user, update_map
 from featureflags.models import (
     AuthSession,
-    AuthUser,
     Changelog,
     Check,
     Condition,
     Flag,
-    LocalIdMap,
     Operator,
     Project,
     Variable,
@@ -31,64 +29,6 @@ from featureflags.models import (
 from featureflags.services.auth import UserSession, auth_required
 from featureflags.services.ldap import BaseLDAP
 from featureflags.utils import select_scalar
-
-
-async def gen_id(local_id: LocalId, *, conn: SAConnection) -> UUID:
-    assert local_id.scope and local_id.value, local_id
-
-    id_ = await select_scalar(
-        conn,
-        (
-            insert(LocalIdMap.__table__)
-            .values(
-                {
-                    LocalIdMap.scope: local_id.scope,
-                    LocalIdMap.value: local_id.value,
-                    LocalIdMap.id: uuid4(),
-                    LocalIdMap.timestamp: datetime.utcnow(),
-                }
-            )
-            .on_conflict_do_nothing()
-            .returning(LocalIdMap.id)
-        ),
-    )
-    if id_ is None:
-        id_ = await select_scalar(
-            conn,
-            (
-                select([LocalIdMap.id]).where(
-                    and_(
-                        LocalIdMap.scope == local_id.scope,
-                        LocalIdMap.value == local_id.value,
-                    )
-                )
-            ),
-        )
-    return id_
-
-
-async def get_auth_user(username: str, *, conn: SAConnection) -> UUID:
-    user_id_select = select([AuthUser.id]).where(AuthUser.username == username)
-    user_id = await select_scalar(conn, user_id_select)
-    if user_id is None:
-        user_id = await select_scalar(
-            conn,
-            (
-                insert(AuthUser.__table__)
-                .values(
-                    {
-                        AuthUser.id: uuid4(),
-                        AuthUser.username: username,
-                    }
-                )
-                .on_conflict_do_nothing()
-                .returning(AuthUser.id)
-            ),
-        )
-        if user_id is None:
-            user_id = await select_scalar(conn, user_id_select)
-            assert user_id is not None
-    return user_id
 
 
 @track
@@ -121,8 +61,8 @@ async def sign_in(
         .on_conflict_do_update(
             index_elements=[AuthSession.session],
             set_={
-                AuthSession.auth_user.name: user_id,
-                AuthSession.expiration_time.name: expiration_time,
+                AuthSession.auth_user: user_id,
+                AuthSession.expiration_time: expiration_time,
             },
         )
     )

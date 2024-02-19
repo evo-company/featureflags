@@ -58,7 +58,7 @@ class FlagsRepository:
 
         self._entity_cache = EntityCache()
 
-    async def get_current_version(self, project: str) -> int:
+    async def get_project_version(self, project: str) -> int:
         async with self._db_engine.acquire() as conn:
             return await select_scalar(
                 conn,
@@ -88,7 +88,7 @@ class FlagsRepository:
 
         await self.prepare_project(request)
 
-        current_version = await self.get_current_version(request.project)
+        current_version = await self.get_project_version(request.project)
 
         result = await exec_denormalize_graph(
             graph_engine=self._graph_engine,
@@ -109,7 +109,7 @@ class FlagsRepository:
         is different from the requested one.
         """
 
-        current_version = await self.get_current_version(request.project)
+        current_version = await self.get_project_version(request.project)
 
         if request.version != current_version:
             result = await exec_denormalize_graph(

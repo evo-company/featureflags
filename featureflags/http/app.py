@@ -24,7 +24,7 @@ def create_app() -> FastAPI:
 
     set_internal_user_session()
 
-    configure_metrics(port=config.instrumentation.prometheus_port)
+    configure_metrics(port=config.instrumentation.prometheus_port, app=app)
     configure_lifecycle(app, container)
 
     return app

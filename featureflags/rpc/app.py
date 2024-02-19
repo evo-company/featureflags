@@ -40,6 +40,7 @@ async def main() -> None:
         container = Container()
         await container.init_resources()
 
+        log.info("Using internal user session")
         set_internal_user_session()
 
         server = await create_server()

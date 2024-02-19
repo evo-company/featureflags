@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 import typer
@@ -6,6 +7,7 @@ from featureflags.logging import configure_logging
 
 configure_logging(__package__)
 
+log = logging.getLogger(__name__)
 cli = typer.Typer()
 
 
@@ -16,6 +18,7 @@ cli = typer.Typer()
 def alembic(args: Annotated[list[str], typer.Argument()]) -> None:
     from featureflags.alembic import main as alembic_main
 
+    log.info("Executing command: `alembic`")
     alembic_main(args)
 
 
@@ -23,6 +26,7 @@ def alembic(args: Annotated[list[str], typer.Argument()]) -> None:
 def web() -> None:
     from featureflags.web.app import main as web_main
 
+    log.info("Executing command: `web`")
     web_main()
 
 
@@ -34,6 +38,7 @@ def rpc() -> None:
 
     from featureflags.rpc.app import main as rpc_main
 
+    log.info("Executing command: `rpc`")
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     asyncio.run(rpc_main())
 
@@ -42,4 +47,5 @@ def rpc() -> None:
 def http() -> None:
     from featureflags.http.app import main as http_main
 
+    log.info("Executing command: `http`")
     http_main()
