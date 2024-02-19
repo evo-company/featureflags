@@ -61,8 +61,8 @@ async def sign_in(
         .on_conflict_do_update(
             index_elements=[AuthSession.session],
             set_={
-                AuthSession.auth_user: user_id,
-                AuthSession.expiration_time: expiration_time,
+                AuthSession.auth_user.name: user_id,
+                AuthSession.expiration_time.name: expiration_time,
             },
         )
     )
