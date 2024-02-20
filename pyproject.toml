@@ -41,7 +41,7 @@ license = {text = "MIT"}
 
 [project.optional-dependencies]
 sentry = [
-    "sentry-sdk[fastapi]>=1.40.4",
+    "sentry-sdk[fastapi,grpcio]>=1.40.5",
 ]
 
 [build-system]
@@ -111,6 +111,7 @@ extend-exclude = '''
   | .venv
   | venv
   | .ve
+  | featureflags/protobuf
 )/
 '''
 
@@ -170,6 +171,7 @@ exclude = [
     ".ve",
     "__pycache__",
     "featureflags/migrations",
+    "featureflags/protobuf",
 ]
 line-length = 80
 # Allow unused variables when underscore-prefixed.
@@ -216,6 +218,7 @@ exclude = [
     "venv",
     ".ve",
     "featureflags/migrations",
+    "featureflags/protobuf",
     "featureflags/tests",
 ]
 
@@ -224,7 +227,7 @@ module = "hiku.*"
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-module = "featureflags_protobuf.*"
+module = "featureflags.protobuf.*"
 follow_imports = "skip"
 disallow_untyped_decorators = false
 disable_error_code = [

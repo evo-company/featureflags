@@ -3,8 +3,6 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any, ClassVar
 
-from featureflags.protobuf.graph_pb2 import Check as CheckProto
-from featureflags.protobuf.graph_pb2 import Variable as VariableProto
 from sqlalchemy import Index, Integer, UniqueConstraint
 from sqlalchemy.dialects.postgresql import (
     ARRAY,
@@ -17,6 +15,8 @@ from sqlalchemy.schema import Column, ForeignKey, MetaData
 from sqlalchemy.types import Boolean, Enum, String
 
 from featureflags.graph.types import Action
+from featureflags.protobuf.graph_pb2 import Check as CheckProto
+from featureflags.protobuf.graph_pb2 import Variable as VariableProto
 from featureflags.utils import ArrayOfEnum
 
 metadata = MetaData()

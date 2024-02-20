@@ -5,11 +5,11 @@
 from uuid import UUID, uuid4
 
 from aiopg.sa import SAConnection
-from featureflags.protobuf import service_pb2
 from sqlalchemy import and_, select
 from sqlalchemy.dialects.postgresql import insert
 
 from featureflags.models import Flag, Project, Variable, VariableType
+from featureflags.protobuf import service_pb2
 from featureflags.utils import EntityCache, FlagAggStats
 
 

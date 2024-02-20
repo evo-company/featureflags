@@ -3,7 +3,6 @@ import logging
 import weakref
 
 import aiopg.sa
-from featureflags.protobuf import service_grpc, service_pb2
 from google.protobuf.empty_pb2 import Empty
 from grpclib.server import Stream
 from hiku.engine import Engine
@@ -13,6 +12,7 @@ from sqlalchemy import select
 from featureflags.graph.graph import exec_graph
 from featureflags.graph.proto_adapter import populate_result_proto
 from featureflags.models import Project
+from featureflags.protobuf import service_grpc, service_pb2
 from featureflags.rpc.db import add_statistics
 from featureflags.rpc.metrics import track
 from featureflags.rpc.utils import debug_cancellation
