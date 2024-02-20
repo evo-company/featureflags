@@ -28,9 +28,9 @@ def create_app() -> FastAPI:
     configure_lifecycle(app, container)
 
     if config.sentry.enabled:
-        from featureflags.sentry import configure_sentry
+        from featureflags.sentry import configure_sentry, SentryMode
 
-        configure_sentry(config.sentry, env_prefix="http", app=app)
+        configure_sentry(config.sentry, env_prefix="http", mode=SentryMode.HTTP)
 
     return app
 

@@ -2,7 +2,6 @@ from datetime import datetime
 from uuid import uuid4
 
 import pytest
-from featureflags.protobuf import graph_pb2
 from google.protobuf.wrappers_pb2 import BoolValue  # type: ignore
 from hiku.builder import Q, build
 from hiku.result import denormalize
@@ -11,6 +10,7 @@ from featureflags.graph.graph import GRAPH, exec_graph
 from featureflags.graph.proto_adapter import populate_result_proto
 from featureflags.graph.types import Action
 from featureflags.graph.utils import is_valid_uuid
+from featureflags.protobuf import graph_pb2
 from featureflags.services.auth import (
     EmptyAccessTokenState,
     ExpiredAccessTokenState,
