@@ -3,7 +3,10 @@ from abc import ABC, abstractmethod
 from string import Template
 
 import ldap3
-from ldap3.core.exceptions import LDAPBindError
+from ldap3.core.exceptions import (
+    LDAPException,
+    LDAPInvalidCredentialsResult,
+)
 
 from featureflags.utils import escape_dn_chars
 
@@ -50,12 +53,13 @@ class LDAP(BaseLDAP):
         *,
         connect_timeout: int = 5,
         receive_timeout: int = 5,
-    ) -> bool:
+    ) -> tuple[bool, str | None]:
         server = ldap3.Server(self._host, connect_timeout=connect_timeout)
 
         dn_tpl = Template(self._base_dn)
         dn = dn_tpl.safe_substitute(user=escape_dn_chars(user))
 
+        error_msg = None
         try:
             with ldap3.Connection(
                 server=server,
@@ -68,8 +72,15 @@ class LDAP(BaseLDAP):
                     "LDAP -> Who am I: %s",
                     connection.extend.standard.who_am_i(),
                 )
-        except LDAPBindError:
+        except LDAPException as e:
             user_is_bound = False
-            log.info("LDAP -> Bind error")
+            if type(e) is LDAPInvalidCredentialsResult:
+                error_msg = "Invalid username or password"
+            else:
+                try:
+                    error_msg = getattr(e, "message")
+                except AttributeError:
+                    error_msg = str(e)
+            log.error(f"LDAP -> Bind error: {error_msg}")
 
-        return user_is_bound
+        return user_is_bound, error_msg

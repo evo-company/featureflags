@@ -39,10 +39,11 @@ async def sign_in(
     conn: SAConnection,
     session: UserSession,
     ldap: BaseLDAP,
-) -> bool:
+) -> tuple[bool, str | None]:
     assert username and password, "Username and password are required"
-    if not await ldap.check_credentials(username, password):
-        return False
+    is_success, error_msg = await ldap.check_credentials(username, password)
+    if not is_success:
+        return False, error_msg
 
     user_id = await get_auth_user(username, conn=conn)
 
@@ -68,7 +69,7 @@ async def sign_in(
     )
 
     session.sign_in(user_id, expiration_time)
-    return True
+    return True, None
 
 
 @track
