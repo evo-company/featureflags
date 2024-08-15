@@ -22,7 +22,7 @@ class BaseLDAP(ABC):
         *,
         connect_timeout: int = 5,
         receive_timeout: int = 5,
-    ) -> bool:
+    ) -> tuple[bool, str | None]:
         raise NotImplementedError()
 
 
@@ -37,8 +37,8 @@ class DummyLDAP(BaseLDAP):
         *,
         connect_timeout: int = 5,
         receive_timeout: int = 5,
-    ) -> bool:
-        return self.user_is_bound
+    ) -> tuple[bool, str | None]:
+        return self.user_is_bound, None
 
 
 class LDAP(BaseLDAP):
