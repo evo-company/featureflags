@@ -36,5 +36,10 @@ jobs:
       - name: Build UI
         run: lets build-copy-ui-bundle
 
+      - name: Debug Environment
+        run: |
+          echo $PATH
+          which docker-compose
+
       - name: Run server tests
         run: lets test
