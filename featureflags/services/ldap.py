@@ -4,8 +4,8 @@ from string import Template
 
 import ldap3
 from ldap3.core.exceptions import (
+    LDAPBindError,
     LDAPException,
-    LDAPInvalidCredentialsResult,
 )
 
 from featureflags.utils import escape_dn_chars
@@ -74,13 +74,14 @@ class LDAP(BaseLDAP):
                 )
         except LDAPException as e:
             user_is_bound = False
-            if type(e) is LDAPInvalidCredentialsResult:
+            if type(e) is LDAPBindError:
                 error_msg = "Invalid username or password"
             else:
                 try:
                     error_msg = getattr(e, "message")
                 except AttributeError:
                     error_msg = str(e)
+                error_msg = f"Error: {error_msg}"
             log.error(f"LDAP -> Bind error: {error_msg}")
 
         return user_is_bound, error_msg
