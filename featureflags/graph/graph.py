@@ -505,7 +505,7 @@ async def sing_in(ctx: dict, options: dict) -> AuthResult:
         return AuthResult("Password is required")
 
     async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
-        success = await actions.sign_in(
+        is_success, error_msg = await actions.sign_in(
             username,
             password,
             conn=conn,
@@ -513,8 +513,7 @@ async def sing_in(ctx: dict, options: dict) -> AuthResult:
             ldap=ctx[GraphContext.LDAP_SERVICE],
         )
 
-    error = "Invalid username or password" if not success else None
-    return AuthResult(error)
+    return AuthResult(error_msg)
 
 
 @pass_context
