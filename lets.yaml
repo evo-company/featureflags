@@ -82,7 +82,7 @@ commands:
       - build-test
       - postgres-test
     cmd: |
-      docker-compose run --rm test
+      docker compose run --rm test
 
   postgres:
     description: Run postgres
@@ -90,7 +90,7 @@ commands:
 
   postgres-test:
     description: Run postgres test db
-    cmd: docker-compose up -d postgres-test
+    cmd: docker compose up -d postgres-test
 
   apply-migrations-dev:
     description: Apply migrations to local postgres
