@@ -98,13 +98,16 @@ class ValueBinding(IdMixin):
             obj.conditions.add().ValueCondition = ref.ident.hex
 
     def value_default(self, obj, value):
-        obj.value_default.value = value
+        obj.value_default = value
 
     def value_override(self, obj, value):
-        obj.value_override.value = value
+        obj.value_override = value
 
     def value(self, obj, value):
         obj.value.value = value
+
+    def overridden(self, obj, value):
+        obj.overridden.value = value
 
 
 class ValueConditionBinding(IdMixin):
@@ -116,7 +119,7 @@ class ValueConditionBinding(IdMixin):
             obj.checks.add().Check = ref.ident.hex
 
     def value_override(self, obj, value):
-        obj.value_override.value = value
+        obj.value_override = value
 
 
 class ConditionBinding(IdMixin):

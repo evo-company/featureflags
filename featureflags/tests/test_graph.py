@@ -560,8 +560,8 @@ async def test_values(
                 overridden=BoolValue(value=overridden),
             ),
         },
-        Condition={
-            condition.id.hex: graph_pb2.Condition(
+        ValueCondition={
+            condition.id.hex: graph_pb2.ValueCondition(
                 id=condition.id.hex,
                 checks=[graph_pb2.Ref(Check=check.id.hex)],
                 value_override=condition.value_override,
