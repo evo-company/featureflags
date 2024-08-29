@@ -19,7 +19,12 @@ from featureflags.rpc.utils import debug_cancellation
 from featureflags.services.auth import (
     user_session,
 )
-from featureflags.utils import EntityCache, FlagAggStats, select_scalar
+from featureflags.utils import (
+    EntityCache,
+    FlagAggStats,
+    ValueAggStats,
+    select_scalar,
+)
 
 log = logging.getLogger(__name__)
 
@@ -32,6 +37,7 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
     ) -> None:
         self._entity_cache = EntityCache()
         self._flag_agg_stats = FlagAggStats()
+        self.value_agg_stats = ValueAggStats()
         self._graph_engine = graph_engine
         self._db_engine = db_engine
 
@@ -76,6 +82,7 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
                 conn=conn,
                 entity_cache=self._entity_cache,
                 flag_agg_stats=self._flag_agg_stats,
+                value_agg_stats=self.value_agg_stats,
             )
             version = await select_scalar(
                 conn,

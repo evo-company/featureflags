@@ -22,6 +22,7 @@ import './Dashboard.less';
 import { Base } from '../Base';
 import { CenteredSpinner } from '../components/Spinner';
 import { FlagsContainer } from './Flags';
+import { ValuesContainer } from './Values';
 
 import { PROJECTS_QUERY } from './queries';
 
@@ -49,6 +50,7 @@ function Dashboard({ projects }) {
   const navigate = useNavigate();
   const queryParams = new URLSearchParams(location.search);
   const projectFromQuery = queryParams.get('project');
+  const tab = queryParams.get('tab');
 
   const [menuItems, setMenuItems] = useState([]);
   const [selected, setSelected] = useState('');
@@ -103,7 +105,6 @@ function Dashboard({ projects }) {
       scrollToProject(data);
     }
   };
-
   return (
     <Base>
       <Layout className="site-layout">
@@ -149,8 +150,23 @@ function Dashboard({ projects }) {
               minHeight: 360,
             }}
           >
-            {!!selected ? <FlagsContainer project={projectMap[selected]}/> :
-              <div>No flags</div>}
+            {
+              tab === "values" ? (
+                  !!selected ? (
+                      <ValuesContainer project={projectMap[selected]} />
+                  ) : (
+                      <div>No Values</div>
+                  )
+              ) : (
+                  !!selected ? (
+                      <FlagsContainer project={projectMap[selected]} />
+                  ) : (
+                      <div>No Flags</div>
+                  )
+              )
+          }
+            {/*{!!selected ? <FlagsContainer project={projectMap[selected]}/> :*/}
+            {/*  <div>No flags</div>}*/}
           </div>
         </Content>
       </Layout>

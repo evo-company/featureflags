@@ -78,7 +78,7 @@ class LDAP(BaseLDAP):
                 error_msg = "Invalid username or password"
             else:
                 try:
-                    error_msg = getattr(e, "message")
+                    error_msg = e.message
                 except AttributeError:
                     error_msg = str(e)
                 error_msg = f"Error: {error_msg}"

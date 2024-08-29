@@ -10,7 +10,7 @@ from hiku.engine import Engine
 from sqlalchemy import text
 
 from featureflags.alembic import main as alembic_main
-from featureflags.graph.types import Changes, DirtyProjects
+from featureflags.graph.types import Changes, DirtyProjects, ValuesChanges
 from featureflags.models import metadata
 from featureflags.services.auth import TestSession, user_session
 from featureflags.services.ldap import BaseLDAP
@@ -91,6 +91,11 @@ def dirty_projects() -> DirtyProjects:
 @pytest.fixture
 def changes() -> Changes:
     return Changes()
+
+
+@pytest.fixture
+def values_changes() -> ValuesChanges:
+    return ValuesChanges()
 
 
 @pytest.fixture

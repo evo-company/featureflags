@@ -7,20 +7,29 @@ from sqlalchemy import and_, exists, func, select
 from featureflags.graph.actions import (
     AddCheckOp,
     AddConditionOp,
+    AddValueConditionOp,
     Changes,
     LocalId,
     add_check,
     add_condition,
+    add_value_condition,
     disable_condition,
     disable_flag,
+    disable_value,
+    disable_value_condition,
     enable_flag,
+    enable_value,
     gen_id,
     postprocess,
     reset_flag,
+    reset_value,
     sign_in,
     sign_out,
     update_changelog,
+    update_value_changelog,
+    update_value_value_override,
 )
+from featureflags.graph.types import ValueAction, ValuesChanges
 from featureflags.models import (
     Action,
     AuthSession,
@@ -32,6 +41,9 @@ from featureflags.models import (
     LocalIdMap,
     Operator,
     Project,
+    Value,
+    ValueChangelog,
+    ValueCondition,
 )
 from featureflags.services import auth
 from featureflags.services.auth import (
@@ -48,6 +60,8 @@ from featureflags.tests.state import (
     mk_condition,
     mk_flag,
     mk_project,
+    mk_value,
+    mk_value_condition,
     mk_variable,
 )
 from featureflags.utils import select_scalar
@@ -64,6 +78,20 @@ async def get_version(project, *, conn):
 
 async def check_flag(flag, *, conn):
     result = await conn.execute(select([Flag.enabled]).where(Flag.id == flag))
+    return await result.scalar()
+
+
+async def check_value(value, *, conn):
+    result = await conn.execute(
+        select([Value.enabled]).where(Value.id == value)
+    )
+    return await result.scalar()
+
+
+async def check_value_override(value, *, conn):
+    result = await conn.execute(
+        select([Value.value_override]).where(Value.id == value)
+    )
     return await result.scalar()
 
 
@@ -498,6 +526,9 @@ async def test_postprocess_by_all(conn, db_engine, dirty_projects):
     variable = await mk_variable(db_engine, project=project)
     dirty_projects.by_variable.add(variable.id)
 
+    value = await mk_value(db_engine, project=project)
+    dirty_projects.by_value.add(value.id)
+
     await postprocess(conn=conn, dirty=dirty_projects)
     assert await get_version(project.id, conn=conn) == version + 1
     assert await get_version(project_dub.id, conn=conn) == version
@@ -527,3 +558,306 @@ async def test_update_changelog(conn, db_engine):
         Action.DISABLE_CONDITION,
         Action.ADD_CONDITION,
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "action, before, after, action_type",
+    [
+        (enable_value, None, True, ValueAction.ENABLE_VALUE),
+        (enable_value, False, True, ValueAction.ENABLE_VALUE),
+        (disable_value, None, False, ValueAction.DISABLE_VALUE),
+        (disable_value, True, False, ValueAction.DISABLE_VALUE),
+    ],
+)
+async def test_switching_value(
+    conn,
+    db_engine,
+    dirty_projects,
+    values_changes,
+    action,
+    before,
+    after,
+    action_type,
+):
+    value = await mk_value(db_engine, enabled=before)
+    assert await check_value(value.id, conn=conn) == before
+
+    await action(
+        value_id=value.id.hex,
+        conn=conn,
+        dirty=dirty_projects,
+        changes=values_changes,
+    )
+    assert dirty_projects.by_value == {value.id}
+    assert values_changes.get_actions() == [(value.id, [action_type])]
+    assert await check_value(value.id, conn=conn) is after
+
+
+@pytest.mark.asyncio
+async def test_reset_value(conn, db_engine, dirty_projects, values_changes):
+    project = await mk_project(db_engine)
+    value_default = "blabla"
+    value_override = "notblabla"
+    value = await mk_value(
+        db_engine,
+        enabled=True,
+        project=project,
+        value_default=value_default,
+        value_override=value_override,
+    )
+    condition = await mk_value_condition(
+        db_engine,
+        value=value,
+        project=project,
+        value_override="value_override",
+    )
+
+    assert await check_value(value.id, conn=conn) is True
+    assert (
+        await (
+            await conn.execute(
+                select([exists().where(ValueCondition.id == condition.id)])
+            )
+        ).scalar()
+        is True
+    )
+
+    await reset_value(
+        value_id=value.id.hex,
+        conn=conn,
+        dirty=dirty_projects,
+        changes=values_changes,
+    )
+    assert dirty_projects.by_value == {value.id}
+    assert values_changes.get_actions() == [
+        (value.id, [ValueAction.RESET_VALUE])
+    ]
+
+    assert await check_value_override(value.id, conn=conn) == value_default
+    assert (
+        await (
+            await conn.execute(
+                select([exists().where(ValueCondition.id == condition.id)])
+            )
+        ).scalar()
+        is False
+    )
+
+
+@pytest.mark.asyncio
+async def test_add_value_condition(
+    conn, db_engine, dirty_projects, values_changes
+):
+    project = await mk_project(db_engine)
+    value = await mk_value(db_engine, project=project)
+    check = await mk_check(db_engine, variable_project=project)
+
+    local_id = LocalId(scope="arra", value="sowle")
+
+    ids = await add_value_condition(
+        AddValueConditionOp(
+            {
+                "local_id": {"scope": "arra", "value": "sowle"},
+                "value_id": value.id.hex,
+                "checks": [{"id": check.id.hex}],
+            }
+        ),
+        conn=conn,
+        ids={},
+        value_override="override_value",
+        dirty=dirty_projects,
+        changes=values_changes,
+    )
+    assert dirty_projects.by_value == {value.id}
+    assert values_changes.get_actions() == [
+        (value.id, [ValueAction.ADD_CONDITION])
+    ]
+
+    id_ = ids[local_id]
+
+    result = await conn.execute(
+        select(
+            [
+                ValueCondition.value,
+                ValueCondition.checks,
+                ValueCondition.value_override,
+            ]
+        ).where(ValueCondition.id == id_)
+    )
+    row = await result.first()
+    assert row.as_tuple() == (value.id, (check.id,), "override_value")
+
+
+@pytest.mark.asyncio
+async def test_add_value_condition_and_check(
+    db_engine, conn, dirty_projects, values_changes
+):
+    project = await mk_project(db_engine)
+    value = await mk_value(db_engine, project=project)
+    check1 = await mk_check(db_engine, variable_project=project)
+    check2 = await mk_check(db_engine, variable_project=project)
+
+    check1_id = LocalId(scope="peggy", value="caseful")
+
+    ids = {check1_id: check1.id}
+
+    local_id = LocalId(scope="focal", value="klutzes")
+
+    op = AddValueConditionOp(
+        {
+            "local_id": {"scope": local_id.scope, "value": local_id.value},
+            "value_id": value.id.hex,
+            "checks": [
+                {
+                    "local_id": {
+                        "scope": check1_id.scope,
+                        "value": check1_id.value,
+                    },
+                },
+                {"id": check2.id.hex},
+            ],
+        }
+    )
+
+    ids.update(
+        await add_value_condition(
+            op,
+            conn=conn,
+            ids=ids,
+            dirty=dirty_projects,
+            changes=values_changes,
+            value_override="override_value",
+        )
+    )
+    assert dirty_projects.by_value == {value.id}
+    assert values_changes.get_actions() == [
+        (value.id, [ValueAction.ADD_CONDITION])
+    ]
+
+    id_ = ids[local_id]
+
+    result = await conn.execute(
+        select(
+            [
+                ValueCondition.value,
+                ValueCondition.checks,
+                ValueCondition.value_override,
+            ]
+        ).where(ValueCondition.id == id_)
+    )
+    row = await result.first()
+    assert row.as_tuple() == (
+        value.id,
+        (check1.id, check2.id),
+        "override_value",
+    )
+
+
+@pytest.mark.asyncio
+async def test_disable_value_condition(
+    conn, db_engine, dirty_projects, values_changes
+):
+    condition = await mk_value_condition(db_engine)
+
+    async def check_condition():
+        result = await conn.execute(
+            select([ValueCondition.id]).where(ValueCondition.id == condition.id)
+        )
+        row = await result.first()
+        return row and row[0]
+
+    assert (await check_condition()) == condition.id
+
+    await disable_value_condition(
+        condition.id.hex,
+        conn=conn,
+        dirty=dirty_projects,
+        changes=values_changes,
+    )
+    assert dirty_projects.by_value == {condition.value}
+    assert values_changes.get_actions() == [
+        (condition.value, [ValueAction.DISABLE_CONDITION])
+    ]
+
+    assert (await check_condition()) is None
+
+    await disable_value_condition(
+        condition.id.hex,
+        conn=conn,
+        dirty=dirty_projects,
+        changes=values_changes,
+    )
+    # should be the same
+    assert values_changes.get_actions() == [
+        (condition.value, [ValueAction.DISABLE_CONDITION])
+    ]
+
+    assert (await check_condition()) is None
+
+
+@pytest.mark.asyncio
+async def test_postprocess_by_value(conn, db_engine, dirty_projects):
+    version = f.pyint()
+    project = await mk_project(db_engine, version=version)
+    value = await mk_value(db_engine, project=project)
+    dirty_projects.by_value.add(value.id)
+    await postprocess(conn=conn, dirty=dirty_projects)
+    assert await get_version(project.id, conn=conn) == version + 1
+
+
+@pytest.mark.asyncio
+async def test_update_value_changelog(conn, db_engine):
+    value = await mk_value(db_engine)
+    user = await mk_auth_user(db_engine)
+    session = auth.TestSession(user.id)
+
+    changes = ValuesChanges()
+    changes.add(value.id, ValueAction.ENABLE_VALUE)
+    changes.add(value.id, ValueAction.ADD_CONDITION)
+    changes.add(value.id, ValueAction.DISABLE_CONDITION)
+    changes.add(value.id, ValueAction.ADD_CONDITION)
+
+    await update_value_changelog(session=session, conn=conn, changes=changes)
+
+    actions = await select_scalar(
+        conn,
+        (
+            select([ValueChangelog.actions]).where(
+                ValueChangelog.value == value.id
+            )
+        ),
+    )
+    assert actions == (
+        ValueAction.ENABLE_VALUE,
+        ValueAction.ADD_CONDITION,
+        ValueAction.DISABLE_CONDITION,
+        ValueAction.ADD_CONDITION,
+    )
+
+
+@pytest.mark.asyncio
+async def test_update_value_value_override(
+    conn, db_engine, dirty_projects, values_changes
+):
+    project = await mk_project(db_engine)
+    value_default = "blabla"
+    value_override = "notblabla"
+
+    value = await mk_value(
+        db_engine,
+        enabled=True,
+        project=project,
+        value_default=value_default,
+        value_override=value_default,
+    )
+
+    await update_value_value_override(
+        value.id.hex,
+        value_override=value_override,
+        conn=conn,
+        dirty=dirty_projects,
+        changes=values_changes,
+    )
+
+    assert await check_value_override(value.id, conn=conn) == value_override

@@ -28,3 +28,24 @@ export const useChecks = () => {
     setValueString, setValueNumber, setValueTimestamp, setValueSet
   };
 }
+
+export const ValueContext = createContext({});
+export const useValueState = () => {
+  const { state } = useContext(ValueContext);
+  return state;
+}
+export const useValueCtx = () => useContext(ValueContext);
+export const useValueConditions = () => {
+  const { conditions } = useContext(ValueContext);
+  return conditions;
+}
+export const useValueChecks = () => {
+  const {
+    checks, setVariable, setOperator, setValueString, setValueNumber,
+    setValueTimestamp, setValueSet
+  } = useContext(ValueContext);
+  return {
+    checks, setVariable, setOperator, setValueString, setValueNumber,
+    setValueTimestamp, setValueSet
+  };
+}

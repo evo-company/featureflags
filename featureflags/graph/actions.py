@@ -11,9 +11,12 @@ from featureflags.graph.types import (
     Action,
     AddCheckOp,
     AddConditionOp,
+    AddValueConditionOp,
     Changes,
     DirtyProjects,
     LocalId,
+    ValueAction,
+    ValuesChanges,
 )
 from featureflags.graph.utils import gen_id, get_auth_user, update_map
 from featureflags.models import (
@@ -24,6 +27,9 @@ from featureflags.models import (
     Flag,
     Operator,
     Project,
+    Value,
+    ValueChangelog,
+    ValueCondition,
     Variable,
 )
 from featureflags.services.auth import UserSession, auth_required
@@ -251,6 +257,8 @@ async def postprocess(*, conn: SAConnection, dirty: DirtyProjects) -> None:
         selections.append(
             select([Variable.project]).where(Variable.id == variable_id)
         )
+    for value_id in dirty.by_value:
+        selections.append(select([Value.project]).where(Value.id == value_id))
     if selections:
         await conn.execute(
             update(Project.__table__)
@@ -274,6 +282,205 @@ async def update_changelog(
                         Changelog.auth_user: session.user,
                         Changelog.flag: flag,
                         Changelog.actions: flag_actions,
+                    }
+                )
+            )
+
+
+@auth_required
+@track
+async def enable_value(
+    value_id: str,
+    *,
+    conn: SAConnection,
+    dirty: DirtyProjects,
+    changes: ValuesChanges,
+) -> None:
+    assert value_id, "Value id is required"
+
+    value_uuid = UUID(hex=value_id)
+    await conn.execute(
+        Value.__table__.update()
+        .where(Value.id == value_uuid)
+        .values({Value.enabled: True})
+    )
+    dirty.by_value.add(value_uuid)
+    changes.add(value_uuid, ValueAction.ENABLE_VALUE)
+
+
+@auth_required
+@track
+async def update_value_value_override(
+    value_id: str,
+    value_override: str,
+    *,
+    conn: SAConnection,
+    dirty: DirtyProjects,
+    changes: ValuesChanges,
+) -> None:
+    assert value_id, "Value id is required"
+
+    value_uuid = UUID(hex=value_id)
+    await conn.execute(
+        Value.__table__.update()
+        .where(Value.id == value_uuid)
+        .values({Value.value_override: value_override})
+    )
+    dirty.by_value.add(value_uuid)
+    changes.add(value_uuid, ValueAction.UPDATE_VALUE_VALUE_OVERRIDE)
+
+
+@auth_required
+@track
+async def disable_value(
+    value_id: str,
+    *,
+    conn: SAConnection,
+    dirty: DirtyProjects,
+    changes: ValuesChanges,
+) -> None:
+    assert value_id, "Value id is required"
+
+    value_uuid = UUID(hex=value_id)
+    await conn.execute(
+        Value.__table__.update()
+        .where(Value.id == value_uuid)
+        .values({Value.enabled: False})
+    )
+    dirty.by_value.add(value_uuid)
+    changes.add(value_uuid, ValueAction.DISABLE_VALUE)
+
+
+@auth_required
+@track
+async def reset_value(
+    value_id: str,
+    *,
+    conn: SAConnection,
+    dirty: DirtyProjects,
+    changes: ValuesChanges,
+) -> None:
+    assert value_id, "Value id is required"
+
+    value_uuid = UUID(hex=value_id)
+
+    result = await conn.execute(
+        select([Value.value_default]).where(Value.id == value_uuid)
+    )
+    value_default = await result.scalar()
+
+    await conn.execute(
+        Value.__table__.update()
+        .where(Value.id == value_uuid)
+        .values(
+            {
+                Value.value_override: value_default,
+                Value.enabled: None,
+            }
+        )
+    )
+    await conn.execute(
+        ValueCondition.__table__.delete().where(
+            ValueCondition.value == value_uuid
+        )
+    )
+    dirty.by_value.add(value_uuid)
+    changes.add(value_uuid, ValueAction.RESET_VALUE)
+
+
+@auth_required
+@track
+async def delete_value(
+    value_id: str, *, conn: SAConnection, changes: ValuesChanges
+) -> None:
+    assert value_id, "Value id is required"
+
+    value_uuid = UUID(hex=value_id)
+    await conn.execute(
+        ValueCondition.__table__.delete().where(
+            ValueCondition.value == value_uuid
+        )
+    )
+    await conn.execute(Value.__table__.delete().where(Value.id == value_uuid))
+
+    changes.add(value_uuid, ValueAction.DELETE_VALUE)
+
+
+@auth_required
+@track
+async def add_value_condition(
+    op: AddValueConditionOp,
+    *,
+    conn: SAConnection,
+    ids: dict,
+    value_override: str,
+    dirty: DirtyProjects,
+    changes: ValuesChanges,
+) -> dict:
+    id_ = await gen_id(op.local_id, conn=conn)
+
+    value_id = UUID(hex=op.value_id)
+    checks = [
+        ids[check.local_id] if check.local_id else UUID(hex=check.id)
+        for check in op.checks
+    ]
+
+    await conn.execute(
+        insert(ValueCondition.__table__)
+        .values(
+            {
+                ValueCondition.id: id_,
+                ValueCondition.value: value_id,
+                ValueCondition.checks: checks,
+                ValueCondition.value_override: value_override,
+            }
+        )
+        .on_conflict_do_nothing()
+    )
+    dirty.by_value.add(value_id)
+    changes.add(value_id, ValueAction.ADD_CONDITION)
+    return update_map(ids, {op.local_id: id_})
+
+
+@auth_required
+@track
+async def disable_value_condition(
+    condition_id: str,
+    *,
+    conn: SAConnection,
+    dirty: DirtyProjects,
+    changes: ValuesChanges,
+) -> None:
+    assert condition_id, "Condition id is required"
+
+    value_id = await select_scalar(
+        conn,
+        (
+            ValueCondition.__table__.delete()
+            .where(ValueCondition.id == UUID(hex=condition_id))
+            .returning(ValueCondition.value)
+        ),
+    )
+    if value_id is not None:
+        dirty.by_value.add(value_id)
+        changes.add(value_id, ValueAction.DISABLE_CONDITION)
+
+
+async def update_value_changelog(
+    *, session: UserSession, conn: SAConnection, changes: ValuesChanges
+) -> None:
+    actions = changes.get_actions()
+    if actions:
+        assert session.user is not None
+        for value, value_actions in actions:
+            assert value_actions, repr(value_actions)
+            await conn.execute(
+                insert(ValueChangelog.__table__).values(
+                    {
+                        ValueChangelog.timestamp: datetime.utcnow(),
+                        ValueChangelog.auth_user: session.user,
+                        ValueChangelog.value: value,
+                        ValueChangelog.actions: value_actions,
                     }
                 )
             )

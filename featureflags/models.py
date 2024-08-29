@@ -14,7 +14,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.schema import Column, ForeignKey, MetaData
 from sqlalchemy.types import Boolean, Enum, String
 
-from featureflags.graph.types import Action
+from featureflags.graph.types import Action, ValueAction
 from featureflags.protobuf.graph_pb2 import Check as CheckProto
 from featureflags.protobuf.graph_pb2 import Variable as VariableProto
 from featureflags.utils import ArrayOfEnum
@@ -182,4 +182,48 @@ class Changelog(Base):
     )
     actions = Column(
         ArrayOfEnum(Enum(Action, name="changelog_actions"), as_tuple=True)
+    )
+
+
+class Value(Base):
+    __tablename__ = "value"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    name = Column(String, nullable=False)
+    enabled = Column(Boolean)
+    value_default = Column(String, nullable=False)
+    value_override = Column(String, nullable=False)
+
+    project: UUID = Column(ForeignKey("project.id"), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint(project, name),
+        Index("value_project_name_idx", project, name),
+    )
+
+
+class ValueCondition(Base):
+    __tablename__ = "value_condition"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    value: UUID = Column(ForeignKey("value.id"), nullable=False)
+    value_override = Column(String, nullable=False)
+
+    checks = Column("checks", ARRAY(UUID(as_uuid=True), as_tuple=True))
+
+
+class ValueChangelog(Base):
+    __tablename__ = "value_changelog"
+
+    id = Column(Integer, primary_key=True)
+
+    timestamp = Column(TIMESTAMP, nullable=False)
+    auth_user: UUID = Column(ForeignKey("auth_user.id"), nullable=False)
+    value: UUID = Column(
+        ForeignKey("value.id", ondelete="CASCADE"), nullable=False
+    )
+    actions = Column(
+        ArrayOfEnum(
+            Enum(ValueAction, name="value_changelog_actions"), as_tuple=True
+        )
     )

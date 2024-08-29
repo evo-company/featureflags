@@ -8,9 +8,9 @@ from aiopg.sa import SAConnection
 from sqlalchemy import and_, select
 from sqlalchemy.dialects.postgresql import insert
 
-from featureflags.models import Flag, Project, Variable, VariableType
+from featureflags.models import Flag, Project, Value, Variable, VariableType
 from featureflags.protobuf import service_pb2
-from featureflags.utils import EntityCache, FlagAggStats
+from featureflags.utils import EntityCache, FlagAggStats, ValueAggStats
 
 
 async def _select_project(name: str, *, conn: SAConnection) -> UUID:
@@ -143,12 +143,72 @@ async def _get_or_create_flag(
     return id_
 
 
+async def _select_value(
+    project: UUID,
+    name: str,
+    *,
+    conn: SAConnection,
+) -> UUID:
+    result = await conn.execute(
+        select([Value.id]).where(
+            and_(Value.project == project, Value.name == name)
+        )
+    )
+    return await result.scalar()
+
+
+async def _insert_value(
+    project: UUID,
+    name: str,
+    value_default: str,
+    *,
+    conn: SAConnection,
+) -> UUID:
+    result = await conn.execute(
+        insert(Value.__table__)
+        .values(
+            {
+                Value.id: uuid4(),
+                Value.project: project,
+                Value.name: name,
+                Value.value_default: value_default,
+                Value.value_override: value_default,
+            }
+        )
+        .on_conflict_do_nothing()
+        .returning(Value.id)
+    )
+    return await result.scalar()
+
+
+async def _get_or_create_value(
+    project: UUID,
+    value: str,
+    value_default: str,
+    *,
+    conn: SAConnection,
+    entity_cache: EntityCache,
+) -> UUID:
+    assert project and value, (project, value)
+    id_ = entity_cache.value[project].get(value)
+    if id_ is None:  # not in cache
+        id_ = await _select_value(project, value, conn=conn)
+        if id_ is None:  # not in db
+            id_ = await _insert_value(project, value, value_default, conn=conn)
+            if id_ is None:  # conflicting insert
+                id_ = await _select_value(project, value, conn=conn)
+                assert id_ is not None  # must be in db
+        entity_cache.value[project][value] = id_
+    return id_
+
+
 async def add_statistics(
     op: service_pb2.ExchangeRequest,
     *,
     conn: SAConnection,
     entity_cache: EntityCache,
     flag_agg_stats: FlagAggStats,
+    value_agg_stats: ValueAggStats | None = None,
 ) -> None:
     project = await _get_or_create_project(
         op.project,
@@ -174,3 +234,16 @@ async def add_statistics(
         s = flag_agg_stats[flag][flag_usage.interval.ToDatetime()]
         s[0] += flag_usage.positive_count
         s[1] += flag_usage.negative_count
+    if value_agg_stats:
+        for value_usage in op.values_usage:
+            value = await _get_or_create_value(
+                project,
+                value_usage.name,
+                conn=conn,
+                entity_cache=entity_cache,
+                value_default=value_usage.name,
+            )
+
+            s = value_agg_stats[value][value_usage.interval.ToDatetime()]
+            s[0] += value_usage.positive_count
+            s[1] += value_usage.negative_count

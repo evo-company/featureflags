@@ -144,6 +144,7 @@ ignore = [
     "DTZ006",
     "A003",
     "B008",
+    "PLR0913",
 ]
 exclude = [
     ".bzr",
