@@ -19,20 +19,12 @@ message FlagUsage {
     uint32 positive_count = 4;
 }
 
-message ValueUsage {
-    string name = 1;
-    google.protobuf.Timestamp interval = 2;
-    uint32 negative_count = 3;
-    uint32 positive_count = 4;
-}
-
 message ExchangeRequest {
     string project = 1;
     uint32 version = 2;
     repeated Variable variables = 3;
     repeated FlagUsage flags_usage = 4;
     hiku.protobuf.query.Node query = 5;
-    repeated ValueUsage values_usage = 6;
 }
 
 message ExchangeReply {

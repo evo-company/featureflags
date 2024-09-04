@@ -44,7 +44,7 @@ async def main() -> None:
         set_internal_user_session()
 
         if config.sentry.enabled:
-            from featureflags.sentry import SentryMode, configure_sentry
+            from featureflags.sentry import configure_sentry, SentryMode
 
             configure_sentry(
                 config.sentry, env_prefix="rpc", mode=SentryMode.GRPC

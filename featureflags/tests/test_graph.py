@@ -528,55 +528,6 @@ async def test_values(
         ],
     }
 
-    assert populate_result_proto(
-        result, graph_pb2.Result()
-    ) == graph_pb2.Result(
-        Root=graph_pb2.Root(
-            values=[graph_pb2.Ref(Value=value.id.hex)],
-        ),
-        Project={
-            project.id.hex: graph_pb2.Project(
-                id=project.id.hex,
-                name=project.name,
-                variables=[graph_pb2.Ref(Variable=variable.id.hex)],
-            ),
-        },
-        Variable={
-            variable.id.hex: graph_pb2.Variable(
-                id=variable.id.hex,
-                name=variable.name,
-                type=variable.type.to_pb(),
-            ),
-        },
-        Value={
-            value.id.hex: graph_pb2.Value(
-                id=value.id.hex,
-                name=value.name,
-                value_default=value.value_default,
-                value_override=value.value_override,
-                project=graph_pb2.Ref(Project=value.project.hex),
-                enabled=BoolValue(value=value.enabled or False),
-                conditions=[graph_pb2.Ref(ValueCondition=condition.id.hex)],
-                overridden=BoolValue(value=overridden),
-            ),
-        },
-        ValueCondition={
-            condition.id.hex: graph_pb2.ValueCondition(
-                id=condition.id.hex,
-                checks=[graph_pb2.Ref(Check=check.id.hex)],
-                value_override=condition.value_override,
-            ),
-        },
-        Check={
-            check.id.hex: graph_pb2.Check(
-                id=check.id.hex,
-                variable=graph_pb2.Ref(Variable=variable.id.hex),
-                operator=check.operator.to_pb(),
-                value_string=check.value_string,
-            ),
-        },
-    )
-
 
 @pytest.mark.asyncio
 async def test_values_by_ids(db_engine, graph_engine, test_session):
@@ -601,19 +552,6 @@ async def test_values_by_ids(db_engine, graph_engine, test_session):
             },
         ],
     }
-    assert populate_result_proto(
-        result, graph_pb2.Result()
-    ) == graph_pb2.Result(
-        Root=graph_pb2.Root(
-            values_by_ids=[graph_pb2.Ref(Value=value.id.hex)],
-        ),
-        Value={
-            value.id.hex: graph_pb2.Value(
-                id=value.id.hex,
-                name=value.name,
-            ),
-        },
-    )
 
 
 @pytest.mark.asyncio

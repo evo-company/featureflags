@@ -2,8 +2,8 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
+from featureflags.protobuf import service_pb2 as featureflags_dot_protobuf_dot_service__pb2
 from google.protobuf import empty_pb2 as google_dot_protobuf_dot_empty__pb2
-import service_pb2 as service__pb2
 
 
 class FeatureFlagsStub(object):
@@ -17,22 +17,22 @@ class FeatureFlagsStub(object):
         """
         self.exchange = channel.unary_unary(
                 '/featureflags.service.FeatureFlags/exchange',
-                request_serializer=service__pb2.ExchangeRequest.SerializeToString,
-                response_deserializer=service__pb2.ExchangeReply.FromString,
+                request_serializer=featureflags_dot_protobuf_dot_service__pb2.ExchangeRequest.SerializeToString,
+                response_deserializer=featureflags_dot_protobuf_dot_service__pb2.ExchangeReply.FromString,
                 )
         self.Exchange = channel.unary_unary(
                 '/featureflags.service.FeatureFlags/Exchange',
-                request_serializer=service__pb2.ExchangeRequest.SerializeToString,
-                response_deserializer=service__pb2.ExchangeReply.FromString,
+                request_serializer=featureflags_dot_protobuf_dot_service__pb2.ExchangeRequest.SerializeToString,
+                response_deserializer=featureflags_dot_protobuf_dot_service__pb2.ExchangeReply.FromString,
                 )
         self.store_stats = channel.unary_unary(
                 '/featureflags.service.FeatureFlags/store_stats',
-                request_serializer=service__pb2.StoreStatsTask.SerializeToString,
+                request_serializer=featureflags_dot_protobuf_dot_service__pb2.StoreStatsTask.SerializeToString,
                 response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                 )
         self.StoreStats = channel.unary_unary(
                 '/featureflags.service.FeatureFlags/StoreStats',
-                request_serializer=service__pb2.StoreStatsTask.SerializeToString,
+                request_serializer=featureflags_dot_protobuf_dot_service__pb2.StoreStatsTask.SerializeToString,
                 response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                 )
 
@@ -69,22 +69,22 @@ def add_FeatureFlagsServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'exchange': grpc.unary_unary_rpc_method_handler(
                     servicer.exchange,
-                    request_deserializer=service__pb2.ExchangeRequest.FromString,
-                    response_serializer=service__pb2.ExchangeReply.SerializeToString,
+                    request_deserializer=featureflags_dot_protobuf_dot_service__pb2.ExchangeRequest.FromString,
+                    response_serializer=featureflags_dot_protobuf_dot_service__pb2.ExchangeReply.SerializeToString,
             ),
             'Exchange': grpc.unary_unary_rpc_method_handler(
                     servicer.Exchange,
-                    request_deserializer=service__pb2.ExchangeRequest.FromString,
-                    response_serializer=service__pb2.ExchangeReply.SerializeToString,
+                    request_deserializer=featureflags_dot_protobuf_dot_service__pb2.ExchangeRequest.FromString,
+                    response_serializer=featureflags_dot_protobuf_dot_service__pb2.ExchangeReply.SerializeToString,
             ),
             'store_stats': grpc.unary_unary_rpc_method_handler(
                     servicer.store_stats,
-                    request_deserializer=service__pb2.StoreStatsTask.FromString,
+                    request_deserializer=featureflags_dot_protobuf_dot_service__pb2.StoreStatsTask.FromString,
                     response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
             ),
             'StoreStats': grpc.unary_unary_rpc_method_handler(
                     servicer.StoreStats,
-                    request_deserializer=service__pb2.StoreStatsTask.FromString,
+                    request_deserializer=featureflags_dot_protobuf_dot_service__pb2.StoreStatsTask.FromString,
                     response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
             ),
     }
@@ -109,8 +109,8 @@ class FeatureFlags(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/featureflags.service.FeatureFlags/exchange',
-            service__pb2.ExchangeRequest.SerializeToString,
-            service__pb2.ExchangeReply.FromString,
+            featureflags_dot_protobuf_dot_service__pb2.ExchangeRequest.SerializeToString,
+            featureflags_dot_protobuf_dot_service__pb2.ExchangeReply.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -126,8 +126,8 @@ class FeatureFlags(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/featureflags.service.FeatureFlags/Exchange',
-            service__pb2.ExchangeRequest.SerializeToString,
-            service__pb2.ExchangeReply.FromString,
+            featureflags_dot_protobuf_dot_service__pb2.ExchangeRequest.SerializeToString,
+            featureflags_dot_protobuf_dot_service__pb2.ExchangeReply.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -143,7 +143,7 @@ class FeatureFlags(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/featureflags.service.FeatureFlags/store_stats',
-            service__pb2.StoreStatsTask.SerializeToString,
+            featureflags_dot_protobuf_dot_service__pb2.StoreStatsTask.SerializeToString,
             google_dot_protobuf_dot_empty__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
@@ -160,7 +160,7 @@ class FeatureFlags(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/featureflags.service.FeatureFlags/StoreStats',
-            service__pb2.StoreStatsTask.SerializeToString,
+            featureflags_dot_protobuf_dot_service__pb2.StoreStatsTask.SerializeToString,
             google_dot_protobuf_dot_empty__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

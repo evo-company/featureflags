@@ -19,18 +19,6 @@ class RootBinding:
         for ref in value:
             obj.flags_by_ids.add().Flag = ref.ident.hex
 
-    def value(self, obj, value):
-        if value is not None:
-            obj.values.Value = value.ident.hex
-
-    def values(self, obj, value):
-        for ref in value:
-            obj.values.add().Value = ref.ident.hex
-
-    def values_by_ids(self, obj, value):
-        for ref in value:
-            obj.values_by_ids.add().Value = ref.ident.hex
-
     def projects(self, obj, value):
         for ref in value:
             obj.projects.add().Project = ref.ident.hex
@@ -80,48 +68,6 @@ class FlagBinding(IdMixin):
         obj.overridden.value = value
 
 
-class ValueBinding(IdMixin):
-    def name(self, obj, value):
-        obj.name = value
-
-    def _project(self, obj, value):
-        pass
-
-    def project(self, obj, value):
-        obj.project.Project = value.ident.hex
-
-    def enabled(self, obj, value):
-        obj.enabled.value = value
-
-    def conditions(self, obj, value):
-        for ref in value:
-            obj.conditions.add().ValueCondition = ref.ident.hex
-
-    def value_default(self, obj, value):
-        obj.value_default = value
-
-    def value_override(self, obj, value):
-        obj.value_override = value
-
-    def value(self, obj, value):
-        obj.value.value = value
-
-    def overridden(self, obj, value):
-        obj.overridden.value = value
-
-
-class ValueConditionBinding(IdMixin):
-    def _checks(self, obj, value):
-        pass
-
-    def checks(self, obj, value):
-        for ref in value:
-            obj.checks.add().Check = ref.ident.hex
-
-    def value_override(self, obj, value):
-        obj.value_override = value
-
-
 class ConditionBinding(IdMixin):
     def _checks(self, obj, value):
         pass
@@ -165,8 +111,6 @@ BINDINGS = {
     "Flag": FlagBinding(),
     "Condition": ConditionBinding(),
     "Check": CheckBinding(),
-    "Value": ValueBinding(),
-    "ValueCondition": ValueConditionBinding(),
 }
 
 

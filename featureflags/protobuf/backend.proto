@@ -44,23 +44,6 @@ message ResetFlag {
     Id flag_id = 1;
 }
 
-message EnableValue {
-    Id value_id = 1;
-}
-
-message DisableValue {
-    Id value_id = 1;
-}
-
-message ResetValue {
-    Id value_id = 1;
-}
-
-message UpdateValueOverride {
-    Id value_id = 1;
-    string value_override = 2;
-}
-
 message AddCheck {
     LocalId local_id = 1;
     Id variable = 2;
@@ -83,21 +66,6 @@ message DisableCondition {
     Id condition_id = 1;
 }
 
-message AddValueCondition {
-    Id value_id = 1;
-    LocalId local_id = 2;
-    repeated EitherId checks = 3;
-}
-
-message DisableValueCondition {
-    Id condition_id = 1;
-}
-
-message UpdateConditionValueOverride {
-    Id condition_id = 1;
-    string value_override = 2;
-}
-
 message Operation {
     oneof op {
         EnableFlag enable_flag = 1;
@@ -108,12 +76,6 @@ message Operation {
         ResetFlag reset_flag = 6;
         SignIn sign_in = 7;
         SignOut sign_out = 8;
-        EnableValue enable_value = 9;
-        DisableValue disable_value = 10;
-        UpdateValueOverride update_value_override = 11;
-        AddValueCondition add_value_condition = 12;
-        DisableValueCondition disable_value_condition = 13;
-        ResetValue reset_value = 14;
     }
 }
 

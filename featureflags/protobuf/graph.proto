@@ -12,8 +12,6 @@ message Ref {
         string Condition = 3;
         string Check = 4;
         string Variable = 5;
-        string Value = 6;
-        string ValueCondition = 7;
     }
 }
 
@@ -65,12 +63,6 @@ message Condition {
     repeated Ref checks = 2;
 }
 
-message ValueCondition {
-    string id = 1;
-    repeated Ref checks = 2;
-    string value_override = 3;
-}
-
 message Flag {
     string id = 1;
     string name = 2;
@@ -78,17 +70,6 @@ message Flag {
     google.protobuf.BoolValue enabled = 4;
     repeated Ref conditions = 5;
     google.protobuf.BoolValue overridden = 6;
-}
-
-message Value {
-    string id = 1;
-    string name = 2;
-    Ref project = 3;
-    google.protobuf.BoolValue enabled = 4;
-    repeated Ref conditions = 5;
-    google.protobuf.BoolValue overridden = 6;
-    string value_default = 7;
-    string value_override = 8;
 }
 
 message Project {
@@ -105,9 +86,6 @@ message Root {
 //    string access_token = 4;
     bool authenticated = 5;
     repeated Ref flags_by_ids = 6;
-    Ref value = 7;
-    repeated Ref values = 8;
-    repeated Ref values_by_ids = 9;
 }
 
 message Result {
@@ -117,6 +95,4 @@ message Result {
     map<string, Condition> Condition = 4;
     map<string, Check> Check = 5;
     map<string, Variable> Variable = 6;
-    map<string, Value> Value = 7;
-    map<string, ValueCondition> ValueCondition = 8;
 }
