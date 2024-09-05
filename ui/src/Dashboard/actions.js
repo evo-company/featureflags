@@ -146,7 +146,7 @@ export function getSaveOperations(flag, editFlag, conditions, checks, variablesM
             }
             break;
           case Type.NUMBER:
-            if (!isNumber(check.value_number || !check.hasOwnProperty('value_number'))) {
+            if (!isNumber(check.value_number) || !check.hasOwnProperty('value_number')) {
               errors.internalError = true;
               console.log(check);
             } else {
@@ -398,7 +398,7 @@ export function getValueSaveOperations(value, editValue, conditions, checks, var
             }
             break;
           case Type.NUMBER:
-            if (!isNumber(check.value_number || !check.hasOwnProperty('value_number'))) {
+            if (!isNumber(check.value_number) || !check.hasOwnProperty('value_number')) {
               errors.internalError = true;
               console.log(check);
             } else {
