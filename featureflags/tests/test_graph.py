@@ -8,7 +8,7 @@ from hiku.result import denormalize
 
 from featureflags.graph.graph import GRAPH, exec_graph
 from featureflags.graph.proto_adapter import populate_result_proto
-from featureflags.graph.types import Action
+from featureflags.graph.types import Action, ValueAction
 from featureflags.graph.utils import is_valid_uuid
 from featureflags.protobuf import graph_pb2
 from featureflags.services.auth import (
@@ -26,6 +26,9 @@ from featureflags.tests.state import (
     mk_condition,
     mk_flag,
     mk_project,
+    mk_value,
+    mk_value_changelog_entry,
+    mk_value_condition,
     mk_variable,
 )
 
@@ -385,6 +388,247 @@ async def test_changes_by_project_ids(db_engine, graph_engine, test_session):
                 "actions": (Action.RESET_FLAG,),
                 "flag": {
                     "name": flag.name,
+                },
+                "user": {
+                    "username": auth_user.username,
+                },
+            },
+        ],
+    }
+
+
+@pytest.mark.asyncio
+async def test_root_value_invalid(db_engine, graph_engine, test_session):
+    query = build(
+        [
+            Q.value(id=str(uuid4()))[Q.id,],
+        ]
+    )
+    result = await exec_graph(graph_engine, query, db_engine, test_session)
+    assert denormalize(GRAPH, result) == {"value": None}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "enabled, overridden",
+    [
+        (None, False),
+        (True, True),
+        (False, True),
+    ],
+)
+async def test_values(
+    enabled, overridden, db_engine, graph_engine, test_session
+):
+    value_default = "test_values_value_default"
+    value_override = "test_values_value_override"
+    value_condition_override = "test_values_value_condition_override"
+
+    project = await mk_project(db_engine)
+    variable = await mk_variable(db_engine, project=project)
+    value = await mk_value(
+        db_engine,
+        enabled=enabled,
+        project=project,
+        value_default=value_default,
+        value_override=value_override,
+    )
+    check = await mk_check(db_engine, variable=variable)
+    condition = await mk_value_condition(
+        db_engine,
+        value=value,
+        checks=[check.id],
+        value_override=value_condition_override,
+    )
+
+    # generate some other value in other project
+    await mk_value(db_engine)
+
+    query = build(
+        [
+            Q.values(project_name=project.name)[
+                Q.id,
+                Q.name,
+                Q.value_default,
+                Q.value_override,
+                Q.project[
+                    Q.id,
+                    Q.name,
+                    Q.variables[
+                        Q.id,
+                        Q.name,
+                        Q.type,
+                    ],
+                ],
+                Q.enabled,
+                Q.conditions[
+                    Q.id,
+                    Q.value_override,
+                    Q.checks[
+                        Q.id,
+                        Q.variable[
+                            Q.id,
+                            Q.name,
+                            Q.type,
+                        ],
+                        Q.operator,
+                        Q.value_string,
+                        Q.value_number,
+                        Q.value_timestamp,
+                        Q.value_set,
+                    ],
+                ],
+                Q.overridden,
+            ],
+        ]
+    )
+    result = await exec_graph(graph_engine, query, db_engine, test_session)
+    assert denormalize(GRAPH, result) == {
+        "values": [
+            {
+                "id": value.id,
+                "name": value.name,
+                "value_default": value.value_default,
+                "value_override": value.value_override,
+                "project": {
+                    "id": project.id,
+                    "name": project.name,
+                    "variables": [
+                        {
+                            "id": variable.id,
+                            "name": variable.name,
+                            "type": variable.type,
+                        },
+                    ],
+                },
+                "enabled": value.enabled or False,
+                "conditions": [
+                    {
+                        "id": condition.id,
+                        "value_override": condition.value_override,
+                        "checks": [
+                            {
+                                "id": check.id,
+                                "variable": {
+                                    "id": variable.id,
+                                    "name": variable.name,
+                                    "type": variable.type,
+                                },
+                                "operator": check.operator,
+                                "value_string": check.value_string,
+                                "value_number": None,
+                                "value_timestamp": None,
+                                "value_set": None,
+                            },
+                        ],
+                    },
+                ],
+                "overridden": overridden,
+            },
+        ],
+    }
+
+
+@pytest.mark.asyncio
+async def test_values_by_ids(db_engine, graph_engine, test_session):
+    value = await mk_value(db_engine)
+    # generate some other value
+    await mk_value(db_engine)
+
+    query = build(
+        [
+            Q.values_by_ids(ids=["invalid", value.id.hex, "invalid"])[
+                Q.id,
+                Q.name,
+            ],
+        ]
+    )
+    result = await exec_graph(graph_engine, query, db_engine, test_session)
+    assert denormalize(GRAPH, result) == {
+        "values_by_ids": [
+            {
+                "id": value.id,
+                "name": value.name,
+            },
+        ],
+    }
+
+
+@pytest.mark.asyncio
+async def test_value_changes(db_engine, graph_engine, test_session):
+    value = await mk_value(db_engine)
+    auth_user = await mk_auth_user(db_engine)
+    entry = await mk_value_changelog_entry(
+        db_engine, value=value, auth_user=auth_user
+    )
+    query = build(
+        [
+            Q.valueChanges[
+                Q.id,
+                Q.timestamp,
+                Q.actions,
+                Q.value[Q.name],
+                Q.user[Q.username],
+            ],
+        ]
+    )
+    result = await exec_graph(graph_engine, query, db_engine, test_session)
+    plain_result = denormalize(GRAPH, result)
+    assert plain_result["valueChanges"][0] == {  # 0 == latest
+        "id": entry.id,
+        "timestamp": entry.timestamp,
+        "actions": (),
+        "value": {"name": value.name},
+        "user": {"username": auth_user.username},
+    }
+
+
+@pytest.mark.asyncio
+async def test_value_changes_by_project_ids(
+    db_engine, graph_engine, test_session
+):
+    value = await mk_value(db_engine)
+    auth_user = await mk_auth_user(db_engine)
+    entry = await mk_value_changelog_entry(
+        db_engine,
+        value=value,
+        auth_user=auth_user,
+        actions=[ValueAction.RESET_VALUE],
+    )
+    q1 = build(
+        [
+            Q.valueChanges(project_ids=[])[
+                Q.id,
+                Q.timestamp,
+                Q.actions,
+                Q.value[Q.name],
+                Q.user[Q.username],
+            ],
+        ]
+    )
+    r1 = await exec_graph(graph_engine, q1, db_engine, test_session)
+    assert denormalize(GRAPH, r1) == {"valueChanges": []}
+
+    q2 = build(
+        [
+            Q.valueChanges(project_ids=[value.project])[
+                Q.id,
+                Q.timestamp,
+                Q.actions,
+                Q.value[Q.name],
+                Q.user[Q.username],
+            ],
+        ]
+    )
+    r2 = await exec_graph(graph_engine, q2, db_engine, test_session)
+    assert denormalize(GRAPH, r2) == {
+        "valueChanges": [
+            {
+                "id": entry.id,
+                "timestamp": entry.timestamp,
+                "actions": (ValueAction.RESET_VALUE,),
+                "value": {
+                    "name": value.name,
                 },
                 "user": {
                     "username": auth_user.username,

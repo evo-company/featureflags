@@ -43,12 +43,16 @@ from featureflags.graph.metrics import (
 from featureflags.graph.types import (
     AddCheckOp,
     AddConditionOp,
+    AddValueConditionOp,
     AuthResult,
     DeleteFlagResult,
+    DeleteValueResult,
     GraphContext,
     Operation,
     ResetFlagResult,
+    ResetValueResult,
     SaveFlagResult,
+    SaveValueResult,
 )
 from featureflags.graph.utils import is_valid_uuid
 from featureflags.metrics import wrap_metric
@@ -59,6 +63,9 @@ from featureflags.models import (
     Condition,
     Flag,
     Project,
+    Value,
+    ValueChangelog,
+    ValueCondition,
     Variable,
 )
 from featureflags.services.auth import UserSession
@@ -126,6 +133,55 @@ async def root_flags_by_ids(ctx: dict, options: dict) -> list:
 
 
 @pass_context
+async def root_value(ctx: dict, options: dict) -> list:
+    if not (
+        ctx[GraphContext.USER_SESSION].is_authenticated
+        or not is_valid_uuid(options["id"])
+    ):
+        return Nothing
+
+    value = await exec_scalar(
+        ctx[GraphContext.DB_ENGINE],
+        select([Value.id]).where(Value.id == UUID(options["id"])),
+    )
+
+    return value or Nothing
+
+
+@pass_context
+async def root_values(ctx: dict, options: dict) -> list:
+    if not ctx[GraphContext.USER_SESSION].is_authenticated:
+        return []
+
+    project_name = options.get("project_name")
+    expr = select([Value.id])
+
+    if project_name is not None:
+        expr = expr.where(
+            Value.project.in_(
+                select([Project.id]).where(Project.name == project_name)
+            )
+        )
+
+    return await exec_expression(ctx[GraphContext.DB_ENGINE], expr)
+
+
+@pass_context
+async def root_values_by_ids(ctx: dict, options: dict) -> list:
+    if not ctx[GraphContext.USER_SESSION].is_authenticated:
+        return []
+
+    ids = list(filter(is_valid_uuid, options["ids"]))
+    if ids:
+        return await exec_expression(
+            ctx[GraphContext.DB_ENGINE],
+            select([Value.id]).where(Value.id.in_(ids)),
+        )
+
+    return []
+
+
+@pass_context
 async def root_projects(ctx: dict) -> list:
     if not ctx[GraphContext.USER_SESSION].is_authenticated:
         return []
@@ -156,6 +212,27 @@ async def root_changes(ctx: dict, options: dict) -> list:
 
 
 @pass_context
+async def root_values_changes(ctx: dict, options: dict) -> list:
+    if not ctx[GraphContext.USER_SESSION].is_authenticated:
+        return []
+
+    project_ids = options.get("project_ids")
+    sel = select([ValueChangelog.id])
+    if project_ids is not None:
+        if not project_ids:
+            return []
+        join = ValueChangelog.__table__.join(
+            Value.__table__, ValueChangelog.value == Value.id
+        )
+        sel = sel.select_from(join).where(Value.project.in_(project_ids))
+
+    return await exec_expression(
+        ctx[GraphContext.DB_ENGINE],
+        sel.order_by(ValueChangelog.timestamp.desc()),
+    )
+
+
+@pass_context
 async def root_authenticated(ctx: dict, _options: dict) -> list:
     return [ctx[GraphContext.USER_SESSION].is_authenticated]
 
@@ -165,6 +242,10 @@ async def check_variable(ids: list[int]) -> list[int]:
 
 
 async def flag_project(ids: list[int]) -> list[int]:
+    return ids
+
+
+async def value_project(ids: list[int]) -> list[int]:
     return ids
 
 
@@ -182,6 +263,20 @@ _FlagNode = Node(
     ],
 )
 
+value_fq = FieldsQuery(GraphContext.DB_ENGINE, Value.__table__)
+
+_ValueNode = Node(
+    "Value",
+    [
+        ID_FIELD,
+        Field("name", None, value_fq),
+        Field("project", None, value_fq),
+        Field("enabled", None, value_fq),
+        Field("value_default", None, value_fq),
+        Field("value_override", None, value_fq),
+    ],
+)
+
 condition_fq = FieldsQuery(GraphContext.DB_ENGINE, Condition.__table__)
 
 _ConditionNode = Node(
@@ -189,6 +284,20 @@ _ConditionNode = Node(
     [
         ID_FIELD,
         Field("checks", None, condition_fq),
+    ],
+)
+
+value_condition_fq = FieldsQuery(
+    GraphContext.DB_ENGINE,
+    ValueCondition.__table__,
+)
+
+_ValueConditionNode = Node(
+    "ValueCondition",
+    [
+        ID_FIELD,
+        Field("checks", None, value_condition_fq),
+        Field("value_override", None, value_condition_fq),
     ],
 )
 
@@ -219,12 +328,30 @@ _ChangeNode = Node(
     ],
 )
 
+value_changelog_fq = FieldsQuery(
+    GraphContext.DB_ENGINE,
+    ValueChangelog.__table__,
+)
+
+_ValueChangeNode = Node(
+    "ValueChange",
+    [
+        Field("timestamp", None, value_changelog_fq),
+        Field("actions", None, value_changelog_fq),
+        Field("auth_user", None, value_changelog_fq),
+        Field("value", None, value_changelog_fq),
+    ],
+)
+
 _GRAPH = Graph(
     [
         _FlagNode,
+        _ValueNode,
         _ConditionNode,
+        _ValueConditionNode,
         _CheckNode,
         _ChangeNode,
+        _ValueChangeNode,
     ]
 )
 _GRAPH = apply(_GRAPH, [AsyncGraphMetrics("source")])
@@ -289,6 +416,42 @@ FlagNode = Node(
     ],
 )
 
+value_sg = SubGraph(_GRAPH, "Value")
+
+value_conditions = LinkQuery(
+    GraphContext.DB_ENGINE,
+    from_column=ValueCondition.value,
+    to_column=ValueCondition.id,
+)
+
+ValueNode = Node(
+    "Value",
+    [
+        ID_FIELD,
+        Field("name", None, value_sg),
+        Field("_project", None, value_sg.c(S.this.project)),
+        Link("project", TypeRef["Project"], value_project, requires="_project"),
+        Field(
+            "enabled",
+            None,
+            value_sg.c(if_some([S.enabled, S.this.enabled], S.enabled, False)),
+        ),
+        Link(
+            "conditions",
+            Sequence["ValueCondition"],
+            value_conditions,
+            requires="id",
+        ),
+        Field(
+            "overridden",
+            None,
+            value_sg.c(if_some([S.enabled, S.this.enabled], True, False)),
+        ),
+        Field("value_default", None, value_sg),
+        Field("value_override", None, value_sg),
+    ],
+)
+
 condition_sg = SubGraph(_GRAPH, "Condition")
 
 ConditionNode = Node(
@@ -297,6 +460,18 @@ ConditionNode = Node(
         ID_FIELD,
         Field("_checks", None, condition_sg.c(S.this.checks)),
         Link("checks", Sequence["Check"], direct_link, requires="_checks"),
+    ],
+)
+
+value_condition_sg = SubGraph(_GRAPH, "ValueCondition")
+
+ValueConditionNode = Node(
+    "ValueCondition",
+    [
+        ID_FIELD,
+        Field("_checks", None, value_condition_sg.c(S.this.checks)),
+        Link("checks", Sequence["Check"], direct_link, requires="_checks"),
+        Field("value_override", String, value_condition_sg),
     ],
 )
 
@@ -346,6 +521,21 @@ ChangeNode = Node(
     ],
 )
 
+value_change_sg = SubGraph(_GRAPH, "ValueChange")
+
+ValueChangeNode = Node(
+    "ValueChange",
+    [
+        ID_FIELD,
+        Field("timestamp", None, value_change_sg),
+        Field("_user", None, value_change_sg.c(S.this.auth_user)),
+        Field("_value", None, value_change_sg.c(S.this.value)),
+        Field("actions", None, value_change_sg),
+        Link("value", TypeRef["Value"], direct_link, requires="_value"),
+        Link("user", TypeRef["User"], direct_link, requires="_user"),
+    ],
+)
+
 RootNode = Root(
     [
         Link(
@@ -369,11 +559,41 @@ RootNode = Root(
             requires=None,
             options=[Option("ids", Sequence[String])],
         ),
+        Link(
+            "value",
+            Optional["Value"],
+            root_value,
+            requires=None,
+            options=[Option("id", String)],
+        ),
+        Link(
+            "values",
+            Sequence["Value"],
+            root_values,
+            requires=None,
+            options=[Option("project_name", Optional[String], default=None)],
+        ),
+        Link(
+            "values_by_ids",
+            Sequence["Value"],
+            root_values_by_ids,
+            requires=None,
+            options=[Option("ids", Sequence[String])],
+        ),
         Link("projects", Sequence["Project"], root_projects, requires=None),
         Link(
             "changes",
             Sequence["Change"],
             root_changes,
+            requires=None,
+            options=[
+                Option("project_ids", Optional[Sequence[String]], default=None)
+            ],
+        ),
+        Link(
+            "valueChanges",
+            Sequence["ValueChange"],
+            root_values_changes,
             requires=None,
             options=[
                 Option("project_ids", Optional[Sequence[String]], default=None)
@@ -456,6 +676,49 @@ ResetFlagNode = Node(
 )
 
 
+async def save_value_info(
+    fields: list[Field], results: list[SaveValueResult]
+) -> list[list]:
+    [result] = results
+
+    def get_field(name: str) -> list[str] | None:
+        if name == "errors":
+            return result.errors
+
+        raise ValueError(f"Unknown field: {name}")
+
+    return [[get_field(f.name)] for f in fields]
+
+
+async def reset_value_info(
+    fields: list[Field], results: list[ResetValueResult]
+) -> list[list]:
+    [result] = results
+
+    def get_field(name: str) -> str | None:
+        if name == "error":
+            return result.error
+
+        raise ValueError(f"Unknown field: {name}")
+
+    return [[get_field(f.name)] for f in fields]
+
+
+SaveValueNode = Node(
+    "SaveValue",
+    [
+        Field("errors", None, save_value_info),
+    ],
+)
+
+ResetValueNode = Node(
+    "ResetValue",
+    [
+        Field("error", None, reset_value_info),
+    ],
+)
+
+
 async def delete_flag_info(
     fields: list[Field], results: list[DeleteFlagResult]
 ) -> list[list]:
@@ -477,15 +740,40 @@ DeleteFlagNode = Node(
     ],
 )
 
+
+async def delete_value_info(
+    fields: list[Field], results: list[DeleteValueResult]
+) -> list[list]:
+    [result] = results
+
+    def get_field(name: str) -> str | None:
+        if name == "error":
+            return result.error
+
+        raise ValueError(f"Unknown field: {name}")
+
+    return [[get_field(f.name)] for f in fields]
+
+
+DeleteValueNode = Node(
+    "DeleteValue",
+    [
+        Field("error", None, delete_flag_info),
+    ],
+)
+
 GRAPH = Graph(
     [
         ProjectNode,
         VariableNode,
         FlagNode,
+        ValueNode,
         ConditionNode,
+        ValueConditionNode,
         CheckNode,
         UserNode,
         ChangeNode,
+        ValueChangeNode,
         RootNode,
     ]
 )
@@ -628,8 +916,122 @@ async def delete_flag(ctx: dict, options: dict) -> DeleteFlagResult:
     return DeleteFlagResult(None)
 
 
+@pass_context
+async def save_value(ctx: dict, options: dict) -> SaveValueResult:
+    operations = options["operations"]
+
+    if not operations:
+        return SaveValueResult(None)
+
+    async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
+        for operation in operations:
+            operation_payload = operation["payload"]
+            operation_type = Operation(operation["type"])
+
+            match operation_type:
+                case Operation.ENABLE_VALUE:
+                    await actions.enable_value(
+                        operation_payload["value_id"],
+                        conn=conn,
+                        dirty=ctx[GraphContext.DIRTY_PROJECTS],
+                        changes=ctx[GraphContext.VALUES_CHANGES],
+                    )
+                case Operation.UPDATE_VALUE_VALUE_OVERRIDE:
+                    value_override = operation["payload"]["value_override"]
+                    await actions.update_value_value_override(
+                        operation_payload["value_id"],
+                        value_override=str(value_override),
+                        conn=conn,
+                        dirty=ctx[GraphContext.DIRTY_PROJECTS],
+                        changes=ctx[GraphContext.VALUES_CHANGES],
+                    )
+                case Operation.DISABLE_VALUE:
+                    await actions.disable_value(
+                        operation_payload["value_id"],
+                        conn=conn,
+                        dirty=ctx[GraphContext.DIRTY_PROJECTS],
+                        changes=ctx[GraphContext.VALUES_CHANGES],
+                    )
+                case Operation.ADD_CHECK:
+                    new_ids = await actions.add_check(
+                        AddCheckOp(operation_payload),
+                        conn=conn,
+                        dirty=ctx[GraphContext.DIRTY_PROJECTS],
+                    )
+                    if new_ids is not None:
+                        ctx[GraphContext.CHECK_IDS].update(new_ids)
+                case Operation.ADD_VALUE_CONDITION:
+                    value_override = operation_payload[
+                        "value_condition_override"
+                    ]
+                    new_ids = await actions.add_value_condition(
+                        AddValueConditionOp(operation_payload),
+                        conn=conn,
+                        ids=ctx[GraphContext.CHECK_IDS],
+                        value_override=str(value_override),
+                        dirty=ctx[GraphContext.DIRTY_PROJECTS],
+                        changes=ctx[GraphContext.VALUES_CHANGES],
+                    )
+                    if new_ids is not None:
+                        ctx[GraphContext.CHECK_IDS].update(new_ids)
+                case Operation.DISABLE_VALUE_CONDITION:
+                    await actions.disable_value_condition(
+                        operation_payload["condition_id"],
+                        conn=conn,
+                        dirty=ctx[GraphContext.DIRTY_PROJECTS],
+                        changes=ctx[GraphContext.VALUES_CHANGES],
+                    )
+                case _:
+                    raise ValueError(f"Unknown operation: {operation_type}")
+
+        await actions.postprocess(
+            conn=conn, dirty=ctx[GraphContext.DIRTY_PROJECTS]
+        )
+        await actions.update_value_changelog(
+            session=ctx[GraphContext.USER_SESSION],
+            conn=conn,
+            changes=ctx[GraphContext.VALUES_CHANGES],
+        )
+
+    return SaveValueResult(None)
+
+
+@pass_context
+async def reset_value(ctx: dict, options: dict) -> ResetValueResult:
+    async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
+        await actions.reset_value(
+            options["id"],
+            conn=conn,
+            dirty=ctx[GraphContext.DIRTY_PROJECTS],
+            changes=ctx[GraphContext.VALUES_CHANGES],
+        )
+        await actions.postprocess(
+            conn=conn, dirty=ctx[GraphContext.DIRTY_PROJECTS]
+        )
+        await actions.update_value_changelog(
+            session=ctx[GraphContext.USER_SESSION],
+            conn=conn,
+            changes=ctx[GraphContext.VALUES_CHANGES],
+        )
+
+    return ResetValueResult(None)
+
+
+@pass_context
+async def delete_value(ctx: dict, options: dict) -> DeleteValueResult:
+    async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
+        await actions.delete_value(
+            options["id"],
+            conn=conn,
+            changes=ctx[GraphContext.VALUES_CHANGES],
+        )
+
+    return DeleteValueResult(None)
+
+
 mutation_data_types = {
     "SaveFlagOperation": Record[{"type": String, "payload": Any}],
+    "SaveValueOperation": Record[{"type": String, "payload": Any}],
 }
 
 MUTATION_GRAPH = Graph(
@@ -638,8 +1040,11 @@ MUTATION_GRAPH = Graph(
         SignInNode,
         SignOutNode,
         SaveFlagNode,
+        SaveValueNode,
         ResetFlagNode,
+        ResetValueNode,
         DeleteFlagNode,
+        DeleteValueNode,
         Root(
             [
                 Link(
@@ -675,6 +1080,32 @@ MUTATION_GRAPH = Graph(
                     "deleteFlag",
                     TypeRef["DeleteFlag"],
                     delete_flag,
+                    options=[Option("id", String)],
+                    requires=None,
+                ),
+                Link(
+                    "saveValue",
+                    TypeRef["SaveValue"],
+                    save_value,
+                    options=[
+                        Option(
+                            "operations",
+                            Sequence[TypeRef["SaveValueOperation"]],
+                        ),
+                    ],
+                    requires=None,
+                ),
+                Link(
+                    "resetValue",
+                    TypeRef["ResetValue"],
+                    reset_value,
+                    options=[Option("id", String)],
+                    requires=None,
+                ),
+                Link(
+                    "deleteValue",
+                    TypeRef["DeleteValue"],
+                    delete_value,
                     options=[Option("id", String)],
                     requires=None,
                 ),

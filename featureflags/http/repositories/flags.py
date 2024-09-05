@@ -12,13 +12,14 @@ from featureflags.http.types import (
     PreloadFlagsResponse,
     SyncFlagsRequest,
     SyncFlagsResponse,
+    Value,
 )
 from featureflags.models import Project
 from featureflags.services.auth import user_session
 from featureflags.utils import EntityCache, select_scalar
 
 
-def load_flags_query(project: str) -> QueryNode:
+def load_data_query(project: str) -> QueryNode:
     return build(
         [
             Q.flags(project_name=project)[
@@ -28,6 +29,31 @@ def load_flags_query(project: str) -> QueryNode:
                 Q.overridden,
                 Q.conditions[
                     Q.id,
+                    Q.checks[
+                        Q.id,
+                        Q.variable[
+                            Q.id,
+                            Q.name,
+                            Q.type,
+                        ],
+                        Q.operator,
+                        Q.value_string,
+                        Q.value_number,
+                        Q.value_timestamp,
+                        Q.value_set,
+                    ],
+                ],
+            ],
+            Q.values(project_name=project)[
+                Q.id,
+                Q.name,
+                Q.enabled,
+                Q.overridden,
+                Q.value_default,
+                Q.value_override,
+                Q.conditions[
+                    Q.id,
+                    Q.value_override,
                     Q.checks[
                         Q.id,
                         Q.variable[
@@ -92,14 +118,16 @@ class FlagsRepository:
 
         result = await exec_denormalize_graph(
             graph_engine=self._graph_engine,
-            query=load_flags_query(request.project),
+            query=load_data_query(request.project),
             db_engine=self._db_engine,
             session=user_session.get(),
         )
         flags = [Flag(**flag) for flag in result["flags"]]
+        values = [Value(**value) for value in result["values"]]
 
         return PreloadFlagsResponse(
             flags=flags,
+            values=values,
             version=current_version,
         )
 
@@ -114,16 +142,19 @@ class FlagsRepository:
         if request.version != current_version:
             result = await exec_denormalize_graph(
                 graph_engine=self._graph_engine,
-                query=load_flags_query(request.project),
+                query=load_data_query(request.project),
                 db_engine=self._db_engine,
                 session=user_session.get(),
             )
             flags = [Flag(**flag) for flag in result["flags"]]
+            values = [Value(**value) for value in result["values"]]
         else:
-            # Don't load flags if version is the same.
+            # Don't load flags and values if version is the same.
             flags = []
+            values = []
 
         return SyncFlagsResponse(
             flags=flags,
+            values=values,
             version=current_version,
         )

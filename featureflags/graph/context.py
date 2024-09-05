@@ -1,6 +1,11 @@
 import aiopg.sa
 
-from featureflags.graph.types import Changes, DirtyProjects, GraphContext
+from featureflags.graph.types import (
+    Changes,
+    DirtyProjects,
+    GraphContext,
+    ValuesChanges,
+)
 from featureflags.services.auth import BaseUserSession
 from featureflags.services.ldap import BaseLDAP
 
@@ -16,5 +21,6 @@ def init_graph_context(
         GraphContext.LDAP_SERVICE: ldap,
         GraphContext.DIRTY_PROJECTS: DirtyProjects(),
         GraphContext.CHANGES: Changes(),
+        GraphContext.VALUES_CHANGES: ValuesChanges(),
         GraphContext.CHECK_IDS: {},
     }

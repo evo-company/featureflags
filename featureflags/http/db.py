@@ -15,7 +15,7 @@ from featureflags.http.types import (
 from featureflags.http.types import (
     Variable as RequestVariable,
 )
-from featureflags.models import Flag, Project, Variable
+from featureflags.models import Flag, Project, Value, Variable
 from featureflags.utils import EntityCache
 
 
@@ -114,7 +114,12 @@ async def _select_flag(project: UUID, name: str, *, conn: SAConnection) -> UUID:
     return await result.scalar()
 
 
-async def _insert_flag(project: UUID, name: str, *, conn: SAConnection) -> UUID:
+async def _insert_flag(
+    project: UUID,
+    name: str,
+    *,
+    conn: SAConnection,
+) -> UUID | None:
     result = await conn.execute(
         insert(Flag.__table__)
         .values({Flag.id: uuid4(), Flag.project: project, Flag.name: name})
@@ -144,6 +149,65 @@ async def _get_or_create_flag(
     return id_
 
 
+async def _select_value(
+    project: UUID,
+    name: str,
+    *,
+    conn: SAConnection,
+) -> UUID | None:
+    result = await conn.execute(
+        select([Value.id]).where(
+            and_(Value.project == project, Value.name == name)
+        )
+    )
+    return await result.scalar()
+
+
+async def _insert_value(
+    project: UUID,
+    name: str,
+    value_default: str,
+    *,
+    conn: SAConnection,
+) -> UUID | None:
+    result = await conn.execute(
+        insert(Value.__table__)
+        .values(
+            {
+                Value.id: uuid4(),
+                Value.project: project,
+                Value.name: name,
+                Value.value_default: value_default,
+                Value.value_override: value_default,
+            }
+        )
+        .on_conflict_do_nothing()
+        .returning(Value.id)
+    )
+    return await result.scalar()
+
+
+async def _get_or_create_value(
+    project: UUID,
+    value: str,
+    value_default: str,
+    *,
+    conn: SAConnection,
+    entity_cache: EntityCache,
+) -> UUID:
+    assert project and value, (project, value)
+    id_ = entity_cache.value[project].get(value)
+    if id_ is None:  # not in cache
+        id_ = await _select_value(project, value, conn=conn)
+        if id_ is None:  # not in db
+            id_ = await _insert_value(project, value, value_default, conn=conn)
+            if id_ is None:  # conflicting insert
+                id_ = await _select_value(project, value, conn=conn)
+                assert id_ is not None  # must be in db
+        entity_cache.value[project][value] = id_
+    return id_
+
+
 async def prepare_flags_project(
     request: PreloadFlagsRequest,
     conn: SAConnection,
@@ -165,6 +229,15 @@ async def prepare_flags_project(
         await _get_or_create_flag(
             project,
             flag,
+            conn=conn,
+            entity_cache=entity_cache,
+        )
+    for value in request.values:
+        value_name, value_value_default = value
+        await _get_or_create_value(
+            project,
+            value_name,
+            str(value_value_default),
             conn=conn,
             entity_cache=entity_cache,
         )

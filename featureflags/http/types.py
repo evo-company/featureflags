@@ -52,6 +52,20 @@ class Flag(BaseModel):
     conditions: list[Condition]
 
 
+class ValueCondition(BaseModel):
+    checks: list[Check]
+    value_override: str
+
+
+class Value(BaseModel):
+    name: str
+    enabled: bool
+    overridden: bool
+    conditions: list[ValueCondition]
+    value_default: str
+    value_override: str
+
+
 class Variable(BaseModel):
     name: str
     type: VariableType
@@ -62,10 +76,12 @@ class PreloadFlagsRequest(BaseModel):
     version: int
     variables: list[Variable] = Field(default_factory=list)
     flags: list[str] = Field(default_factory=list)
+    values: list[tuple[str, str | int]] = Field(default_factory=list)
 
 
 class PreloadFlagsResponse(BaseModel):
     flags: list[Flag] = Field(default_factory=list)
+    values: list[Value] = Field(default_factory=list)
     version: int
 
 
@@ -73,8 +89,10 @@ class SyncFlagsRequest(BaseModel):
     project: str
     version: int
     flags: list[str] = Field(default_factory=list)
+    values: list[str] = Field(default_factory=list)
 
 
 class SyncFlagsResponse(BaseModel):
     flags: list[Flag] = Field(default_factory=list)
+    values: list[Value] = Field(default_factory=list)
     version: int

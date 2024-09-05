@@ -15,22 +15,23 @@ import {
   Divider,
   Popconfirm,
   message,
+  Input,
 } from 'antd';
 import { useEffect, useState } from 'react';
 import {
   CopyOutlined,
 } from '@ant-design/icons';
 
-import './Flag.less';
+import './Value.less';
 
 import {
-  FlagContext,
-  useFlagState,
-  useProject
+  ValueContext,
+  useValueState,
+  useProject,
 } from './context';
-import { Conditions } from './Conditions';
+import { ValueConditions } from './ValueConditions';
 import { TYPES, KIND_TO_TYPE, KIND, TYPE_TO_KIND } from './constants';
-import { useActions } from './actions';
+import { useValueActions } from './actions';
 import { copyToClipboard, replaceValueInArray } from './utils';
 
 
@@ -52,16 +53,16 @@ const CancelButton = ({ onClick, disabled }) => {
   );
 }
 const DeleteButton = ({ onClick }) => {
-  const { name } = useFlagState()
+  const { name } = useValueState()
 
   function confirm() {
     onClick();
-    message.success(`Flag ${name} deleted`);
+    message.success(`Value ${name} deleted`);
   }
 
   return (
     <Popconfirm
-      title="Are you sure to delete this flag?"
+      title="Are you sure to delete this value?"
       onConfirm={confirm}
       okText="Yes"
       cancelText="No"
@@ -73,8 +74,8 @@ const DeleteButton = ({ onClick }) => {
   );
 }
 
-const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle }) => {
-  const { dirty, overridden, enabled } = useFlagState();
+const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle, onValueOverrideChange }) => {
+  const { dirty, overridden, enabled, value_override } = useValueState();
   return (
     <Row align='middle'>
       <Col span={3}>
@@ -101,19 +102,31 @@ const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle }) => {
           <DeleteButton onClick={onDelete}/>
         </Space>
       </Col>
+      <Col span={8} offset={16} style={{ marginTop: 20 }}>
+        <Space size={0}>
+          <div>Current value</div>
+          <Input
+              value={value_override}
+              disabled={!enabled}
+              size={"middle"}
+              style={{ width: 165 }}
+              onChange={onValueOverrideChange}
+          />
+        </Space>
+      </Col>
     </Row>
   );
 }
 
-const FlagName = ({ name }) => {
-  const copyFlag = () => {
-    copyToClipboard(name, `Flag ${name} copied to clipboard`);
+const ValueName = ({ name }) => {
+  const copyValue = () => {
+    copyToClipboard(name, `Value ${name} copied to clipboard`);
   }
 
   return (
     <div
-      className='flag-name'
-      onClick={copyFlag}
+      className='value-name'
+      onClick={copyValue}
     >
       <Space size={8}>
         <CopyOutlined />
@@ -123,27 +136,30 @@ const FlagName = ({ name }) => {
   )
 }
 
-const getInitialFlagState = (flag) => ({
-  flagId: flag.id,
-  name: flag.name,
+const getInitialValueState = (value) => ({
+  valueId: value.id,
+  name: value.name,
   dirty: false,
-  overridden: flag.overridden,
-  enabled: flag.enabled,
+  overridden: value.overridden,
+  enabled: value.enabled,
+  value_default: value.value_default,
+  value_override: value.value_override,
   // TODO sort conditions, because after save, the order is not guaranteed now
-  conditions: flag.conditions.map((c) => c.id),
+  conditions: value.conditions.map((c) => c.id),
 });
 
-const getInitialConditions = (flag) => {
-  return flag.conditions.reduce((acc, c) => {
+const getInitialConditions = (value) => {
+  return value.conditions.reduce((acc, c) => {
     acc[c.id] = {
       ...c,
       checks: c.checks.map((check) => check.id),
+      value_override: c.value_override,
     };
     return acc;
   }, {});
 };
 
-const getInitialChecks = (flag, project) => {
+const getInitialChecks = (value, project) => {
   const getKind = (check) => {
     const variableId = check.variable.id
     const variable = project.variablesMap[variableId];
@@ -151,7 +167,7 @@ const getInitialChecks = (flag, project) => {
     return TYPE_TO_KIND[variableType]
   };
 
-  return flag.conditions.reduce((acc, c) => {
+  return value.conditions.reduce((acc, c) => {
     c.checks.forEach((check) => {
       acc[check.id] = {
         ...check,
@@ -167,33 +183,33 @@ const getInitialChecks = (flag, project) => {
 };
 
 
-export const Flag = ({ flag }) => {
+export const Value = ({ value }) => {
   const project = useProject();
-  const [flagState, setFlagState] = useState(getInitialFlagState(flag));
-  const [conditions, setConditions] = useState(getInitialConditions(flag));
-  const [checks, setChecks] = useState(getInitialChecks(flag, project));
+  const [valueState, setValueState] = useState(getInitialValueState(value));
+  const [conditions, setConditions] = useState(getInitialConditions(value));
+  const [checks, setChecks] = useState(getInitialChecks(value, project));
   const {
-    saveFlag,
-    saveFlagFailed,
-    resetFlag,
-    deleteFlag,
-  } = useActions(flag);
+    saveValue,
+    saveValueFailed,
+    resetValue,
+    deleteValue,
+  } = useValueActions(value);
 
   useEffect(() => {
-    setFlagState(getInitialFlagState(flag));
-    setConditions(getInitialConditions(flag));
-    setChecks(getInitialChecks(flag, project));
-  }, [flag]);
+    setValueState(getInitialValueState(value));
+    setConditions(getInitialConditions(value));
+    setChecks(getInitialChecks(value, project));
+  }, [value]);
 
-  const updateFlag = (opts, cb = null) => {
-    const data = typeof opts === 'function' ? opts(flagState) : opts;
-    const _flag = {
-      ...flagState,
+  const updateValue = (opts, cb = null) => {
+    const data = typeof opts === 'function' ? opts(valueState) : opts;
+    const _value = {
+      ...valueState,
       ...data,
       dirty: true
     };
-    setFlagState(_flag);
-    if (cb) cb(_flag);
+    setValueState(_value);
+    if (cb) cb(_value);
   }
 
   const newTempCondition = () => {
@@ -235,9 +251,9 @@ export const Flag = ({ flag }) => {
       condition = assign(cloneDeep(condition), { id: uniqueId('temp') });
 
       _setCondition(condition);
-      let flagConditions = flagState.conditions;
-      replaceValueInArray(flagConditions, conditionId, condition.id);
-      updateFlag({ conditions: flagConditions })
+      let valueConditions = valueState.conditions;
+      replaceValueInArray(valueConditions, conditionId, condition.id);
+      updateValue({ conditions: valueConditions })
     }
     return condition;
   }
@@ -345,11 +361,15 @@ export const Flag = ({ flag }) => {
   }
 
   const toggleEnabled = () => {
-    updateFlag((state) => ({ enabled: !state.enabled }))
+    updateValue((state) => ({ enabled: !state.enabled }))
+  }
+
+  const valueOverrideState = (event) => {
+    updateValue((state) => ({ value_override: event.target.value }))
   }
 
   const rollbackState = () => {
-    setFlagState(getInitialFlagState(flag));
+    setValueState(getInitialValueState(value));
   }
 
   const addCheck = (conditionId) => {
@@ -357,6 +377,12 @@ export const Flag = ({ flag }) => {
     _setCheck(check);
     let condition = touchCondition(conditionId);
     condition.checks.push(check.id);
+    _setCondition(condition);
+  }
+
+  const updateValueConditionOverride = (conditionId, valueOverride) => {
+    let condition = touchCondition(conditionId);
+    condition.value_override = valueOverride;
     _setCondition(condition);
   }
 
@@ -372,19 +398,19 @@ export const Flag = ({ flag }) => {
   const addCondition = () => {
     const newCond = newTempCondition();
     _setCondition(newCond);
-    updateFlag((state) => ({
+    updateValue((state) => ({
       conditions: state.conditions.concat(newCond.id)
     }));
   }
 
   const deleteCondition = (cond) => {
-    updateFlag((state) => ({
+    updateValue((state) => ({
       conditions: state.conditions.filter((id) => id !== cond.id)
     }));
   }
 
   const ctx = {
-    state: flagState,
+    state: valueState,
     conditions,
     checks,
     addCondition,
@@ -397,31 +423,33 @@ export const Flag = ({ flag }) => {
     setValueNumber,
     setValueTimestamp,
     setValueSet,
+    updateValueConditionOverride,
   }
 
   return (
     <Card
       size="small"
-      className={saveFlagFailed ? 'invalid' : ''}
-      title={<FlagName name={flag.name}/>}
+      className={saveValueFailed ? 'invalid' : ''}
+      title={<ValueName name={value.name}/>}
       style={{ width: 800, borderRadius: '5px' }}
     >
-      <FlagContext.Provider value={ctx}>
+      <ValueContext.Provider value={ctx}>
         <Buttons
           onToggle={toggleEnabled}
-          onReset={resetFlag}
+          onReset={resetValue}
           onCancel={rollbackState}
-          onSave={() => saveFlag(
-            flagState,
+          onSave={() => saveValue(
+            valueState,
             conditions,
             checks,
             project
           )}
-          onDelete={deleteFlag}
+          onDelete={deleteValue}
+          onValueOverrideChange={valueOverrideState}
         />
         <Divider style={{ margin: '10px 0' }}/>
-        <Conditions/>
-      </FlagContext.Provider>
+        <ValueConditions />
+      </ValueContext.Provider>
     </Card>
   );
 }

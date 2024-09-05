@@ -14,6 +14,9 @@ from featureflags.models import (
     Flag,
     Operator,
     Project,
+    Value,
+    ValueChangelog,
+    ValueCondition,
     Variable,
     VariableType,
 )
@@ -190,6 +193,74 @@ async def mk_changelog_entry(
             "timestamp": timestamp or datetime.utcnow(),
             "auth_user": auth_user.id,
             "flag": flag.id,
+            "actions": actions,
+        },
+    )
+
+
+async def mk_value(
+    db_engine,
+    *,
+    id=uuid4,
+    name=f.pystr,
+    enabled=None,
+    project=None,
+    value_default=f.pystr,
+    value_override=f.pystr,
+):
+    project = project or await mk_project(db_engine)
+    return await _flush(
+        db_engine,
+        Value,
+        {
+            "id": _val(id),
+            "name": _val(name),
+            "enabled": _val(enabled),
+            "project": project.id,
+            "value_default": _val(value_default),
+            "value_override": _val(value_override),
+        },
+    )
+
+
+async def mk_value_condition(
+    db_engine,
+    *,
+    id=uuid4,
+    value=None,
+    checks=None,
+    project=None,
+    value_override=f.pystr,
+):
+    project = project or await mk_project(db_engine)
+    value = value or await mk_value(db_engine, project=project)
+    checks = checks or [
+        (await mk_check(db_engine, variable_project=project)).id
+    ]
+    return await _flush(
+        db_engine,
+        ValueCondition,
+        {
+            "id": _val(id),
+            "value": value.id,
+            "checks": checks,
+            "value_override": _val(value_override),
+        },
+    )
+
+
+async def mk_value_changelog_entry(
+    db_engine, *, timestamp=None, auth_user=None, value=None, actions=()
+):
+    auth_user = auth_user or await mk_auth_user(db_engine)
+    value = value or await mk_value(db_engine)
+    return await _flush(
+        db_engine,
+        ValueChangelog,
+        {
+            "timestamp": timestamp or datetime.utcnow(),
+            "auth_user": auth_user.id,
+            "value": value.id,
             "actions": actions,
         },
     )
