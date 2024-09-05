@@ -114,7 +114,12 @@ async def _select_flag(project: UUID, name: str, *, conn: SAConnection) -> UUID:
     return await result.scalar()
 
 
-async def _insert_flag(project: UUID, name: str, *, conn: SAConnection) -> UUID:
+async def _insert_flag(
+    project: UUID,
+    name: str,
+    *,
+    conn: SAConnection,
+) -> UUID | None:
     result = await conn.execute(
         insert(Flag.__table__)
         .values({Flag.id: uuid4(), Flag.project: project, Flag.name: name})
@@ -149,7 +154,7 @@ async def _select_value(
     name: str,
     *,
     conn: SAConnection,
-) -> UUID:
+) -> UUID | None:
     result = await conn.execute(
         select([Value.id]).where(
             and_(Value.project == project, Value.name == name)
@@ -164,7 +169,7 @@ async def _insert_value(
     value_default: str,
     *,
     conn: SAConnection,
-) -> UUID:
+) -> UUID | None:
     result = await conn.execute(
         insert(Value.__table__)
         .values(

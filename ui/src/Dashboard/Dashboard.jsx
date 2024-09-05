@@ -165,8 +165,6 @@ function Dashboard({ projects }) {
                   )
               )
           }
-            {/*{!!selected ? <FlagsContainer project={projectMap[selected]}/> :*/}
-            {/*  <div>No flags</div>}*/}
           </div>
         </Content>
       </Layout>

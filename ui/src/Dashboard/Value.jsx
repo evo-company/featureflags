@@ -32,6 +32,7 @@ import {
 import { ValueConditions } from './ValueConditions';
 import { TYPES, KIND_TO_TYPE, KIND, TYPE_TO_KIND } from './constants';
 import { useValueActions } from './actions';
+import { copyToClipboard, replaceValueInArray } from './utils';
 
 
 const ResetButton = ({ onClick, disabled }) => {
@@ -117,12 +118,6 @@ const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle, onValueOverrid
   );
 }
 
-function copyToClipboard(text, msg) {
-    navigator.clipboard.writeText(text).then(() => {
-      message.success(msg);
-    });
-}
-
 const ValueName = ({ name }) => {
   const copyValue = () => {
     copyToClipboard(name, `Value ${name} copied to clipboard`);
@@ -139,15 +134,6 @@ const ValueName = ({ name }) => {
       </Space>
     </div>
   )
-}
-
-function _replace(array, value, newValue) {
-  let idx = array.indexOf(value);
-  if (idx >= 0) {
-    array.splice(idx, 1, newValue);
-  } else {
-    throw `Value ${value} not found in array ${array}`
-  }
 }
 
 const getInitialValueState = (value) => ({
@@ -266,7 +252,7 @@ export const Value = ({ value }) => {
 
       _setCondition(condition);
       let valueConditions = valueState.conditions;
-      _replace(valueConditions, conditionId, condition.id);
+      replaceValueInArray(valueConditions, conditionId, condition.id);
       updateValue({ conditions: valueConditions })
     }
     return condition;
@@ -280,7 +266,7 @@ export const Value = ({ value }) => {
 
       _setCheck(check);
       let condition = touchCondition(conditionId);
-      _replace(condition.checks, checkId, check.id);
+      replaceValueInArray(condition.checks, checkId, check.id);
       _setCondition(condition);
     }
 

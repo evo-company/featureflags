@@ -31,6 +31,7 @@ import {
 import { Conditions } from './Conditions';
 import { TYPES, KIND_TO_TYPE, KIND, TYPE_TO_KIND } from './constants';
 import { useActions } from './actions';
+import { copyToClipboard, replaceValueInArray } from './utils';
 
 
 const ResetButton = ({ onClick, disabled }) => {
@@ -104,12 +105,6 @@ const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle }) => {
   );
 }
 
-function copyToClipboard(text, msg) {
-    navigator.clipboard.writeText(text).then(() => {
-      message.success(msg);
-    });
-}
-
 const FlagName = ({ name }) => {
   const copyFlag = () => {
     copyToClipboard(name, `Flag ${name} copied to clipboard`);
@@ -126,15 +121,6 @@ const FlagName = ({ name }) => {
       </Space>
     </div>
   )
-}
-
-function _replace(array, value, newValue) {
-  let idx = array.indexOf(value);
-  if (idx >= 0) {
-    array.splice(idx, 1, newValue);
-  } else {
-    throw `Value ${value} not found in array ${array}`
-  }
 }
 
 const getInitialFlagState = (flag) => ({
@@ -250,7 +236,7 @@ export const Flag = ({ flag }) => {
 
       _setCondition(condition);
       let flagConditions = flagState.conditions;
-      _replace(flagConditions, conditionId, condition.id);
+      replaceValueInArray(flagConditions, conditionId, condition.id);
       updateFlag({ conditions: flagConditions })
     }
     return condition;
@@ -264,7 +250,7 @@ export const Flag = ({ flag }) => {
 
       _setCheck(check);
       let condition = touchCondition(conditionId);
-      _replace(condition.checks, checkId, check.id);
+      replaceValueInArray(condition.checks, checkId, check.id);
       _setCondition(condition);
     }
 
