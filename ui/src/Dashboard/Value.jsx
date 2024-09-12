@@ -15,7 +15,7 @@ import {
   Divider,
   Popconfirm,
   message,
-  Input,
+  Input, Modal,
 } from 'antd';
 import { useEffect, useState } from 'react';
 import {
@@ -32,7 +32,9 @@ import {
 import { ValueConditions } from './ValueConditions';
 import { TYPES, KIND_TO_TYPE, KIND, TYPE_TO_KIND } from './constants';
 import { useValueActions } from './actions';
-import { copyToClipboard, replaceValueInArray } from './utils';
+import { copyToClipboard, replaceValueInArray, formatTimestamp } from './utils';
+import { useLazyQuery } from "@apollo/client";
+import { VALUE_LAST_ACTION_TIMESTAMP_QUERY } from "./queries";
 
 
 const ResetButton = ({ onClick, disabled }) => {
@@ -118,20 +120,72 @@ const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle, onValueOverrid
   );
 }
 
-const ValueName = ({ name }) => {
+const ValueTitle = ({ name, valueId, createdTimestamp, reportedTimestamp }) => {
+  const [ isModalVisible, setIsModalVisible ] = useState(false);
+  const [ valueHistory, setValueHistory ] = useState({
+    lastAction: 'Loading...',
+  });
+
+  const [ loadLastActionTimestamp ] = useLazyQuery(VALUE_LAST_ACTION_TIMESTAMP_QUERY, {
+    fetchPolicy: "network-only",
+    variables: { id: valueId },
+    onCompleted: (data) => {
+      setValueHistory({ lastAction: `${data?.valueLastActionTimestamp || "N/A"}` });
+    },
+    onError: () => {
+      message.error("Error fetching last action");
+      setValueHistory({ lastAction: "N/A" });
+    },
+  });
+
+  const getValueHistory = () => {
+    loadLastActionTimestamp();
+    setIsModalVisible(true);
+  };
+
+  const handleOk = () => {
+    setIsModalVisible(false);
+  };
+
   const copyValue = () => {
     copyToClipboard(name, `Value ${name} copied to clipboard`);
   }
 
+  const TimestampRow = ({ label, timestamp }) => (
+    <p>
+      {label}: <b style={{ color: 'green' }}>{formatTimestamp(timestamp)}</b>
+    </p>
+  );
+
   return (
-    <div
-      className='value-name'
-      onClick={copyValue}
-    >
-      <Space size={8}>
-        <CopyOutlined />
-        {name}
-      </Space>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        className='value-name'
+        onClick={copyValue}
+      >
+        <Space size={8}>
+          <CopyOutlined />
+          {name}
+        </Space>
+      </div>
+      <Button onClick={getValueHistory}>
+        HISTORY
+      </Button>
+      <Modal
+        title="Value History"
+        visible={isModalVisible}
+        onOk={handleOk}
+        onCancel={handleOk}
+        footer={[
+          <Button key="ok" type="primary" onClick={handleOk}>
+            OK
+          </Button>,
+        ]}
+      >
+        <TimestampRow label="Created" timestamp={createdTimestamp} />
+        <TimestampRow label="Last Reported" timestamp={reportedTimestamp} />
+        <TimestampRow label="Last Action" timestamp={valueHistory.lastAction} />
+      </Modal>
     </div>
   )
 }
@@ -146,6 +200,8 @@ const getInitialValueState = (value) => ({
   value_override: value.value_override,
   // TODO sort conditions, because after save, the order is not guaranteed now
   conditions: value.conditions.map((c) => c.id),
+  createdTimestamp: value.created_timestamp,
+  reportedTimestamp: value.reported_timestamp,
 });
 
 const getInitialConditions = (value) => {
@@ -430,7 +486,12 @@ export const Value = ({ value }) => {
     <Card
       size="small"
       className={saveValueFailed ? 'invalid' : ''}
-      title={<ValueName name={value.name}/>}
+      title={<ValueTitle
+          name={value.name}
+          valueId={value.id}
+          createdTimestamp={value.created_timestamp}
+          reportedTimestamp={value.reported_timestamp}
+      />}
       style={{ width: 800, borderRadius: '5px' }}
     >
       <ValueContext.Provider value={ctx}>

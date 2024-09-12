@@ -249,6 +249,52 @@ async def value_project(ids: list[int]) -> list[int]:
     return ids
 
 
+@pass_context
+async def get_flag_last_action_timestamp(
+    ctx: dict, fields: list[Field]
+) -> list[str | None]:
+    if not ctx[GraphContext.USER_SESSION].is_authenticated:
+        return []
+
+    [field] = fields
+    opts = field.options
+    flag_id = UUID(opts["id"])
+
+    result = await exec_scalar(
+        ctx[GraphContext.DB_ENGINE],
+        (
+            select([Changelog.timestamp])
+            .where(Changelog.flag == flag_id)
+            .order_by(Changelog.timestamp.desc())
+            .limit(1)
+        ),
+    )
+    return [str(result) if result else None]
+
+
+@pass_context
+async def get_value_last_action_timestamp(
+    ctx: dict, fields: list[Field]
+) -> list[str | None]:
+    if not ctx[GraphContext.USER_SESSION].is_authenticated:
+        return []
+
+    [field] = fields
+    opts = field.options
+    value_id = UUID(opts["id"])
+
+    result = await exec_scalar(
+        ctx[GraphContext.DB_ENGINE],
+        (
+            select([ValueChangelog.timestamp])
+            .where(ValueChangelog.value == value_id)
+            .order_by(ValueChangelog.timestamp.desc())
+            .limit(1)
+        ),
+    )
+    return [str(result) if result else None]
+
+
 ID_FIELD = Field("id", None, id_field)
 
 flag_fq = FieldsQuery(GraphContext.DB_ENGINE, Flag.__table__)
@@ -260,6 +306,8 @@ _FlagNode = Node(
         Field("name", None, flag_fq),
         Field("project", None, flag_fq),
         Field("enabled", None, flag_fq),
+        Field("created_timestamp", None, flag_fq),
+        Field("reported_timestamp", None, flag_fq),
     ],
 )
 
@@ -274,6 +322,8 @@ _ValueNode = Node(
         Field("enabled", None, value_fq),
         Field("value_default", None, value_fq),
         Field("value_override", None, value_fq),
+        Field("created_timestamp", None, value_fq),
+        Field("reported_timestamp", None, value_fq),
     ],
 )
 
@@ -413,6 +463,8 @@ FlagNode = Node(
             None,
             flag_sg.c(if_some([S.enabled, S.this.enabled], True, False)),
         ),
+        Field("created_timestamp", None, flag_sg),
+        Field("reported_timestamp", None, flag_sg),
     ],
 )
 
@@ -449,6 +501,8 @@ ValueNode = Node(
         ),
         Field("value_default", None, value_sg),
         Field("value_override", None, value_sg),
+        Field("created_timestamp", None, value_sg),
+        Field("reported_timestamp", None, value_sg),
     ],
 )
 
@@ -538,6 +592,18 @@ ValueChangeNode = Node(
 
 RootNode = Root(
     [
+        Field(
+            "flagLastActionTimestamp",
+            Optional[String],
+            get_flag_last_action_timestamp,
+            options=[Option("id", String)],
+        ),
+        Field(
+            "valueLastActionTimestamp",
+            Optional[String],
+            get_value_last_action_timestamp,
+            options=[Option("id", String)],
+        ),
         Link(
             "flag",
             Optional["Flag"],

@@ -3,6 +3,7 @@
     notify server about new projects/variables/flags
     TODO: refactor.
 """
+from datetime import datetime
 from uuid import UUID, uuid4
 
 from aiopg.sa import SAConnection
@@ -129,6 +130,14 @@ async def _insert_flag(
     return await result.scalar()
 
 
+async def _update_flag_report_timestamp(flag_id: UUID, *, conn: SAConnection):
+    await conn.execute(
+        Flag.__table__.update()
+        .where(Flag.id == flag_id)
+        .values({Flag.reported_timestamp: datetime.utcnow()})
+    )
+
+
 async def _get_or_create_flag(
     project: UUID,
     flag: str,
@@ -146,6 +155,9 @@ async def _get_or_create_flag(
                 id_ = await _select_flag(project, flag, conn=conn)
                 assert id_ is not None  # must be in db
         entity_cache.flag[project][flag] = id_
+
+    await _update_flag_report_timestamp(id_, conn=conn)
+
     return id_
 
 
@@ -187,6 +199,14 @@ async def _insert_value(
     return await result.scalar()
 
 
+async def _update_value_report_timestamp(value_id: UUID, *, conn: SAConnection):
+    await conn.execute(
+        Value.__table__.update()
+        .where(Value.id == value_id)
+        .values({Value.reported_timestamp: datetime.utcnow()})
+    )
+
+
 async def _get_or_create_value(
     project: UUID,
     value: str,
@@ -205,6 +225,9 @@ async def _get_or_create_value(
                 id_ = await _select_value(project, value, conn=conn)
                 assert id_ is not None  # must be in db
         entity_cache.value[project][value] = id_
+
+    await _update_value_report_timestamp(id_, conn=conn)
+
     return id_
 
 

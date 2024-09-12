@@ -20,6 +20,8 @@ const FLAG_FRAGMENT = gql`
     name
     enabled
     overridden
+    created_timestamp
+    reported_timestamp
     conditions {
       id
       checks {
@@ -83,6 +85,12 @@ export const FLAGS_QUERY = gql`
   }
 `;
 
+export const FLAG_LAST_ACTION_TIMESTAMP_QUERY = gql`
+  query FlagLastActionTimestamp($id: String!) {
+    flagLastActionTimestamp(id: $id)
+  }
+`;
+
 const VALUE_FRAGMENT = gql`
   fragment ValueFragment on Value {
     id
@@ -91,6 +99,8 @@ const VALUE_FRAGMENT = gql`
     overridden
     value_default
     value_override
+    created_timestamp
+    reported_timestamp
     conditions {
       id
       value_override
@@ -151,5 +161,11 @@ export const VALUES_QUERY = gql`
     values(project_name: $project) {
       ...ValueFragment
     }
+  }
+`;
+
+export const VALUE_LAST_ACTION_TIMESTAMP_QUERY = gql`
+  query ValueLastActionTimestamp($id: String!) {
+    valueLastActionTimestamp(id: $id)
   }
 `;
