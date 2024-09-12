@@ -15,6 +15,7 @@ import {
   Divider,
   Popconfirm,
   message,
+  Modal,
 } from 'antd';
 import { useEffect, useState } from 'react';
 import {
@@ -26,12 +27,14 @@ import './Flag.less';
 import {
   FlagContext,
   useFlagState,
-  useProject
+  useProject,
 } from './context';
 import { Conditions } from './Conditions';
 import { TYPES, KIND_TO_TYPE, KIND, TYPE_TO_KIND } from './constants';
 import { useActions } from './actions';
-import { copyToClipboard, replaceValueInArray } from './utils';
+import { copyToClipboard, formatTimestamp, replaceValueInArray } from './utils';
+import { useLazyQuery } from "@apollo/client";
+import { FLAG_LAST_ACTION_TIMESTAMP_QUERY } from "./queries";
 
 
 const ResetButton = ({ onClick, disabled }) => {
@@ -105,20 +108,72 @@ const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle }) => {
   );
 }
 
-const FlagName = ({ name }) => {
+const FlagTitle = ({ name, flagId, createdTimestamp, reportedTimestamp }) => {
+  const [ isModalVisible, setIsModalVisible ] = useState(false);
+  const [ flagHistory, setFlagHistory ] = useState({
+    lastAction: "Loading...",
+  });
+
+  const [ loadLastActionTimestamp ] = useLazyQuery(FLAG_LAST_ACTION_TIMESTAMP_QUERY, {
+    fetchPolicy: "network-only",
+    variables: { id: flagId },
+    onCompleted: (data) => {
+      setFlagHistory({ lastAction: `${data?.flagLastActionTimestamp || "N/A"}` });
+    },
+    onError: () => {
+      message.error("Error fetching last action");
+      setFlagHistory({ lastAction: "N/A", });
+    },
+  });
+
+  const getFlagHistory = () => {
+    loadLastActionTimestamp();
+    setIsModalVisible(true);
+  };
+
+  const handleOk = () => {
+    setIsModalVisible(false);
+  };
+
   const copyFlag = () => {
     copyToClipboard(name, `Flag ${name} copied to clipboard`);
   }
 
+  const TimestampRow = ({ label, timestamp }) => (
+    <p>
+      {label}: <b style={{ color: 'green' }}>{formatTimestamp(timestamp)}</b>
+    </p>
+  );
+
   return (
-    <div
-      className='flag-name'
-      onClick={copyFlag}
-    >
-      <Space size={8}>
-        <CopyOutlined />
-        {name}
-      </Space>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        className='flag-name'
+        onClick={copyFlag}
+      >
+        <Space size={8}>
+          <CopyOutlined />
+          {name}
+        </Space>
+      </div>
+      <Button onClick={getFlagHistory}>
+        HISTORY
+      </Button>
+      <Modal
+        title="Flag History"
+        visible={isModalVisible}
+        onOk={handleOk}
+        onCancel={handleOk}
+        footer={[
+          <Button key="ok" type="primary" onClick={handleOk}>
+            OK
+          </Button>,
+        ]}
+      >
+        <TimestampRow label="Created" timestamp={createdTimestamp} />
+        <TimestampRow label="Last Reported" timestamp={reportedTimestamp} />
+        <TimestampRow label="Last Action" timestamp={flagHistory.lastAction} />
+      </Modal>
     </div>
   )
 }
@@ -131,6 +186,8 @@ const getInitialFlagState = (flag) => ({
   enabled: flag.enabled,
   // TODO sort conditions, because after save, the order is not guaranteed now
   conditions: flag.conditions.map((c) => c.id),
+  createdTimestamp: flag.created_timestamp,
+  reportedTimestamp: flag.reported_timestamp,
 });
 
 const getInitialConditions = (flag) => {
@@ -403,7 +460,12 @@ export const Flag = ({ flag }) => {
     <Card
       size="small"
       className={saveFlagFailed ? 'invalid' : ''}
-      title={<FlagName name={flag.name}/>}
+      title={<FlagTitle
+          name={flag.name}
+          flagId={flag.id}
+          createdTimestamp={flag.createdTimestamp}
+          reportedTimestamp={flag.reportedTimestamp}
+      />}
       style={{ width: 800, borderRadius: '5px' }}
     >
       <FlagContext.Provider value={ctx}>

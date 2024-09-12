@@ -120,6 +120,14 @@ class Flag(Base):
     id = Column(UUID(as_uuid=True), primary_key=True)
     name = Column(String, nullable=False)
     enabled = Column(Boolean)
+    created_timestamp = Column(
+        TIMESTAMP,
+        default=datetime.utcnow(),
+        nullable=True,
+    )
+    reported_timestamp = Column(
+        TIMESTAMP, default=datetime.utcnow(), nullable=True
+    )
 
     project: UUID = Column(ForeignKey("project.id"), nullable=False)
 
@@ -193,6 +201,12 @@ class Value(Base):
     enabled = Column(Boolean)
     value_default = Column(String, nullable=False)
     value_override = Column(String, nullable=False)
+    created_timestamp = Column(
+        TIMESTAMP, default=datetime.utcnow(), nullable=True
+    )
+    reported_timestamp = Column(
+        TIMESTAMP, default=datetime.utcnow(), nullable=True
+    )
 
     project: UUID = Column(ForeignKey("project.id"), nullable=False)
 
