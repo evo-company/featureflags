@@ -118,10 +118,6 @@ async def root_flags(ctx: dict, options: dict) -> list:
     if flag_name:
         expr = expr.where(Flag.name.ilike(f"%{flag_name}%"))
 
-    print(expr)
-    print(expr)
-    print(expr)
-
     return await exec_expression(ctx[GraphContext.DB_ENGINE], expr)
 
 
