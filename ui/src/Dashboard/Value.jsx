@@ -17,6 +17,7 @@ import {
   message,
   Input,
   Modal,
+  Tag,
 } from 'antd';
 import { useEffect, useState } from 'react';
 import {
@@ -28,7 +29,7 @@ import './Value.less';
 import {
   ValueContext,
   useValueState,
-  useProject,
+  useProjectsMap,
 } from './context';
 import { ValueConditions } from './ValueConditions';
 import { TYPES, KIND_TO_TYPE, KIND, TYPE_TO_KIND } from './constants';
@@ -121,7 +122,7 @@ const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle, onValueOverrid
   );
 }
 
-const ValueTitle = ({ name, valueId, createdTimestamp, reportedTimestamp }) => {
+const ValueTitle = ({ isSearch, projectName, name, valueId, createdTimestamp, reportedTimestamp }) => {
   const [ isModalVisible, setIsModalVisible ] = useState(false);
   const [ valueHistory, setValueHistory ] = useState({
     lastAction: 'Loading...',
@@ -159,34 +160,37 @@ const ValueTitle = ({ name, valueId, createdTimestamp, reportedTimestamp }) => {
   );
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <div
-        className='value-name'
-        onClick={copyValue}
-      >
-        <Space size={8}>
-          <CopyOutlined />
-          {name}
-        </Space>
+    <div>
+      {isSearch ? <Tag color="volcano" size="big">{projectName}</Tag> : null }
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div
+          className='value-name'
+          onClick={copyValue}
+        >
+          <Space size={8}>
+            <CopyOutlined />
+            {name}
+          </Space>
+        </div>
+        <Button onClick={getValueHistory}>
+          HISTORY
+        </Button>
+        <Modal
+          title="Value History"
+          visible={isModalVisible}
+          onOk={handleOk}
+          onCancel={handleOk}
+          footer={[
+            <Button key="ok" type="primary" onClick={handleOk}>
+              OK
+            </Button>,
+          ]}
+        >
+          <TimestampRow label="Created" timestamp={createdTimestamp} />
+          <TimestampRow label="Last Reported" timestamp={reportedTimestamp} />
+          <TimestampRow label="Last Action" timestamp={valueHistory.lastAction} />
+        </Modal>
       </div>
-      <Button onClick={getValueHistory}>
-        HISTORY
-      </Button>
-      <Modal
-        title="Value History"
-        visible={isModalVisible}
-        onOk={handleOk}
-        onCancel={handleOk}
-        footer={[
-          <Button key="ok" type="primary" onClick={handleOk}>
-            OK
-          </Button>,
-        ]}
-      >
-        <TimestampRow label="Created" timestamp={createdTimestamp} />
-        <TimestampRow label="Last Reported" timestamp={reportedTimestamp} />
-        <TimestampRow label="Last Action" timestamp={valueHistory.lastAction} />
-      </Modal>
     </div>
   )
 }
@@ -203,6 +207,7 @@ const getInitialValueState = (value) => ({
   conditions: value.conditions.map((c) => c.id),
   createdTimestamp: value.created_timestamp,
   reportedTimestamp: value.reported_timestamp,
+  projectName: value.project.name,
 });
 
 const getInitialConditions = (value) => {
@@ -240,8 +245,9 @@ const getInitialChecks = (value, project) => {
 };
 
 
-export const Value = ({ value }) => {
-  const project = useProject();
+export const Value = ({ value, isSearch }) => {
+  const projectsMap = useProjectsMap();
+  const project = projectsMap[value.project.name];
   const [valueState, setValueState] = useState(getInitialValueState(value));
   const [conditions, setConditions] = useState(getInitialConditions(value));
   const [checks, setChecks] = useState(getInitialChecks(value, project));
@@ -488,6 +494,8 @@ export const Value = ({ value }) => {
       size="small"
       className={saveValueFailed ? 'invalid' : ''}
       title={<ValueTitle
+          isSearch={isSearch}
+          projectName={value.project.name}
           name={value.name}
           valueId={value.id}
           createdTimestamp={value.created_timestamp}

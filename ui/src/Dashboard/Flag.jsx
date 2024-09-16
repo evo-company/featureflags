@@ -16,6 +16,7 @@ import {
   Popconfirm,
   message,
   Modal,
+  Tag,
 } from 'antd';
 import { useEffect, useState } from 'react';
 import {
@@ -27,7 +28,7 @@ import './Flag.less';
 import {
   FlagContext,
   useFlagState,
-  useProject,
+  useProjectsMap,
 } from './context';
 import { Conditions } from './Conditions';
 import { TYPES, KIND_TO_TYPE, KIND, TYPE_TO_KIND } from './constants';
@@ -108,7 +109,7 @@ const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle }) => {
   );
 }
 
-const FlagTitle = ({ name, flagId, createdTimestamp, reportedTimestamp }) => {
+const FlagTitle = ({ isSearch, projectName, name, flagId, createdTimestamp, reportedTimestamp }) => {
   const [ isModalVisible, setIsModalVisible ] = useState(false);
   const [ flagHistory, setFlagHistory ] = useState({
     lastAction: "Loading...",
@@ -146,34 +147,37 @@ const FlagTitle = ({ name, flagId, createdTimestamp, reportedTimestamp }) => {
   );
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <div
-        className='flag-name'
-        onClick={copyFlag}
-      >
-        <Space size={8}>
-          <CopyOutlined />
-          {name}
-        </Space>
+    <div>
+      {isSearch ? <Tag color="volcano" size="big">{projectName}</Tag> : null }
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div
+          className='flag-name'
+          onClick={copyFlag}
+        >
+          <Space size={8}>
+            <CopyOutlined />
+            {name}
+          </Space>
+        </div>
+        <Button onClick={getFlagHistory}>
+          HISTORY
+        </Button>
+        <Modal
+          title="Flag History"
+          visible={isModalVisible}
+          onOk={handleOk}
+          onCancel={handleOk}
+          footer={[
+            <Button key="ok" type="primary" onClick={handleOk}>
+              OK
+            </Button>,
+          ]}
+        >
+          <TimestampRow label="Created" timestamp={createdTimestamp} />
+          <TimestampRow label="Last Reported" timestamp={reportedTimestamp} />
+          <TimestampRow label="Last Action" timestamp={flagHistory.lastAction} />
+        </Modal>
       </div>
-      <Button onClick={getFlagHistory}>
-        HISTORY
-      </Button>
-      <Modal
-        title="Flag History"
-        visible={isModalVisible}
-        onOk={handleOk}
-        onCancel={handleOk}
-        footer={[
-          <Button key="ok" type="primary" onClick={handleOk}>
-            OK
-          </Button>,
-        ]}
-      >
-        <TimestampRow label="Created" timestamp={createdTimestamp} />
-        <TimestampRow label="Last Reported" timestamp={reportedTimestamp} />
-        <TimestampRow label="Last Action" timestamp={flagHistory.lastAction} />
-      </Modal>
     </div>
   )
 }
@@ -188,6 +192,7 @@ const getInitialFlagState = (flag) => ({
   conditions: flag.conditions.map((c) => c.id),
   createdTimestamp: flag.created_timestamp,
   reportedTimestamp: flag.reported_timestamp,
+  projectName: flag.project.name,
 });
 
 const getInitialConditions = (flag) => {
@@ -224,8 +229,9 @@ const getInitialChecks = (flag, project) => {
 };
 
 
-export const Flag = ({ flag }) => {
-  const project = useProject();
+export const Flag = ({ flag, isSearch }) => {
+  const projectsMap = useProjectsMap();
+  const project = projectsMap[flag.project.name];
   const [flagState, setFlagState] = useState(getInitialFlagState(flag));
   const [conditions, setConditions] = useState(getInitialConditions(flag));
   const [checks, setChecks] = useState(getInitialChecks(flag, project));
@@ -461,10 +467,12 @@ export const Flag = ({ flag }) => {
       size="small"
       className={saveFlagFailed ? 'invalid' : ''}
       title={<FlagTitle
+          isSearch={isSearch}
+          projectName={flag.project.name}
           name={flag.name}
           flagId={flag.id}
-          createdTimestamp={flag.createdTimestamp}
-          reportedTimestamp={flag.reportedTimestamp}
+          createdTimestamp={flag.created_timestamp}
+          reportedTimestamp={flag.reported_timestamp}
       />}
       style={{ width: 800, borderRadius: '5px' }}
     >

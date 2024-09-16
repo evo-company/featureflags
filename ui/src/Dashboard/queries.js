@@ -22,6 +22,9 @@ const FLAG_FRAGMENT = gql`
     overridden
     created_timestamp
     reported_timestamp
+    project {
+      name
+    }
     conditions {
       id
       checks {
@@ -78,8 +81,8 @@ export const FLAG_QUERY = gql`
 
 export const FLAGS_QUERY = gql`
   ${FLAG_FRAGMENT}
-  query Flags($project: String!) {
-    flags(project_name: $project) {
+  query Flags($project: String, $flag_name: String) {
+    flags(project_name: $project, flag_name: $flag_name) {
       ...FlagFragment
     }
   }
@@ -101,6 +104,9 @@ const VALUE_FRAGMENT = gql`
     value_override
     created_timestamp
     reported_timestamp
+    project {
+      name
+    }
     conditions {
       id
       value_override
@@ -157,8 +163,8 @@ export const VALUE_QUERY = gql`
 
 export const VALUES_QUERY = gql`
   ${VALUE_FRAGMENT}
-  query Values($project: String!) {
-    values(project_name: $project) {
+  query Values($project: String, $value_name: String) {
+    values(project_name: $project, value_name: $value_name) {
       ...ValueFragment
     }
   }

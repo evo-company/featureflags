@@ -33,7 +33,7 @@ from hiku.types import (
     String,
     TypeRef,
 )
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from featureflags.graph import actions
 from featureflags.graph.metrics import (
@@ -105,6 +105,7 @@ async def root_flags(ctx: dict, options: dict) -> list:
         return []
 
     project_name = options.get("project_name")
+    flag_name = options.get("flag_name")
     expr = select([Flag.id])
 
     if project_name is not None:
@@ -113,6 +114,9 @@ async def root_flags(ctx: dict, options: dict) -> list:
                 select([Project.id]).where(Project.name == project_name)
             )
         )
+
+    if flag_name:
+        expr = expr.where(func.lower(Flag.name).like(f"%{flag_name.lower()}%"))
 
     return await exec_expression(ctx[GraphContext.DB_ENGINE], expr)
 
@@ -154,6 +158,7 @@ async def root_values(ctx: dict, options: dict) -> list:
         return []
 
     project_name = options.get("project_name")
+    value_name = options.get("value_name")
     expr = select([Value.id])
 
     if project_name is not None:
@@ -161,6 +166,11 @@ async def root_values(ctx: dict, options: dict) -> list:
             Value.project.in_(
                 select([Project.id]).where(Project.name == project_name)
             )
+        )
+
+    if value_name:
+        expr = (
+            expr.where(func.lower(Value.name).like(f"%{value_name.lower()}%"))
         )
 
     return await exec_expression(ctx[GraphContext.DB_ENGINE], expr)
@@ -616,7 +626,10 @@ RootNode = Root(
             Sequence["Flag"],
             root_flags,
             requires=None,
-            options=[Option("project_name", Optional[String], default=None)],
+            options=[
+                Option("project_name", Optional[String], default=None),
+                Option("flag_name", Optional[String], default=None),
+            ],
         ),
         Link(
             "flags_by_ids",
@@ -637,7 +650,10 @@ RootNode = Root(
             Sequence["Value"],
             root_values,
             requires=None,
-            options=[Option("project_name", Optional[String], default=None)],
+            options=[
+                Option("project_name", Optional[String], default=None),
+                Option("value_name", Optional[String], default=None),
+            ],
         ),
         Link(
             "values_by_ids",
