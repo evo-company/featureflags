@@ -33,7 +33,7 @@ from hiku.types import (
     String,
     TypeRef,
 )
-from sqlalchemy import select, func
+from sqlalchemy import select
 
 from featureflags.graph import actions
 from featureflags.graph.metrics import (
@@ -116,7 +116,11 @@ async def root_flags(ctx: dict, options: dict) -> list:
         )
 
     if flag_name:
-        expr = expr.where(func.lower(Flag.name).like(f"%{flag_name.lower()}%"))
+        expr = expr.where(Flag.name.ilike(f"%{flag_name}%"))
+
+    print(expr)
+    print(expr)
+    print(expr)
 
     return await exec_expression(ctx[GraphContext.DB_ENGINE], expr)
 
@@ -170,7 +174,7 @@ async def root_values(ctx: dict, options: dict) -> list:
 
     if value_name:
         expr = (
-            expr.where(func.lower(Value.name).like(f"%{value_name.lower()}%"))
+            expr.where(Value.name.ilike(f"%{value_name}%"))
         )
 
     return await exec_expression(ctx[GraphContext.DB_ENGINE], expr)

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Layout, Typography, Space, Button, Row, Col, Input } from 'antd';
 const { Header } = Layout;
@@ -46,6 +46,21 @@ function Base({ children }) {
     navigate(`/?${queryParams.toString()}`);
   };
 
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === '/') {
+        event.preventDefault();
+        inputRef.current.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   return (
     <Layout
         style={{
@@ -70,6 +85,7 @@ function Base({ children }) {
             <Col span={4} offset={10}>
               {tab && (
                 <Input
+                  ref={inputRef}
                   prefix={<SearchOutlined/>}
                   value={inputValue || queryParams.get('term')}
                   size="middle"
