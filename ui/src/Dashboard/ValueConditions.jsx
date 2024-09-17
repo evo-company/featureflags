@@ -19,7 +19,7 @@ import {
 import { ValueCheck } from './ValueCheck';
 
 
-const ValueCondition = ({ onRemove, condition, onValueConditionOverrideChange }) => {
+const ValueCondition = ({ onRemove, condition, onValueConditionOverrideChange, projectName }) => {
   const { addCheck, deleteCheck } = useValueCtx();
   const { checks } = useValueChecks();
 
@@ -34,6 +34,7 @@ const ValueCondition = ({ onRemove, condition, onValueConditionOverrideChange })
             onDeleteCheck={() => deleteCheck(condition.id, checkId)}
             conditionValueOverride={condition.value_override}
             onValueConditionOverrideChange={onValueConditionOverrideChange}
+            projectName={projectName}
           />
         )
       })}
@@ -72,6 +73,7 @@ export const ValueConditions = () => {
               condition={conditions[conditionId]}
               onRemove={() => deleteCondition(conditions[conditionId])}
               onValueConditionOverrideChange={(e) => updateValueConditionOverride(conditionId, e.target.value)}
+              projectName={value.projectName}
             />
           )
         })}

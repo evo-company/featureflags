@@ -134,6 +134,7 @@ class Flag(Base):
     __table_args__ = (
         UniqueConstraint(project, name),
         Index("flag_project_name_idx", project, name),
+        Index("flag_name_idx", name),
     )
 
 
@@ -213,6 +214,7 @@ class Value(Base):
     __table_args__ = (
         UniqueConstraint(project, name),
         Index("value_project_name_idx", project, name),
+        Index("value_name_idx", name),
     )
 
 

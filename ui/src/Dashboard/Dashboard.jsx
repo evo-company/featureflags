@@ -51,11 +51,12 @@ function Dashboard({ projects }) {
   const queryParams = new URLSearchParams(location.search);
   const projectFromQuery = queryParams.get('project');
   const tab = queryParams.get('tab');
+  const searchTerm = queryParams.get('term');
 
   const [menuItems, setMenuItems] = useState([]);
   const [selected, setSelected] = useState('');
   const [searchOptions, setSearchOptions] = useState([]);
-  const [projectMap, setProjectMap] = useState({});
+  const [projectsMap, setProjectsMap] = useState({});
 
   const setProjectToUrl = (project) => {
     queryParams.set('project', project);
@@ -80,7 +81,7 @@ function Dashboard({ projects }) {
       return acc;
     }, {});
 
-    setProjectMap(_projectsMap);
+    setProjectsMap(_projectsMap);
   }, [projects]);
 
   const onSearch = (searchText) => {
@@ -152,14 +153,14 @@ function Dashboard({ projects }) {
           >
             {
               tab === "values" ? (
-                  !!selected ? (
-                      <ValuesContainer project={projectMap[selected]} />
+                  !!selected || !!searchTerm ? (
+                      <ValuesContainer projectName={!!selected ? projectsMap[selected].name : null} searchTerm={searchTerm} projectsMap={projectsMap} />
                   ) : (
                       <div>No Values</div>
                   )
               ) : (
-                  !!selected ? (
-                      <FlagsContainer project={projectMap[selected]} />
+                  !!selected || !!searchTerm ? (
+                      <FlagsContainer projectName={!!selected ? projectsMap[selected].name : null} searchTerm={searchTerm} projectsMap={projectsMap} />
                   ) : (
                       <div>No Flags</div>
                   )

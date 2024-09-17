@@ -1,9 +1,9 @@
 import { createContext, useContext } from 'react';
 
-export const ProjectContext = createContext([[]]);
+export const ProjectsMapContext = createContext([[]]);
 
-export const useProject = () => {
-  const [project] = useContext(ProjectContext);
+export const useProjectsMap = () => {
+  const [project] = useContext(ProjectsMapContext);
   return project;
 }
 

@@ -19,7 +19,7 @@ import {
 import { Check } from './Check';
 
 
-const Condition = ({ onRemove, condition }) => {
+const Condition = ({ onRemove, condition, projectName }) => {
   const { addCheck, deleteCheck } = useFlagCtx();
   const { checks } = useChecks();
 
@@ -32,6 +32,7 @@ const Condition = ({ onRemove, condition }) => {
             conditionId={condition.id}
             check={checks[checkId]}
             onDeleteCheck={() => deleteCheck(condition.id, checkId)}
+            projectName={projectName}
           />
         )
       })}
@@ -69,6 +70,7 @@ export const Conditions = () => {
               key={conditionId}
               condition={conditions[conditionId]}
               onRemove={() => deleteCondition(conditions[conditionId])}
+              projectName={flag.projectName}
             />
           )
         })}

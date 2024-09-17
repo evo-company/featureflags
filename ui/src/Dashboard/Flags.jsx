@@ -13,7 +13,7 @@ import { useQuery } from '@apollo/client';
 import './Flags.less';
 
 import { CenteredSpinner } from '../components/Spinner';
-import { ProjectContext } from './context';
+import { ProjectsMapContext } from './context';
 import { FLAGS_QUERY } from './queries';
 import { Flag } from './Flag';
 
@@ -22,7 +22,7 @@ const getShowAllMatches = (count, searchText) => ({
   value: searchText
 });
 
-const Flags = ({ flags }) => {
+const Flags = ({ flags, isSearch }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const queryParams = new URLSearchParams(location.search);
@@ -108,28 +108,30 @@ const Flags = ({ flags }) => {
         padding: '0 16px',
       }}
     >
-      <AutoComplete
-        className='search-flags'
-        options={searchOptions}
-        onSelect={onSelect}
-        onSearch={onSearch}
-        onChange={onChange}
-        defaultValue={flagFromQuery ? flagFromQuery : null}
-      >
-        <Input
-          prefix={<SearchOutlined/>}
-          size="middle"
-          allowClear
-          placeholder="Filter flags"
-        />
-      </AutoComplete>
+      {!isSearch && (
+        <AutoComplete
+          className='search-flags'
+          options={searchOptions}
+          onSelect={onSelect}
+          onSearch={onSearch}
+          onChange={onChange}
+          defaultValue={flagFromQuery ? flagFromQuery : null}
+        >
+          <Input
+            prefix={<SearchOutlined/>}
+            size="middle"
+            allowClear
+            placeholder="Filter flags"
+          />
+        </AutoComplete>
+      )}
       <List
         className="flags-list"
         itemLayout="horizontal"
         dataSource={listData}
         renderItem={(item) => (
           <List.Item>
-            <Flag flag={flagsMap[item.key]}/>
+            <Flag flag={flagsMap[item.key]} isSearch={isSearch} />
           </List.Item>
         )}
       />
@@ -138,24 +140,32 @@ const Flags = ({ flags }) => {
 };
 
 
-export const FlagsContainer = ({ project }) => {
+export const FlagsContainer = ({ projectName, searchTerm, projectsMap }) => {
   const { data, loading, error, networkStatus } = useQuery(FLAGS_QUERY, {
-    variables: { project: project.name },
+    variables: {
+      project: searchTerm ? null : projectName,
+      flag_name: searchTerm,
+    },
   });
   if (loading) {
     return <CenteredSpinner/>;
   }
 
-  const _project = {
-    ...project,
-    variablesMap: project.variables.reduce((acc, variable) => {
-      acc[variable.id] = variable;
-      return acc;
-    }, {}),
-  }
+  const _projectsMap = Object.keys(projectsMap).reduce((acc, key) => {
+    const _project = projectsMap[key];
+    acc[key] = {
+      ..._project,
+      variablesMap: _project.variables.reduce((variableAcc, variable) => {
+        variableAcc[variable.id] = variable;
+        return variableAcc;
+      }, {}),
+    };
+    return acc;
+  }, {});
+
   return (
-    <ProjectContext.Provider value={[_project]}>
-      <Flags project={project} flags={data.flags}/>
-    </ProjectContext.Provider>
+    <ProjectsMapContext.Provider value={[_projectsMap]}>
+      <Flags flags={data.flags} isSearch={searchTerm} />
+    </ProjectsMapContext.Provider>
   );
 }

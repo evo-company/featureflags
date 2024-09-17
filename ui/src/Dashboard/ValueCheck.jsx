@@ -16,7 +16,7 @@ import './Check.less';
 import { Operators, TYPES, Type } from './constants';
 import {
   useValueChecks,
-  useProject
+  useProjectsMap,
 } from './context';
 
 const { Option } = Select;
@@ -26,8 +26,9 @@ const defaultInputProps = {
   size: "middle"
 }
 
-const CheckInput = ({ conditionId, check }) => {
-  const project = useProject();
+const CheckInput = ({ conditionId, check, projectName }) => {
+  const projectsMap = useProjectsMap();
+  const project = projectsMap[projectName];
   const {
     setValueString,
     setValueNumber,
@@ -81,8 +82,9 @@ const CheckInput = ({ conditionId, check }) => {
   />;
 }
 
-export const ValueCheck = ({ conditionId, check, onDeleteCheck, conditionValueOverride, onValueConditionOverrideChange }) => {
-  const project = useProject();
+export const ValueCheck = ({ conditionId, check, onDeleteCheck, conditionValueOverride, onValueConditionOverrideChange, projectName }) => {
+  const projectsMap = useProjectsMap();
+  const project = projectsMap[projectName];
   const { setVariable, setOperator } = useValueChecks();
 
   const onVariableOptionChange = (value) => {
@@ -130,7 +132,7 @@ export const ValueCheck = ({ conditionId, check, onDeleteCheck, conditionValueOv
               <Option key={id} value={id}>{title}</Option>
             ))}
           </Select>
-          <CheckInput conditionId={conditionId} check={check}/>
+          <CheckInput conditionId={conditionId} check={check} projectName={projectName} />
           <Input
               value={conditionValueOverride}
               style={{ width: 165 }}

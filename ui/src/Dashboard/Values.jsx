@@ -13,7 +13,7 @@ import { useQuery } from '@apollo/client';
 import './Values.less';
 
 import { CenteredSpinner } from '../components/Spinner';
-import { ProjectContext } from './context';
+import { ProjectsMapContext } from './context';
 import { VALUES_QUERY } from './queries';
 import { Value } from './Value';
 
@@ -22,7 +22,7 @@ const getShowAllMatches = (count, searchText) => ({
   value: searchText
 });
 
-const Values = ({ values }) => {
+const Values = ({ values, isSearch }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const queryParams = new URLSearchParams(location.search);
@@ -108,28 +108,30 @@ const Values = ({ values }) => {
         padding: '0 16px',
       }}
     >
-      <AutoComplete
-        className='search-values'
-        options={searchOptions}
-        onSelect={onSelect}
-        onSearch={onSearch}
-        onChange={onChange}
-        defaultValue={valueFromQuery ? valueFromQuery : null}
-      >
-        <Input
-          prefix={<SearchOutlined/>}
-          size="middle"
-          allowClear
-          placeholder="Filter values"
-        />
-      </AutoComplete>
+      {!isSearch && (
+        <AutoComplete
+          className='search-values'
+          options={searchOptions}
+          onSelect={onSelect}
+          onSearch={onSearch}
+          onChange={onChange}
+          defaultValue={valueFromQuery ? valueFromQuery : null}
+        >
+          <Input
+            prefix={<SearchOutlined/>}
+            size="middle"
+            allowClear
+            placeholder="Filter values"
+          />
+        </AutoComplete>
+      )}
       <List
         className="values-list"
         itemLayout="horizontal"
         dataSource={listData}
         renderItem={(item) => (
           <List.Item>
-            <Value value={valuesMap[item.key]}/>
+            <Value value={valuesMap[item.key]} isSearch={isSearch} />
           </List.Item>
         )}
       />
@@ -138,24 +140,32 @@ const Values = ({ values }) => {
 };
 
 
-export const ValuesContainer = ({ project }) => {
+export const ValuesContainer = ({ projectName, searchTerm, projectsMap }) => {
   const { data, loading, error, networkStatus } = useQuery(VALUES_QUERY, {
-    variables: { project: project.name },
+    variables: {
+      project: searchTerm ? null : projectName,
+      value_name: searchTerm,
+    },
   });
   if (loading) {
     return <CenteredSpinner/>;
   }
 
-  const _project = {
-    ...project,
-    variablesMap: project.variables.reduce((acc, variable) => {
-      acc[variable.id] = variable;
-      return acc;
-    }, {}),
-  }
+  const _projectsMap = Object.keys(projectsMap).reduce((acc, key) => {
+    const _project = projectsMap[key];
+    acc[key] = {
+      ..._project,
+      variablesMap: _project.variables.reduce((variableAcc, variable) => {
+        variableAcc[variable.id] = variable;
+        return variableAcc;
+      }, {}),
+    };
+    return acc;
+  }, {});
+
   return (
-    <ProjectContext.Provider value={[_project]}>
-      <Values project={project} values={data.values}/>
-    </ProjectContext.Provider>
+    <ProjectsMapContext.Provider value={[_projectsMap]}>
+      <Values values={data.values} isSearch={searchTerm} />
+    </ProjectsMapContext.Provider>
   );
 }
