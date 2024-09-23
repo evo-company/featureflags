@@ -53,6 +53,7 @@ from featureflags.graph.types import (
     ResetValueResult,
     SaveFlagResult,
     SaveValueResult,
+    DeleteVariableResult,
 )
 from featureflags.graph.utils import is_valid_uuid
 from featureflags.metrics import wrap_metric
@@ -840,7 +841,29 @@ async def delete_value_info(
 DeleteValueNode = Node(
     "DeleteValue",
     [
-        Field("error", None, delete_flag_info),
+        Field("error", None, delete_value_info),
+    ],
+)
+
+
+async def delete_variable_info(
+    fields: list[Field], results: list[DeleteVariableResult]
+) -> list[list]:
+    [result] = results
+
+    def get_field(name: str) -> str | None:
+        if name == "error":
+            return result.error
+
+        raise ValueError(f"Unknown field: {name}")
+
+    return [[get_field(f.name)] for f in fields]
+
+
+DeleteVariableNode = Node(
+    "DeleteVariable",
+    [
+        Field("error", None, delete_variable_info),
     ],
 )
 
@@ -1111,6 +1134,33 @@ async def delete_value(ctx: dict, options: dict) -> DeleteValueResult:
     return DeleteValueResult(None)
 
 
+@pass_context
+async def delete_variable(ctx: dict, options: dict) -> DeleteVariableResult:
+    async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
+        is_variable_checks_exists = await exec_scalar(
+            ctx[GraphContext.DB_ENGINE],
+            (
+                select([Check.id])
+                .where(Check.variable == UUID(options["id"]))
+                .limit(1)
+            ),
+        )
+        if is_variable_checks_exists:
+            return DeleteVariableResult(
+                "Cannot delete Variable which uses in Conditions."
+            )
+
+        try:
+            await actions.delete_variable(
+                options["id"],
+                conn=conn,
+            )
+        except Exception as e:
+            return DeleteVariableResult(str(e))
+
+    return DeleteVariableResult(None)
+
+
 mutation_data_types = {
     "SaveFlagOperation": Record[{"type": String, "payload": Any}],
     "SaveValueOperation": Record[{"type": String, "payload": Any}],
@@ -1127,6 +1177,7 @@ MUTATION_GRAPH = Graph(
         ResetValueNode,
         DeleteFlagNode,
         DeleteValueNode,
+        DeleteVariableNode,
         Root(
             [
                 Link(
@@ -1188,6 +1239,13 @@ MUTATION_GRAPH = Graph(
                     "deleteValue",
                     TypeRef["DeleteValue"],
                     delete_value,
+                    options=[Option("id", String)],
+                    requires=None,
+                ),
+                Link(
+                    "deleteVariable",
+                    TypeRef["DeleteVariable"],
+                    delete_variable,
                     options=[Option("id", String)],
                     requires=None,
                 ),

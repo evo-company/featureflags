@@ -7,7 +7,6 @@ export const useProjectsMap = () => {
   return project;
 }
 
-
 export const FlagContext = createContext({});
 export const useFlagState = () => {
   const { state } = useContext(FlagContext);

@@ -484,3 +484,18 @@ async def update_value_changelog(
                     }
                 )
             )
+
+
+@auth_required
+@track
+async def delete_variable(
+    variable_id: str, *, conn: SAConnection,
+) -> None:
+    assert variable_id, "Variable id is required"
+
+    variable_uuid = UUID(hex=variable_id)
+    await conn.execute(
+        Variable.__table__.delete().where(
+            Variable.id == variable_uuid
+        )
+    )

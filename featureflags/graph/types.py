@@ -202,3 +202,7 @@ class ResetValueResult(NamedTuple):
 
 class DeleteValueResult(NamedTuple):
     error: str | None = None
+
+
+class DeleteVariableResult(NamedTuple):
+    error: str | None = None

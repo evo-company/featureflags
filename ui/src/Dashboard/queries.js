@@ -152,6 +152,14 @@ export const DELETE_VALUE_MUTATION = gql`
   }
 `;
 
+export const DELETE_VARIABLE_MUTATION = gql`
+  mutation DeleteVariable($id: String!) {
+    deleteVariable(id: $id) {
+      error
+    }
+  }
+`;
+
 export const VALUE_QUERY = gql`
   ${VALUE_FRAGMENT}
   query Value($id: String!) {
