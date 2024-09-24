@@ -87,6 +87,7 @@ const DeleteVariable = ({ varName, varId }) => {
         message.error(data.deleteVariable.error);
       } else {
         message.success(`Variable "${varName}" removed successfully`);
+        // TODO: drop variable from ProjectsMapContext too
       }
     },
     onError: (error) => {
