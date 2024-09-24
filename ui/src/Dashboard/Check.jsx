@@ -7,17 +7,15 @@ import {
   Row,
   Space,
   Select,
+  message,
 } from 'antd';
-import {
-  MinusOutlined,
-} from '@ant-design/icons';
+import { CloseOutlined, MinusOutlined } from '@ant-design/icons';
 
 import './Check.less';
 import { Operators, TYPES, Type } from './constants';
-import {
-  useChecks,
-  useProjectsMap,
-} from './context';
+import { useMutation } from '@apollo/client';
+import { useChecks, useProjectsMap } from './context';
+import { DELETE_VARIABLE_MUTATION } from "./queries";
 
 const { Option } = Select;
 
@@ -81,6 +79,39 @@ const CheckInput = ({ conditionId, check, projectName }) => {
   />;
 }
 
+const DeleteVariable = ({ varName, varId }) => {
+  const [removeValue] = useMutation(DELETE_VARIABLE_MUTATION, {
+    variables: { id: varId },
+    onCompleted: (data) => {
+      if (data.deleteVariable && data.deleteVariable.error) {
+        message.error(data.deleteVariable.error);
+      } else {
+        message.success(`Variable "${varName}" removed successfully`);
+        // TODO: drop variable from ProjectsMapContext too
+      }
+    },
+    onError: (error) => {
+      message.error(`Error removing variable "${varName}": ${error.message}`);
+    }
+  });
+
+  const handleRemove = () => {
+    if (confirm(`Are you sure to delete "${varName}" variable from project?`)) {
+      removeValue();
+    }
+  };
+
+  return (
+    <CloseOutlined
+      onClick={(e) => {
+        e.stopPropagation();
+        handleRemove();
+      }}
+      style={{ cursor: 'pointer' }}
+    />
+  );
+};
+
 export const Check = ({ conditionId, check, onDeleteCheck, projectName }) => {
   const projectsMap = useProjectsMap();
   const project = projectsMap[projectName];
@@ -116,8 +147,17 @@ export const Check = ({ conditionId, check, onDeleteCheck, projectName }) => {
             onChange={onVariableOptionChange}
           >
             {project.variables.map((variable) => (
-              <Option key={variable.id}
-                      value={variable.id}>{variable.name}</Option>
+              <Option key={variable.id} value={variable.id}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>{variable.name}</span>
+                   {check.variable !== variable.id && (
+                      <DeleteVariable
+                        varId={variable.id}
+                        varName={variable.name}
+                      />
+                    )}
+                </div>
+              </Option>
             ))}
           </Select>
           <Select
