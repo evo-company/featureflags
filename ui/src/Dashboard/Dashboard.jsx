@@ -23,7 +23,7 @@ import { Base } from '../Base';
 import { CenteredSpinner } from '../components/Spinner';
 import { FlagsContainer } from './Flags';
 import { ValuesContainer } from './Values';
-import { SettingsContainer } from "./Settings";
+import { SettingsContainer } from './Settings';
 
 import { PROJECTS_QUERY } from './queries';
 
