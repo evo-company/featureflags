@@ -23,6 +23,7 @@ import { Base } from '../Base';
 import { CenteredSpinner } from '../components/Spinner';
 import { FlagsContainer } from './Flags';
 import { ValuesContainer } from './Values';
+import { SettingsContainer } from "./Settings";
 
 import { PROJECTS_QUERY } from './queries';
 
@@ -50,7 +51,7 @@ function Dashboard({ projects }) {
   const navigate = useNavigate();
   const queryParams = new URLSearchParams(location.search);
   const projectFromQuery = queryParams.get('project');
-  const tab = queryParams.get('tab');
+  const tab = queryParams.get('tab') || 'flags';
   const searchTerm = queryParams.get('term');
 
   const [menuItems, setMenuItems] = useState([]);
@@ -151,21 +152,40 @@ function Dashboard({ projects }) {
               minHeight: 360,
             }}
           >
-            {
-              tab === "values" ? (
-                  !!selected || !!searchTerm ? (
-                      <ValuesContainer projectName={!!selected ? projectsMap[selected].name : null} searchTerm={searchTerm} projectsMap={projectsMap} />
-                  ) : (
-                      <div>No Values</div>
-                  )
-              ) : (
-                  !!selected || !!searchTerm ? (
-                      <FlagsContainer projectName={!!selected ? projectsMap[selected].name : null} searchTerm={searchTerm} projectsMap={projectsMap} />
-                  ) : (
-                      <div>No Flags</div>
-                  )
-              )
-          }
+            {(() => {
+              if (tab === "values") {
+                return !!selected || !!searchTerm ? (
+                  <ValuesContainer
+                    projectName={!!selected ? projectsMap[selected]?.name : null}
+                    searchTerm={searchTerm}
+                    projectsMap={projectsMap}
+                  />
+                ) : (
+                  <div>No Values</div>
+                );
+              } else if (tab === "flags") {
+                return !!selected || !!searchTerm ? (
+                  <FlagsContainer
+                    projectName={!!selected ? projectsMap[selected]?.name : null}
+                    searchTerm={searchTerm}
+                    projectsMap={projectsMap}
+                  />
+                ) : (
+                  <div>No Flags</div>
+                );
+              } else if (tab === "settings") {
+                return !!selected || !!searchTerm ? (
+                  <SettingsContainer
+                    projectName={!!selected ? projectsMap[selected]?.name : null}
+                    projectsMap={projectsMap}
+                  />
+                ) : (
+                  <div>No Settings</div>
+                );
+              } else {
+                return <div>Invalid Tab</div>;
+              }
+            })()}
           </div>
         </Content>
       </Layout>

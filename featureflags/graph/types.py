@@ -206,3 +206,7 @@ class DeleteValueResult(NamedTuple):
 
 class DeleteVariableResult(NamedTuple):
     error: str | None = None
+
+
+class DeleteProjectResult(NamedTuple):
+    error: str | None = None

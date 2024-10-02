@@ -16,11 +16,16 @@ import { CenteredSpinner } from '../components/Spinner';
 import { ProjectsMapContext } from './context';
 import { VALUES_QUERY } from './queries';
 import { Value } from './Value';
+import { HeaderTabs } from "./Tabs";
 
 const getShowAllMatches = (count, searchText) => ({
   label: `Show all matches(${count})`,
   value: searchText
 });
+
+function getValueKey(value) {
+  return `${value.name}_${value.project.name}`
+}
 
 const Values = ({ values, isSearch }) => {
   const location = useLocation();
@@ -49,12 +54,15 @@ const Values = ({ values, isSearch }) => {
   }, [valueFromQuery]);
 
   const valuesMap = useMemo(() => values.reduce((acc, value) => {
-    acc[value.name] = value;
+    acc[getValueKey(value)] = value;
     return acc;
   }, {}), [values]);
 
   if (!values.length) {
-    return <div>No values</div>;
+    return <div>
+      <HeaderTabs />
+      No values
+    </div>;
   }
 
   const listData = values
@@ -64,7 +72,7 @@ const Values = ({ values, isSearch }) => {
     .map((value) => {
       return {
         title: value.name,
-        key: value.name,
+        key: getValueKey(value),
       };
     });
 
@@ -108,6 +116,7 @@ const Values = ({ values, isSearch }) => {
         padding: '0 16px',
       }}
     >
+      <HeaderTabs />
       {!isSearch && (
         <AutoComplete
           className='search-values'
