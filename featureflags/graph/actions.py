@@ -489,13 +489,43 @@ async def update_value_changelog(
 @auth_required
 @track
 async def delete_variable(
-    variable_id: str, *, conn: SAConnection,
+    variable_id: str,
+    *,
+    conn: SAConnection,
 ) -> None:
     assert variable_id, "Variable id is required"
 
     variable_uuid = UUID(hex=variable_id)
     await conn.execute(
-        Variable.__table__.delete().where(
-            Variable.id == variable_uuid
+        Variable.__table__.delete().where(Variable.id == variable_uuid)
+    )
+
+
+@auth_required
+@track
+async def delete_project(
+    project_id: str,
+    *,
+    conn: SAConnection,
+) -> None:
+    assert project_id, "Project id is required"
+
+    project_uuid = UUID(hex=project_id)
+
+    variables = await conn.execute(
+        select([Variable.id]).where(Project.id == project_uuid)
+    )
+    variable_ids = [v.id for v in await variables.fetchall()]
+
+    if variable_ids:
+        await conn.execute(
+            Check.__table__.delete().where(Check.variable.in_(variable_ids))
         )
+
+    await conn.execute(
+        Variable.__table__.delete().where(Variable.project == project_uuid)
+    )
+
+    await conn.execute(
+        Project.__table__.delete().where(Project.id == project_uuid)
     )

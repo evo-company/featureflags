@@ -16,11 +16,16 @@ import { CenteredSpinner } from '../components/Spinner';
 import { ProjectsMapContext } from './context';
 import { FLAGS_QUERY } from './queries';
 import { Flag } from './Flag';
+import { HeaderTabs } from "./Tabs";
 
 const getShowAllMatches = (count, searchText) => ({
   label: `Show all matches(${count})`,
   value: searchText
 });
+
+function getFlagKey(flag) {
+  return `${flag.name}_${flag.project.name}`
+}
 
 const Flags = ({ flags, isSearch }) => {
   const location = useLocation();
@@ -49,12 +54,15 @@ const Flags = ({ flags, isSearch }) => {
   }, [flagFromQuery]);
 
   const flagsMap = useMemo(() => flags.reduce((acc, flag) => {
-    acc[flag.name] = flag;
+    acc[getFlagKey(flag)] = flag;
     return acc;
   }, {}), [flags]);
 
   if (!flags.length) {
-    return <div>No flags</div>;
+    return <div>
+      <HeaderTabs />
+      No flags
+    </div>;
   }
 
   const listData = flags
@@ -64,7 +72,7 @@ const Flags = ({ flags, isSearch }) => {
     .map((flag) => {
       return {
         title: flag.name,
-        key: flag.name,
+        key: getFlagKey(flag),
       };
     });
 
@@ -108,6 +116,7 @@ const Flags = ({ flags, isSearch }) => {
         padding: '0 16px',
       }}
     >
+      <HeaderTabs />
       {!isSearch && (
         <AutoComplete
           className='search-flags'

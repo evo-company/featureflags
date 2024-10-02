@@ -23,12 +23,7 @@ function Base({ children }) {
 
   const navigate = useNavigate();
   const queryParams = new URLSearchParams(location.search);
-  const tab = queryParams.get('tab') || "flags";
-
-  const setTabToUrl = (name) => {
-    queryParams.set('tab', name);
-    navigate(`/?${queryParams.toString()}`);
-  }
+  const tab = queryParams.get('tab') === 'values' ? 'values' : 'flags';
 
   const handleSearchTermChange = (e) => {
     const value = e.target.value;
@@ -43,6 +38,7 @@ function Base({ children }) {
   const setSearchTermToUrl = (e) => {
     const value = e.target.value;
     queryParams.set('term', value);
+    queryParams.set('tab', tab);
     navigate(`/?${queryParams.toString()}`);
   };
 
@@ -79,10 +75,9 @@ function Base({ children }) {
                 >
                   FeatureFlags
                 </Link>
-
               </Space>
             </Col>
-            <Col span={4} offset={10}>
+            <Col span={4} offset={9}>
               {tab && (
                 <Input
                   ref={inputRef}
@@ -96,15 +91,7 @@ function Base({ children }) {
                 />
               )}
             </Col>
-            <Col span={6} offset={0}>
-              <Button
-                  type="link"
-                  onClick={() => setTabToUrl("flags")}
-              >Flags</Button>
-              <Button
-                  type="link"
-                  onClick={() => setTabToUrl("values")}
-              >Values</Button>
+            <Col span={4}>
               {auth.authenticated && <Button
                   type="link"
                   onClick={signOut}

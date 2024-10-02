@@ -183,3 +183,11 @@ export const VALUE_LAST_ACTION_TIMESTAMP_QUERY = gql`
     valueLastActionTimestamp(id: $id)
   }
 `;
+
+export const DELETE_PROJECT_MUTATION = gql`
+  mutation DeleteProject($id: String!) {
+    deleteProject(id: $id) {
+      error
+    }
+  }
+`;

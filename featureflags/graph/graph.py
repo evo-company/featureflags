@@ -54,6 +54,7 @@ from featureflags.graph.types import (
     SaveFlagResult,
     SaveValueResult,
     DeleteVariableResult,
+    DeleteProjectResult,
 )
 from featureflags.graph.utils import is_valid_uuid
 from featureflags.metrics import wrap_metric
@@ -170,9 +171,7 @@ async def root_values(ctx: dict, options: dict) -> list:
         )
 
     if value_name:
-        expr = (
-            expr.where(Value.name.ilike(f"%{value_name}%"))
-        )
+        expr = expr.where(Value.name.ilike(f"%{value_name}%"))
 
     return await exec_expression(ctx[GraphContext.DB_ENGINE], expr)
 
@@ -867,6 +866,28 @@ DeleteVariableNode = Node(
     ],
 )
 
+
+async def delete_project_info(
+    fields: list[Field], results: list[DeleteProjectResult]
+) -> list[list]:
+    [result] = results
+
+    def get_field(name: str) -> str | None:
+        if name == "error":
+            return result.error
+
+        raise ValueError(f"Unknown field: {name}")
+
+    return [[get_field(f.name)] for f in fields]
+
+
+DeleteProjectNode = Node(
+    "DeleteProject",
+    [
+        Field("error", None, delete_project_info),
+    ],
+)
+
 GRAPH = Graph(
     [
         ProjectNode,
@@ -1161,6 +1182,36 @@ async def delete_variable(ctx: dict, options: dict) -> DeleteVariableResult:
     return DeleteVariableResult(None)
 
 
+@pass_context
+async def delete_project(ctx: dict, options: dict) -> DeleteProjectResult:
+    async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
+        project_uuid = UUID(options["id"])
+
+        is_flags_exists = await exec_scalar(
+            ctx[GraphContext.DB_ENGINE],
+            (select([Flag.id]).where(Flag.project == project_uuid).limit(1)),
+        )
+        if is_flags_exists:
+            return DeleteProjectResult("You need delete all Flags firstly.")
+
+        is_values_exists = await exec_scalar(
+            ctx[GraphContext.DB_ENGINE],
+            (select([Value.id]).where(Value.project == project_uuid).limit(1)),
+        )
+        if is_values_exists:
+            return DeleteProjectResult("You need delete all Values firstly.")
+
+        try:
+            await actions.delete_project(
+                options["id"],
+                conn=conn,
+            )
+        except Exception as e:
+            return DeleteProjectResult(str(e))
+
+    return DeleteProjectResult(None)
+
+
 mutation_data_types = {
     "SaveFlagOperation": Record[{"type": String, "payload": Any}],
     "SaveValueOperation": Record[{"type": String, "payload": Any}],
@@ -1178,6 +1229,7 @@ MUTATION_GRAPH = Graph(
         DeleteFlagNode,
         DeleteValueNode,
         DeleteVariableNode,
+        DeleteProjectNode,
         Root(
             [
                 Link(
@@ -1246,6 +1298,13 @@ MUTATION_GRAPH = Graph(
                     "deleteVariable",
                     TypeRef["DeleteVariable"],
                     delete_variable,
+                    options=[Option("id", String)],
+                    requires=None,
+                ),
+                Link(
+                    "deleteProject",
+                    TypeRef["DeleteProject"],
+                    delete_project,
                     options=[Option("id", String)],
                     requires=None,
                 ),
