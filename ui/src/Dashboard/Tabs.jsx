@@ -19,20 +19,23 @@ const HeaderTabs = () => {
     setSearchParams(newParams);
   };
 
+  let tabs = [
+    { key: 'flags', title: 'Flags' },
+    { key: 'values', title: 'Values' },
+  ];
+
+  if (project && !searchTerm) {
+    tabs.push({ key: 'settings', title: 'Settings' });
+  }
+
   return (
     <Tabs
       activeKey={tab}
       tabPosition="top"
       onChange={onTabChange}
       className="custom-tabs"
-      tabBarStyle={{ borderBottom: 'none'}}
-    >
-      <TabPane tab={<span>Flags</span>} key="flags" />
-      <TabPane tab={<span>Values</span>} key="values" />
-      {project && !searchTerm && (
-        <TabPane tab={<span><SettingOutlined />Settings</span>} key="settings"/>
-      )}
-    </Tabs>
+      items={tabs}
+    />
   );
 }
 

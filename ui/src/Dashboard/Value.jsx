@@ -102,19 +102,19 @@ const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle, onValueOverrid
           <Button onClick={onSave} type="primary" disabled={!dirty}>
             apply
           </Button>
-          <CancelButton onClick={onCancel} disabled={!dirty}/>
-          <DeleteButton onClick={onDelete}/>
+          <CancelButton onClick={onCancel} disabled={!dirty} />
+          <DeleteButton onClick={onDelete} />
         </Space>
       </Col>
       <Col span={8} offset={16} style={{ marginTop: 20 }}>
         <Space size={0}>
           <div>Current value</div>
           <Input
-              value={value_override}
-              disabled={!enabled}
-              size={"middle"}
-              style={{ width: 165 }}
-              onChange={onValueOverrideChange}
+            value={value_override}
+            disabled={!enabled}
+            size={"middle"}
+            style={{ width: 165 }}
+            onChange={onValueOverrideChange}
           />
         </Space>
       </Col>
@@ -123,12 +123,12 @@ const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle, onValueOverrid
 }
 
 const ValueTitle = ({ isSearch, projectName, name, valueId, createdTimestamp, reportedTimestamp }) => {
-  const [ isModalVisible, setIsModalVisible ] = useState(false);
-  const [ valueHistory, setValueHistory ] = useState({
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [valueHistory, setValueHistory] = useState({
     lastAction: 'Loading...',
   });
 
-  const [ loadLastActionTimestamp ] = useLazyQuery(VALUE_LAST_ACTION_TIMESTAMP_QUERY, {
+  const [loadLastActionTimestamp] = useLazyQuery(VALUE_LAST_ACTION_TIMESTAMP_QUERY, {
     fetchPolicy: "network-only",
     variables: { id: valueId },
     onCompleted: (data) => {
@@ -161,7 +161,7 @@ const ValueTitle = ({ isSearch, projectName, name, valueId, createdTimestamp, re
 
   return (
     <div>
-      {isSearch ? <Tag color="volcano" size="big">{projectName}</Tag> : null }
+      {isSearch ? <Tag color="volcano" size="big">{projectName}</Tag> : null}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div
           className='value-name'
@@ -177,7 +177,7 @@ const ValueTitle = ({ isSearch, projectName, name, valueId, createdTimestamp, re
         </Button>
         <Modal
           title="Value History"
-          visible={isModalVisible}
+          open={isModalVisible}
           onOk={handleOk}
           onCancel={handleOk}
           footer={[
@@ -494,12 +494,12 @@ export const Value = ({ value, isSearch }) => {
       size="small"
       className={saveValueFailed ? 'invalid' : ''}
       title={<ValueTitle
-          isSearch={isSearch}
-          projectName={value.project.name}
-          name={value.name}
-          valueId={value.id}
-          createdTimestamp={value.created_timestamp}
-          reportedTimestamp={value.reported_timestamp}
+        isSearch={isSearch}
+        projectName={value.project.name}
+        name={value.name}
+        valueId={value.id}
+        createdTimestamp={value.created_timestamp}
+        reportedTimestamp={value.reported_timestamp}
       />}
       style={{ width: 800, borderRadius: '5px' }}
     >
@@ -517,7 +517,7 @@ export const Value = ({ value, isSearch }) => {
           onDelete={deleteValue}
           onValueOverrideChange={valueOverrideState}
         />
-        <Divider style={{ margin: '10px 0' }}/>
+        <Divider style={{ margin: '10px 0' }} />
         <ValueConditions />
       </ValueContext.Provider>
     </Card>

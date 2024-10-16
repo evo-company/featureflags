@@ -101,8 +101,8 @@ const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle }) => {
           <Button onClick={onSave} type="primary" disabled={!dirty}>
             apply
           </Button>
-          <CancelButton onClick={onCancel} disabled={!dirty}/>
-          <DeleteButton onClick={onDelete}/>
+          <CancelButton onClick={onCancel} disabled={!dirty} />
+          <DeleteButton onClick={onDelete} />
         </Space>
       </Col>
     </Row>
@@ -110,12 +110,12 @@ const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle }) => {
 }
 
 const FlagTitle = ({ isSearch, projectName, name, flagId, createdTimestamp, reportedTimestamp }) => {
-  const [ isModalVisible, setIsModalVisible ] = useState(false);
-  const [ flagHistory, setFlagHistory ] = useState({
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [flagHistory, setFlagHistory] = useState({
     lastAction: "Loading...",
   });
 
-  const [ loadLastActionTimestamp ] = useLazyQuery(FLAG_LAST_ACTION_TIMESTAMP_QUERY, {
+  const [loadLastActionTimestamp] = useLazyQuery(FLAG_LAST_ACTION_TIMESTAMP_QUERY, {
     fetchPolicy: "network-only",
     variables: { id: flagId },
     onCompleted: (data) => {
@@ -148,7 +148,7 @@ const FlagTitle = ({ isSearch, projectName, name, flagId, createdTimestamp, repo
 
   return (
     <div>
-      {isSearch ? <Tag color="volcano" size="big">{projectName}</Tag> : null }
+      {isSearch ? <Tag color="volcano" size="big">{projectName}</Tag> : null}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div
           className='flag-name'
@@ -164,7 +164,7 @@ const FlagTitle = ({ isSearch, projectName, name, flagId, createdTimestamp, repo
         </Button>
         <Modal
           title="Flag History"
-          visible={isModalVisible}
+          open={isModalVisible}
           onOk={handleOk}
           onCancel={handleOk}
           footer={[
@@ -467,12 +467,12 @@ export const Flag = ({ flag, isSearch }) => {
       size="small"
       className={saveFlagFailed ? 'invalid' : ''}
       title={<FlagTitle
-          isSearch={isSearch}
-          projectName={flag.project.name}
-          name={flag.name}
-          flagId={flag.id}
-          createdTimestamp={flag.created_timestamp}
-          reportedTimestamp={flag.reported_timestamp}
+        isSearch={isSearch}
+        projectName={flag.project.name}
+        name={flag.name}
+        flagId={flag.id}
+        createdTimestamp={flag.created_timestamp}
+        reportedTimestamp={flag.reported_timestamp}
       />}
       style={{ width: 800, borderRadius: '5px' }}
     >
@@ -489,8 +489,8 @@ export const Flag = ({ flag, isSearch }) => {
           )}
           onDelete={deleteFlag}
         />
-        <Divider style={{ margin: '10px 0' }}/>
-        <Conditions/>
+        <Divider style={{ margin: '10px 0' }} />
+        <Conditions />
       </FlagContext.Provider>
     </Card>
   );
