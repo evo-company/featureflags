@@ -2,9 +2,6 @@ import React from 'react';
 import { Tabs } from 'antd';
 import { SettingOutlined } from '@ant-design/icons';
 import { useSearchParams } from 'react-router-dom';
-import './Tabs.less';
-
-const { TabPane } = Tabs;
 
 const HeaderTabs = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -20,12 +17,12 @@ const HeaderTabs = () => {
   };
 
   let tabs = [
-    { key: 'flags', title: 'Flags' },
-    { key: 'values', title: 'Values' },
+    { key: 'flags', label: 'Flags' },
+    { key: 'values', label: 'Values' },
   ];
 
   if (project && !searchTerm) {
-    tabs.push({ key: 'settings', title: 'Settings' });
+    tabs.push({ key: 'settings', label: 'Settings', icon: <SettingOutlined /> });
   }
 
   return (
@@ -33,7 +30,6 @@ const HeaderTabs = () => {
       activeKey={tab}
       tabPosition="top"
       onChange={onTabChange}
-      className="custom-tabs"
       items={tabs}
     />
   );

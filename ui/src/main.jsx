@@ -13,7 +13,7 @@ import {
 
 import { Dashboard } from './Dashboard'
 import { Auth } from './Auth'
-import { AuthProvider} from './context/auth';
+import { AuthProvider } from './context/auth';
 
 const client = new ApolloClient({
   uri: '/graphql',

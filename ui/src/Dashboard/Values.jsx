@@ -4,8 +4,10 @@ import { useMemo, useState, useEffect } from 'react';
 
 import {
   AutoComplete,
-  Input,
   List,
+  Input,
+  Empty,
+  Typography,
 } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useQuery } from '@apollo/client';
@@ -27,6 +29,21 @@ function getValueKey(value) {
   return `${value.name}_${value.project.name}`
 }
 
+const View = ({ children }) => {
+  return (
+    <div
+      style={{
+        height: '90vh',
+        overflow: 'auto',
+        padding: '0 16px',
+      }}
+    >
+      <HeaderTabs />
+      {children}
+    </div>
+  );
+};
+
 const Values = ({ values, isSearch }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -39,9 +56,9 @@ const Values = ({ values, isSearch }) => {
 
   const setValueToUrl = (value) => {
     if (!value) {
-        queryParams.delete('value');
+      queryParams.delete('value');
     } else {
-        queryParams.set('value', value);
+      queryParams.set('value', value);
     }
     navigate(`/?${queryParams.toString()}`);
   }
@@ -59,10 +76,11 @@ const Values = ({ values, isSearch }) => {
   }, {}), [values]);
 
   if (!values.length) {
-    return <div>
-      <HeaderTabs />
-      No values
-    </div>;
+    return <View>
+      <Typography.Text style={{ color: "#7D7D91" }}>
+        No values
+      </Typography.Text>
+    </View>;
   }
 
   const listData = values
@@ -109,14 +127,7 @@ const Values = ({ values, isSearch }) => {
   }
 
   return (
-    <div
-      style={{
-        height: '90vh',
-        overflow: 'auto',
-        padding: '0 16px',
-      }}
-    >
-      <HeaderTabs />
+    <View>
       {!isSearch && (
         <AutoComplete
           className='search-values'
@@ -127,7 +138,7 @@ const Values = ({ values, isSearch }) => {
           defaultValue={valueFromQuery ? valueFromQuery : null}
         >
           <Input
-            prefix={<SearchOutlined/>}
+            prefix={<SearchOutlined />}
             size="middle"
             allowClear
             placeholder="Filter values"
@@ -144,7 +155,7 @@ const Values = ({ values, isSearch }) => {
           </List.Item>
         )}
       />
-    </div>
+    </View>
   );
 };
 
@@ -157,7 +168,7 @@ export const ValuesContainer = ({ projectName, searchTerm, projectsMap }) => {
     },
   });
   if (loading) {
-    return <CenteredSpinner/>;
+    return <CenteredSpinner />;
   }
 
   const _projectsMap = Object.keys(projectsMap).reduce((acc, key) => {

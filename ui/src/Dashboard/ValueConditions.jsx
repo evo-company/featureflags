@@ -77,10 +77,10 @@ export const ValueConditions = () => {
             />
           )
         })}
-        <Button onClick={addCondition} type="dashed" style={{ width: 780 }}>
-            {noConditions
-              ? 'add condition'
-              : <span><PlusOutlined /> or</span>}
+        <Button onClick={addCondition} type="dashed" style={{ width: 775 }}>
+          {noConditions
+            ? 'add condition'
+            : <span><PlusOutlined /> or</span>}
         </Button>
       </Col>
     </Row>

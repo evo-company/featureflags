@@ -9,7 +9,7 @@ import {
   Button,
   Card,
   Col,
-  Row,
+  Flex,
   Space,
   Switch,
   Divider,
@@ -17,10 +17,12 @@ import {
   message,
   Modal,
   Tag,
+  Timeline,
 } from 'antd';
 import { useEffect, useState } from 'react';
 import {
   CopyOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
 
 import './Flag.less';
@@ -34,7 +36,7 @@ import { Conditions } from './Conditions';
 import { TYPES, KIND_TO_TYPE, KIND, TYPE_TO_KIND } from './constants';
 import { useActions } from './actions';
 import { copyToClipboard, formatTimestamp, replaceValueInArray } from './utils';
-import { useLazyQuery } from "@apollo/client";
+import { useQuery } from "@apollo/client";
 import { FLAG_LAST_ACTION_TIMESTAMP_QUERY } from "./queries";
 
 
@@ -77,74 +79,101 @@ const DeleteButton = ({ onClick }) => {
   );
 }
 
-const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle }) => {
+const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle, onHistory }) => {
   const { dirty, overridden, enabled } = useFlagState();
   return (
-    <Row align='middle'>
-      <Col span={3}>
-        <Switch
-          onChange={onToggle}
-          checkedChildren="ON"
-          unCheckedChildren="OFF"
-          checked={enabled}
-        />
-      </Col>
-      <Col span={4}>
-        {overridden ?
-          <span style={{ color: 'green' }}>overriden</span> : 'default'}
-      </Col>
-      <Col span={6} offset={8}>
-        <Space size={2}>
-          <ResetButton onClick={onReset} disabled={!overridden}>
-            reset
-          </ResetButton>
-          <Button onClick={onSave} type="primary" disabled={!dirty}>
-            apply
-          </Button>
-          <CancelButton onClick={onCancel} disabled={!dirty} />
-          <DeleteButton onClick={onDelete} />
-        </Space>
-      </Col>
-    </Row>
+    <Flex gap="middle" direction='horizontal' justify='space-between'>
+      <Space>
+        <Col span={3}>
+          <Switch
+            onChange={onToggle}
+            checkedChildren="ON"
+            unCheckedChildren="OFF"
+            checked={enabled}
+          />
+        </Col>
+        <Col span={4}>
+          {overridden ?
+            <span style={{ color: 'green' }}>overriden</span> : 'default'}
+        </Col>
+      </Space>
+      <Space size={2}>
+        <Button onClick={onHistory}>
+          <HistoryOutlined />
+        </Button>
+        <ResetButton onClick={onReset} disabled={!overridden}>
+          reset
+        </ResetButton>
+        <Button onClick={onSave} type="primary" disabled={!dirty}>
+          apply
+        </Button>
+        <CancelButton onClick={onCancel} disabled={!dirty} />
+        <DeleteButton onClick={onDelete} />
+      </Space>
+    </Flex>
   );
 }
 
-const FlagTitle = ({ isSearch, projectName, name, flagId, createdTimestamp, reportedTimestamp }) => {
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [flagHistory, setFlagHistory] = useState({
-    lastAction: "Loading...",
-  });
 
-  const [loadLastActionTimestamp] = useLazyQuery(FLAG_LAST_ACTION_TIMESTAMP_QUERY, {
+const TimestampRow = ({ label, timestamp }) => (
+  <span>
+    {label}: <b style={{ color: 'green' }}>{formatTimestamp(timestamp)}</b>
+  </span>
+);
+
+const HistoryModal = ({ flagId, open, onClose, createdTimestamp, reportedTimestamp }) => {
+  const { data, loading } = useQuery(FLAG_LAST_ACTION_TIMESTAMP_QUERY, {
     fetchPolicy: "network-only",
     variables: { id: flagId },
-    onCompleted: (data) => {
-      setFlagHistory({ lastAction: `${data?.flagLastActionTimestamp || "N/A"}` });
-    },
     onError: () => {
       message.error("Error fetching last action");
-      setFlagHistory({ lastAction: "N/A", });
     },
   });
 
-  const getFlagHistory = () => {
-    loadLastActionTimestamp();
-    setIsModalVisible(true);
+  if (loading || !data) {
+    return <p>Loading...</p>;
   };
 
-  const handleOk = () => {
-    setIsModalVisible(false);
-  };
+  const { flagLastActionTimestamp: lastActionTimestamp } = data;
 
+  const history = [];
+
+  if (lastActionTimestamp) {
+    history.push({
+      children: `Last change at ${formatTimestamp(lastActionTimestamp)}`,
+    });
+  }
+
+  return (
+    <Modal
+      title="Flag History"
+      open={open}
+      onOk={onClose}
+      onCancel={onClose}
+      footer={[
+        <Button key="ok" type="primary" onClick={onClose}>
+          OK
+        </Button>,
+      ]}
+    >
+      <Space size="large" direction="vertical">
+        <Space size="small" direction="vertical">
+          <TimestampRow label="Created" timestamp={createdTimestamp} />
+          <TimestampRow label="Last Reported" timestamp={reportedTimestamp} />
+        </Space>
+
+        <Timeline
+          items={history}
+        />
+      </Space>
+    </Modal>
+  );
+}
+
+const FlagTitle = ({ isSearch, projectName, name }) => {
   const copyFlag = () => {
     copyToClipboard(name, `Flag ${name} copied to clipboard`);
   }
-
-  const TimestampRow = ({ label, timestamp }) => (
-    <p>
-      {label}: <b style={{ color: 'green' }}>{formatTimestamp(timestamp)}</b>
-    </p>
-  );
 
   return (
     <div>
@@ -159,24 +188,6 @@ const FlagTitle = ({ isSearch, projectName, name, flagId, createdTimestamp, repo
             {name}
           </Space>
         </div>
-        <Button onClick={getFlagHistory}>
-          HISTORY
-        </Button>
-        <Modal
-          title="Flag History"
-          open={isModalVisible}
-          onOk={handleOk}
-          onCancel={handleOk}
-          footer={[
-            <Button key="ok" type="primary" onClick={handleOk}>
-              OK
-            </Button>,
-          ]}
-        >
-          <TimestampRow label="Created" timestamp={createdTimestamp} />
-          <TimestampRow label="Last Reported" timestamp={reportedTimestamp} />
-          <TimestampRow label="Last Action" timestamp={flagHistory.lastAction} />
-        </Modal>
       </div>
     </div>
   )
@@ -247,6 +258,8 @@ export const Flag = ({ flag, isSearch }) => {
     setConditions(getInitialConditions(flag));
     setChecks(getInitialChecks(flag, project));
   }, [flag]);
+
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
 
   const updateFlag = (opts, cb = null) => {
     const data = typeof opts === 'function' ? opts(flagState) : opts;
@@ -470,13 +483,17 @@ export const Flag = ({ flag, isSearch }) => {
         isSearch={isSearch}
         projectName={flag.project.name}
         name={flag.name}
-        flagId={flag.id}
-        createdTimestamp={flag.created_timestamp}
-        reportedTimestamp={flag.reported_timestamp}
       />}
       style={{ width: 800, borderRadius: '5px' }}
     >
       <FlagContext.Provider value={ctx}>
+        <HistoryModal
+          flagId={flag.id}
+          open={historyModalOpen}
+          createdTimestamp={flag.created_timestamp}
+          reportedTimestamp={flag.reported_timestamp}
+          onClose={() => setHistoryModalOpen(false)}
+        />
         <Buttons
           onToggle={toggleEnabled}
           onReset={resetFlag}
@@ -488,6 +505,7 @@ export const Flag = ({ flag, isSearch }) => {
             project
           )}
           onDelete={deleteFlag}
+          onHistory={() => setHistoryModalOpen(true)}
         />
         <Divider style={{ margin: '10px 0' }} />
         <Conditions />

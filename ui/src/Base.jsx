@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Layout, Typography, Space, Button, Row, Col, Input } from 'antd';
+import { Layout, Typography, Space, Button, Flex, Input } from 'antd';
 const { Header } = Layout;
 const { Link } = Typography;
 
@@ -13,7 +13,7 @@ import { SearchOutlined } from "@ant-design/icons";
 
 function Base({ children }) {
   const location = useLocation();
-  const {auth, loading} = useAuth();
+  const { auth, loading } = useAuth();
   const [signOut] = useSignOut();
   const [inputValue, setInputValue] = useState('');
 
@@ -59,48 +59,52 @@ function Base({ children }) {
 
   return (
     <Layout
-        style={{
-          minHeight: '100vh',
-        }}
-      >
-        <Header className='header'>
-          <Row>
-            <Col span={4}>
-              <Space align='baseline'>
-                <Logo/>
-                <Link
-                  style={{ 'color': '#fff' }}
-                  className="title"
-                  href="/"
-                >
-                  FeatureFlags
-                </Link>
-              </Space>
-            </Col>
-            <Col span={4} offset={9}>
-              {tab && (
-                <Input
-                  ref={inputRef}
-                  prefix={<SearchOutlined/>}
-                  value={inputValue || queryParams.get('term')}
-                  size="middle"
-                  allowClear
-                  placeholder={`${tab} global search`}
-                  onChange={handleSearchTermChange}
-                  onPressEnter={setSearchTermToUrl}
-                />
-              )}
-            </Col>
-            <Col span={4}>
-              {auth.authenticated && <Button
-                  type="link"
-                  onClick={signOut}
-                >Sign out</Button>}
-            </Col>
-          </Row>
-        </Header>
+      style={{
+        minHeight: '100vh',
+      }}
+    >
+      <Header className='header'>
+        <Flex gap="middle" direction='horizontal' justify='space-between'>
+          <Typography.Title
+            style={{
+              color: "#fff",
+              fontSize: "20px",
+            }}
+          >
+            <Space align='center'>
+              <Logo />
+              <Link
+                style={{ 'color': '#fff' }}
+                className="title"
+                href="/"
+              >
+                FeatureFlags
+              </Link>
+            </Space>
+          </Typography.Title>
+          <Space>
+            {tab && (
+              <Input
+                ref={inputRef}
+                prefix={<SearchOutlined />}
+                value={inputValue || queryParams.get('term')}
+                size="middle"
+                allowClear
+                placeholder={`${tab} global search`}
+                onChange={handleSearchTermChange}
+                onPressEnter={setSearchTermToUrl}
+                style={{ width: '400px' }}
+              />
+            )}
+            {auth.authenticated && <Button
+              type="link"
+              onClick={signOut}
+            >Sign out</Button>}
+          </Space>
+        </Flex>
+      </Header>
       {loading ? <CenteredSpinner /> : children}
-    </Layout>
+    </Layout >
   )
 }
 
