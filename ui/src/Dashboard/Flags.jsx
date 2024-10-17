@@ -4,8 +4,9 @@ import { useMemo, useState, useEffect } from 'react';
 
 import {
   AutoComplete,
-  Input,
   List,
+  Input,
+  Typography,
 } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useQuery } from '@apollo/client';
@@ -27,6 +28,22 @@ function getFlagKey(flag) {
   return `${flag.name}_${flag.project.name}`
 }
 
+const View = ({ children }) => {
+  return (
+    <div
+      style={{
+        height: '90vh',
+        overflow: 'auto',
+        padding: '0 16px',
+      }}
+    >
+      <HeaderTabs />
+      {children}
+    </div>
+  );
+};
+
+
 const Flags = ({ flags, isSearch }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -39,9 +56,9 @@ const Flags = ({ flags, isSearch }) => {
 
   const setFlagToUrl = (flag) => {
     if (!flag) {
-        queryParams.delete('flag');
+      queryParams.delete('flag');
     } else {
-        queryParams.set('flag', flag);
+      queryParams.set('flag', flag);
     }
     navigate(`/?${queryParams.toString()}`);
   }
@@ -59,10 +76,11 @@ const Flags = ({ flags, isSearch }) => {
   }, {}), [flags]);
 
   if (!flags.length) {
-    return <div>
-      <HeaderTabs />
-      No flags
-    </div>;
+    return <View>
+      <Typography.Text style={{ color: "#7D7D91" }}>
+        No flags
+      </Typography.Text>
+    </View>;
   }
 
   const listData = flags
@@ -109,14 +127,7 @@ const Flags = ({ flags, isSearch }) => {
   }
 
   return (
-    <div
-      style={{
-        height: '90vh',
-        overflow: 'auto',
-        padding: '0 16px',
-      }}
-    >
-      <HeaderTabs />
+    <View>
       {!isSearch && (
         <AutoComplete
           className='search-flags'
@@ -127,7 +138,7 @@ const Flags = ({ flags, isSearch }) => {
           defaultValue={flagFromQuery ? flagFromQuery : null}
         >
           <Input
-            prefix={<SearchOutlined/>}
+            prefix={<SearchOutlined />}
             size="middle"
             allowClear
             placeholder="Filter flags"
@@ -144,7 +155,7 @@ const Flags = ({ flags, isSearch }) => {
           </List.Item>
         )}
       />
-    </div>
+    </View>
   );
 };
 
@@ -157,7 +168,7 @@ export const FlagsContainer = ({ projectName, searchTerm, projectsMap }) => {
     },
   });
   if (loading) {
-    return <CenteredSpinner/>;
+    return <CenteredSpinner />;
   }
 
   const _projectsMap = Object.keys(projectsMap).reduce((acc, key) => {

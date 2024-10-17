@@ -9,7 +9,7 @@ import {
   Button,
   Card,
   Col,
-  Row,
+  Flex,
   Space,
   Switch,
   Divider,
@@ -18,10 +18,12 @@ import {
   Input,
   Modal,
   Tag,
+  Timeline,
 } from 'antd';
 import { useEffect, useState } from 'react';
 import {
   CopyOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
 
 import './Value.less';
@@ -35,7 +37,7 @@ import { ValueConditions } from './ValueConditions';
 import { TYPES, KIND_TO_TYPE, KIND, TYPE_TO_KIND } from './constants';
 import { useValueActions } from './actions';
 import { copyToClipboard, replaceValueInArray, formatTimestamp } from './utils';
-import { useLazyQuery } from "@apollo/client";
+import { useQuery } from "@apollo/client";
 import { VALUE_LAST_ACTION_TIMESTAMP_QUERY } from "./queries";
 
 
@@ -78,90 +80,121 @@ const DeleteButton = ({ onClick }) => {
   );
 }
 
-const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle, onValueOverrideChange }) => {
-  const { dirty, overridden, enabled, value_override } = useValueState();
+const ValueInput = ({ value, enabled, onChange }) => {
   return (
-    <Row align='middle'>
-      <Col span={3}>
-        <Switch
-          onChange={onToggle}
-          checkedChildren="ON"
-          unCheckedChildren="OFF"
-          checked={enabled}
-        />
-      </Col>
-      <Col span={4}>
-        {overridden ?
-          <span style={{ color: 'green' }}>overriden</span> : 'default'}
-      </Col>
-      <Col span={6} offset={8}>
-        <Space size={2}>
-          <ResetButton onClick={onReset} disabled={!overridden}>
-            reset
-          </ResetButton>
-          <Button onClick={onSave} type="primary" disabled={!dirty}>
-            apply
-          </Button>
-          <CancelButton onClick={onCancel} disabled={!dirty}/>
-          <DeleteButton onClick={onDelete}/>
-        </Space>
-      </Col>
-      <Col span={8} offset={16} style={{ marginTop: 20 }}>
-        <Space size={0}>
-          <div>Current value</div>
-          <Input
-              value={value_override}
-              disabled={!enabled}
-              size={"middle"}
-              style={{ width: 165 }}
-              onChange={onValueOverrideChange}
-          />
-        </Space>
-      </Col>
-    </Row>
+    <Space size="small">
+      <div>Current:</div>
+      <Input
+        value={value}
+        disabled={!enabled}
+        size={"middle"}
+        style={{ width: "715px" }}
+        onChange={onChange}
+      />
+    </Space>
   );
 }
 
-const ValueTitle = ({ isSearch, projectName, name, valueId, createdTimestamp, reportedTimestamp }) => {
-  const [ isModalVisible, setIsModalVisible ] = useState(false);
-  const [ valueHistory, setValueHistory ] = useState({
-    lastAction: 'Loading...',
-  });
+const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle, onHistory }) => {
+  const { dirty, overridden, enabled } = useValueState();
+  return (
+    <Flex gap="middle" direction='horizontal' justify='space-between'>
+      <Space>
+        <Col span={3}>
+          <Switch
+            onChange={onToggle}
+            checkedChildren="ON"
+            unCheckedChildren="OFF"
+            checked={enabled}
+          />
+        </Col>
+        <Col span={4}>
+          {overridden ?
+            <span style={{ color: 'green' }}>overriden</span> : 'default'}
+        </Col>
+      </Space>
+      <Space size={2}>
+        <Button onClick={onHistory}>
+          <HistoryOutlined />
+        </Button>
+        <ResetButton onClick={onReset} disabled={!overridden}>
+          reset
+        </ResetButton>
+        <Button onClick={onSave} type="primary" disabled={!dirty}>
+          apply
+        </Button>
+        <CancelButton onClick={onCancel} disabled={!dirty} />
+        <DeleteButton onClick={onDelete} />
+      </Space>
+    </Flex >
+  );
+}
 
-  const [ loadLastActionTimestamp ] = useLazyQuery(VALUE_LAST_ACTION_TIMESTAMP_QUERY, {
+
+const TimestampRow = ({ label, timestamp }) => (
+  <span>
+    {label}: <b style={{ color: 'green' }}>{formatTimestamp(timestamp)}</b>
+  </span>
+);
+
+
+const HistoryModal = ({ valueId, open, onClose, createdTimestamp, reportedTimestamp }) => {
+  const { data, loading } = useQuery(VALUE_LAST_ACTION_TIMESTAMP_QUERY, {
     fetchPolicy: "network-only",
     variables: { id: valueId },
-    onCompleted: (data) => {
-      setValueHistory({ lastAction: `${data?.valueLastActionTimestamp || "N/A"}` });
-    },
     onError: () => {
       message.error("Error fetching last action");
-      setValueHistory({ lastAction: "N/A" });
     },
   });
 
-  const getValueHistory = () => {
-    loadLastActionTimestamp();
-    setIsModalVisible(true);
+  if (loading || !data) {
+    return <p>Loading...</p>;
   };
 
-  const handleOk = () => {
-    setIsModalVisible(false);
-  };
+  const { valueLastActionTimestamp: lastActionTimestamp } = data;
 
+  const history = [];
+
+  if (lastActionTimestamp) {
+    history.push({
+      children: `Last change at ${formatTimestamp(lastActionTimestamp)}`,
+    });
+  }
+
+  return (
+    <Modal
+      title="Value History"
+      open={open}
+      onOk={onClose}
+      onCancel={onClose}
+      footer={[
+        <Button key="ok" type="primary" onClick={onClose}>
+          OK
+        </Button>,
+      ]}
+    >
+      <Space size="large" direction="vertical">
+        <Space size="small" direction="vertical">
+          <TimestampRow label="Created" timestamp={createdTimestamp} />
+          <TimestampRow label="Last Reported" timestamp={reportedTimestamp} />
+        </Space>
+
+        <Timeline
+          items={history}
+        />
+      </Space>
+    </Modal>
+  );
+}
+
+const ValueTitle = ({ isSearch, projectName, name, }) => {
   const copyValue = () => {
     copyToClipboard(name, `Value ${name} copied to clipboard`);
   }
 
-  const TimestampRow = ({ label, timestamp }) => (
-    <p>
-      {label}: <b style={{ color: 'green' }}>{formatTimestamp(timestamp)}</b>
-    </p>
-  );
-
   return (
     <div>
-      {isSearch ? <Tag color="volcano" size="big">{projectName}</Tag> : null }
+      {isSearch ? <Tag color="volcano" size="big">{projectName}</Tag> : null}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div
           className='value-name'
@@ -172,24 +205,6 @@ const ValueTitle = ({ isSearch, projectName, name, valueId, createdTimestamp, re
             {name}
           </Space>
         </div>
-        <Button onClick={getValueHistory}>
-          HISTORY
-        </Button>
-        <Modal
-          title="Value History"
-          visible={isModalVisible}
-          onOk={handleOk}
-          onCancel={handleOk}
-          footer={[
-            <Button key="ok" type="primary" onClick={handleOk}>
-              OK
-            </Button>,
-          ]}
-        >
-          <TimestampRow label="Created" timestamp={createdTimestamp} />
-          <TimestampRow label="Last Reported" timestamp={reportedTimestamp} />
-          <TimestampRow label="Last Action" timestamp={valueHistory.lastAction} />
-        </Modal>
       </div>
     </div>
   )
@@ -263,6 +278,8 @@ export const Value = ({ value, isSearch }) => {
     setConditions(getInitialConditions(value));
     setChecks(getInitialChecks(value, project));
   }, [value]);
+
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
 
   const updateValue = (opts, cb = null) => {
     const data = typeof opts === 'function' ? opts(valueState) : opts;
@@ -494,30 +511,41 @@ export const Value = ({ value, isSearch }) => {
       size="small"
       className={saveValueFailed ? 'invalid' : ''}
       title={<ValueTitle
-          isSearch={isSearch}
-          projectName={value.project.name}
-          name={value.name}
-          valueId={value.id}
-          createdTimestamp={value.created_timestamp}
-          reportedTimestamp={value.reported_timestamp}
+        isSearch={isSearch}
+        projectName={value.project.name}
+        name={value.name}
       />}
       style={{ width: 800, borderRadius: '5px' }}
     >
       <ValueContext.Provider value={ctx}>
-        <Buttons
-          onToggle={toggleEnabled}
-          onReset={resetValue}
-          onCancel={rollbackState}
-          onSave={() => saveValue(
-            valueState,
-            conditions,
-            checks,
-            project
-          )}
-          onDelete={deleteValue}
-          onValueOverrideChange={valueOverrideState}
+        <HistoryModal
+          valueId={value.id}
+          open={historyModalOpen}
+          createdTimestamp={value.created_timestamp}
+          reportedTimestamp={value.reported_timestamp}
+          onClose={() => setHistoryModalOpen(false)}
         />
-        <Divider style={{ margin: '10px 0' }}/>
+        <Space size="middle" direction="vertical">
+          <Buttons
+            onToggle={toggleEnabled}
+            onReset={resetValue}
+            onCancel={rollbackState}
+            onSave={() => saveValue(
+              valueState,
+              conditions,
+              checks,
+              project
+            )}
+            onDelete={deleteValue}
+            onHistory={() => setHistoryModalOpen(true)}
+          />
+          <ValueInput
+            value={valueState.value_override}
+            enabled={valueState.enabled}
+            onChange={valueOverrideState}
+          />
+        </Space>
+        <Divider style={{ margin: '10px 0' }} />
         <ValueConditions />
       </ValueContext.Provider>
     </Card>
