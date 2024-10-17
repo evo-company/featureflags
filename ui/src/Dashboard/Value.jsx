@@ -194,7 +194,14 @@ const ValueTitle = ({ isSearch, projectName, name, }) => {
 
   return (
     <div>
-      {isSearch ? <Tag color="volcano" size="big">{projectName}</Tag> : null}
+      {isSearch ? <Tag
+        color="volcano"
+        size="big"
+        style={{
+          marginTop: '10px',
+          marginBottom: '10px'
+        }}
+      >{projectName}</Tag> : null}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div
           className='value-name'

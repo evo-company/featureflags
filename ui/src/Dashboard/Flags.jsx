@@ -146,7 +146,9 @@ const Flags = ({ flags, isSearch }) => {
         </AutoComplete>
       )}
       <List
-        className="flags-list"
+        style={{
+          paddingTop: isSearch ? '0' : '35px'
+        }}
         itemLayout="horizontal"
         dataSource={listData}
         renderItem={(item) => (

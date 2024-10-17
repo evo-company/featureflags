@@ -6,7 +6,6 @@ import {
   AutoComplete,
   List,
   Input,
-  Empty,
   Typography,
 } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
@@ -146,7 +145,9 @@ const Values = ({ values, isSearch }) => {
         </AutoComplete>
       )}
       <List
-        className="values-list"
+        style={{
+          paddingTop: isSearch ? '0' : '35px'
+        }}
         itemLayout="horizontal"
         dataSource={listData}
         renderItem={(item) => (

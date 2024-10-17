@@ -177,7 +177,13 @@ const FlagTitle = ({ isSearch, projectName, name }) => {
 
   return (
     <div>
-      {isSearch ? <Tag color="volcano" size="big">{projectName}</Tag> : null}
+      {isSearch ? <Tag
+        color="volcano"
+        size="big"
+        style={{
+          margin: '10px 0',
+        }}
+      >{projectName}</Tag> : null}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div
           className='flag-name'
