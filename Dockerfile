@@ -16,43 +16,41 @@ COPY ./featureflags/__init__.py ./featureflags/__init__.py
 COPY ./README.md .
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-      libpq-dev \
-      gcc \
-      make \
-      g++ \
-      git && \
-    # install tools
-    pip install --upgrade pip==${PIP_VERSION} && \
-    pip install pdm==${PDM_VERSION} && \
-    # configure
-    pdm config cache_dir /pdm_cache && \
-    pdm config check_update false && \
-    # install base deps \
-    pdm install --no-lock --prod --no-editable  && \
-    # cleanup base layer to keep image size small
-    apt purge --auto-remove -y \
-      gcc \
-      make \
-      g++ \
-      git && \
-    rm -rf /var/cache/apt && \
-    rm -rf /var/lib/apt/list && \
-    rm -rf $HOME/.cache
+  apt-get install -y --no-install-recommends \
+  libpq-dev \
+  gcc \
+  make \
+  g++ \
+  git && \
+  # install tools
+  pip install --upgrade pip==${PIP_VERSION} && \
+  pip install pdm==${PDM_VERSION} && \
+  # configure
+  pdm config cache_dir /pdm_cache && \
+  pdm config check_update false && \
+  # install base deps \
+  pdm install --no-lock --prod --no-editable  && \
+  # cleanup base layer to keep image size small
+  apt purge --auto-remove -y \
+  gcc \
+  make \
+  g++ \
+  git && \
+  rm -rf /var/cache/apt && \
+  rm -rf /var/lib/apt/list && \
+  rm -rf $HOME/.cache
 
 FROM node:18-bullseye-slim as assets-base
 ENV NODE_PATH=/node_modules
 ENV PATH=$PATH:/node_modules/.bin
-RUN npm install
+
+COPY ui ui
+RUN cd ui && npm ci
 
 FROM assets-base as assets-dev
-COPY ui ui
 
 FROM assets-base as assets-prod
-COPY ui ui
-RUN cd ui \
-    && npm install \
-    && npm run build
+RUN cd ui && npm run build
 
 FROM base as dev
 RUN pdm install --no-lock -G dev -G sentry -G lint --no-editable

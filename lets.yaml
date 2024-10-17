@@ -94,14 +94,14 @@ commands:
 
   apply-migrations-dev:
     description: Apply migrations to local postgres
-    depends: [ build-dev ]
+    depends: [build-dev]
     cmd: |
       docker-compose run --rm backend \
         pdm run python3 -m featureflags alembic -- upgrade head
 
   rollback-migration-dev:
     description: Rollback migrations to local postgres
-    depends: [ build-dev ]
+    depends: [build-dev]
     cmd: |
       docker-compose run --rm backend \
         pdm run python3 -m featureflags alembic -- downgrade -1
@@ -110,7 +110,7 @@ commands:
     description: |
       Create new migration file
       Example: lets create-migration add_date_created_column_to_user_table
-    depends: [ build-dev ]
+    depends: [build-dev]
     cmd: |
       docker-compose run --rm backend \
         pdm run python3 -m featureflags alembic -- revision --autogenerate -m
@@ -123,7 +123,7 @@ commands:
 
   ishell:
     description: Run app with ipython
-    depends: [ build-dev ]
+    depends: [build-dev]
     cmd: docker-compose run --rm ishell
 
   psql:
@@ -131,7 +131,7 @@ commands:
 
   gen-docs:
     description: Generate docs
-    depends: [ build-docs ]
+    depends: [build-docs]
     cmd: |
       docker-compose run --rm docs \
         sphinx-build -a -b html docs public
@@ -147,35 +147,35 @@ commands:
 
   ruff:
     description: Run ruff and fix errors
-    depends: [ build-dev ]
+    depends: [build-dev]
     cmd: |
       docker-compose run -T --rm backend \
         pdm run ruff ${LETS_COMMAND_ARGS}
 
   ruff-diff:
     description: Run ruff to check diff
-    depends: [ build-dev ]
+    depends: [build-dev]
     cmd: |
       docker-compose run -T --rm backend \
         pdm run ruff-diff ${LETS_COMMAND_ARGS}
 
   mypy:
     description: Run mypy
-    depends: [ build-dev ]
+    depends: [build-dev]
     cmd: |
       docker-compose run -T --rm backend \
         pdm run mypy ${LETS_COMMAND_ARGS}
 
   black:
     description: Run black
-    depends: [ build-dev ]
+    depends: [build-dev]
     cmd: |
       docker-compose run -T --rm backend \
         pdm run black ${LETS_COMMAND_ARGS}
 
   fmt:
     description: Run black and ruff
-    depends: [ build-dev ]
+    depends: [build-dev]
     cmd: |
       docker-compose run -T --rm backend \
         pdm run fmt

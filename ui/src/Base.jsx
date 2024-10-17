@@ -83,7 +83,7 @@ function Base({ children }) {
             </Space>
           </Typography.Title>
           <Space>
-            {tab && (
+            {auth.authenticated && tab && (
               <Input
                 ref={inputRef}
                 prefix={<SearchOutlined />}

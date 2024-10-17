@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import vitePluginImp from 'vite-plugin-imp'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -12,17 +11,18 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    vitePluginImp({
-      optimize: true,
-      libList: [
-        {
-          libName: 'antd',
-          libDirectory: 'es',
-          style: (name) => `antd/es/${name}/style`
-        }
-      ]
-    })
   ],
+  build: {
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // Suppress "Module level directives cause errors when bundled" warnings
+        if (warning.code === "MODULE_LEVEL_DIRECTIVE") {
+          return;
+        }
+        warn(warning);
+      },
+    },
+  },
   css: {
     preprocessorOptions: {
       less: {
