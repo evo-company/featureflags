@@ -27,7 +27,7 @@ commands:
         --tag=<tag>                  Set container tag
     cmd: |
       docker build \
-        -f docker/server.Dockerfile \
+        -f Dockerfile \
         -t ${LETSOPT_REPO}:${LETSOPT_TAG} \
         --target prd \
         .
