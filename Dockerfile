@@ -79,7 +79,7 @@ COPY ./featureflags /app/featureflags
 COPY --from=base /app/__pypackages__/3.11/lib /app
 COPY --from=base /app/__pypackages__/3.11/bin/* /bin/
 
-COPY --from=assets-prod "ui/dist" "app/featureflags/web/static"
+COPY --from=assets-prod "ui/dist" "featureflags/web/static"
 
 RUN python3 -m compileall -j=0 -o=2 -f featureflags
 
