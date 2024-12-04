@@ -93,26 +93,7 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
                 db_engine=self._db_engine,
                 session=user_session.get(),
             )
-            try:
-                log.debug(
-                    "Graph result: %r",
-                    result.__idx__,
-                    extra={
-                        "project_name": request.project,
-                        "request_verion": request.version,
-                        "project_version": version,
-                    },
-                )
-                populate_result_proto(result, exchange_reply.result)
-            except:  # noqa
-                log.error(
-                    "Failed to populate result proto",
-                    extra={
-                        "project_name": request.project,
-                        "request_verion": request.version,
-                        "project_version": version,
-                    },
-                )
+            populate_result_proto(result, exchange_reply.result)
 
         exchange_reply.version = version
 
