@@ -94,8 +94,8 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
                 session=user_session.get(),
             )
             try:
-                log.debug(
-                    "Graph result: %r",
+                log.info(
+                    "Graph result: %s",
                     result.__idx__,
                     extra={
                         "project_name": request.project,
