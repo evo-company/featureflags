@@ -30,7 +30,6 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
         db_engine: aiopg.sa.Engine,
         graph_engine: Engine,
     ) -> None:
-        self._entity_cache = EntityCache()
         self._flag_agg_stats = FlagAggStats()
         self._graph_engine = graph_engine
         self._db_engine = db_engine
@@ -45,6 +44,7 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
     @debug_cancellation
     @track
     async def Exchange(self, stream: Stream) -> None:  # noqa: N802
+        entity_cache = EntityCache()
         self._tasks.add(asyncio.current_task())
         try:
             request: service_pb2.ExchangeRequest = await stream.recv_message()
@@ -74,7 +74,7 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
             await add_statistics(
                 request,
                 conn=conn,
-                entity_cache=self._entity_cache,
+                entity_cache=entity_cache,
                 flag_agg_stats=self._flag_agg_stats,
             )
             version = await select_scalar(

@@ -82,8 +82,6 @@ class FlagsRepository:
         self._db_engine = db_engine
         self._graph_engine = graph_engine
 
-        self._entity_cache = EntityCache()
-
     async def get_project_version(self, project: str) -> int:
         async with self._db_engine.acquire() as conn:
             return await select_scalar(
@@ -99,11 +97,13 @@ class FlagsRepository:
         Initialize project from request, create/update entities in the database.
         """
 
+        entity_cache = EntityCache()
+
         async with self._db_engine.acquire() as conn:
             await prepare_flags_project(
                 request,
                 conn=conn,
-                entity_cache=self._entity_cache,
+                entity_cache=entity_cache,
             )
 
     async def load(self, request: PreloadFlagsRequest) -> PreloadFlagsResponse:
