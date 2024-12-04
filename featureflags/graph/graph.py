@@ -1187,23 +1187,9 @@ async def delete_project(ctx: dict, options: dict) -> DeleteProjectResult:
     async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
         project_uuid = UUID(options["id"])
 
-        is_flags_exists = await exec_scalar(
-            ctx[GraphContext.DB_ENGINE],
-            (select([Flag.id]).where(Flag.project == project_uuid).limit(1)),
-        )
-        if is_flags_exists:
-            return DeleteProjectResult("You need delete all Flags firstly.")
-
-        is_values_exists = await exec_scalar(
-            ctx[GraphContext.DB_ENGINE],
-            (select([Value.id]).where(Value.project == project_uuid).limit(1)),
-        )
-        if is_values_exists:
-            return DeleteProjectResult("You need delete all Values firstly.")
-
         try:
             await actions.delete_project(
-                options["id"],
+                project_uuid,
                 conn=conn,
             )
         except Exception as e:

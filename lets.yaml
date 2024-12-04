@@ -113,7 +113,7 @@ commands:
     depends: [build-dev]
     cmd: |
       docker-compose run --rm backend \
-        pdm run python3 -m featureflags alembic -- revision --autogenerate -m
+        pdm run python3 -m featureflags alembic -- revision --autogenerate -m ${LETS_COMMAND_ARGS}
 
   apply-seeds-dev:
     description: Apply seeds to local postgres

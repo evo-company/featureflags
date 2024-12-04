@@ -85,8 +85,7 @@ class CheckBinding(IdMixin):
         obj.variable.Variable = value.ident.hex
 
     def operator(self, obj, value):
-        if value is not None:
-            obj.operator = value.to_pb()
+        obj.operator = value.to_pb()
 
     def value_string(self, obj, value):
         if value is not None:

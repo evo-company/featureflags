@@ -504,28 +504,80 @@ async def delete_variable(
 @auth_required
 @track
 async def delete_project(
-    project_id: str,
+    project_id: UUID,
     *,
     conn: SAConnection,
 ) -> None:
+    """Physycally deletes project and its:
+    * flags
+    * variables
+    * conditions
+    * checks
+    """
     assert project_id, "Project id is required"
 
-    project_uuid = UUID(hex=project_id)
+    # Delete flag conditions
+    flags = await conn.execute(
+        select([Flag.id]).where(Flag.project == project_id)
+    )
+    flag_ids = [f.id for f in await flags.fetchall()]
 
+    await conn.execute(
+        Condition.__table__.delete().where(Condition.flag.in_(flag_ids))
+    )
+
+    # Delete flags changelog
+    await conn.execute(
+        Changelog.__table__.delete().where(Changelog.flag.in_(flag_ids))
+    )
+
+    # Delete project flags
+    await conn.execute(
+        Flag.__table__.delete().where(Flag.project == project_id)
+    )
+
+    # Delete value conditions
+    values = await conn.execute(
+        select([Value.id]).where(Value.project == project_id)
+    )
+    values_ids = [v.id for v in await values.fetchall()]
+
+    await conn.execute(
+        ValueCondition.__table__.delete().where(
+            ValueCondition.value.in_(values_ids)
+        )
+    )
+
+    # Delete value changelog
+    await conn.execute(
+        ValueChangelog.__table__.delete().where(
+            ValueChangelog.value.in_(values_ids)
+        )
+    )
+
+    # Delete project values
+    await conn.execute(
+        Flag.__table__.delete().where(Flag.project == project_id)
+    )
+
+    # Delete project variables
     variables = await conn.execute(
-        select([Variable.id]).where(Project.id == project_uuid)
+        select([Variable.id]).where(Project.id == project_id)
     )
     variable_ids = [v.id for v in await variables.fetchall()]
 
+    # Delete variable checks
     if variable_ids:
         await conn.execute(
             Check.__table__.delete().where(Check.variable.in_(variable_ids))
         )
 
+    # Delete variables
     await conn.execute(
-        Variable.__table__.delete().where(Variable.project == project_uuid)
+        Variable.__table__.delete().where(Variable.project == project_id)
     )
 
+    # Finally delete project
     await conn.execute(
-        Project.__table__.delete().where(Project.id == project_uuid)
+        Project.__table__.delete().where(Project.id == project_id)
     )
