@@ -557,12 +557,12 @@ async def delete_project(
 
     # Delete project values
     await conn.execute(
-        Flag.__table__.delete().where(Flag.project == project_id)
+        Value.__table__.delete().where(Value.project == project_id)
     )
 
     # Delete project variables
     variables = await conn.execute(
-        select([Variable.id]).where(Project.id == project_id)
+        select([Variable.id]).where(Variable.project == project_id)
     )
     variable_ids = [v.id for v in await variables.fetchall()]
 

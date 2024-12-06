@@ -28,6 +28,7 @@ from featureflags.graph.actions import (
     update_changelog,
     update_value_changelog,
     update_value_value_override,
+    delete_project,
 )
 from featureflags.graph.types import ValueAction, ValuesChanges
 from featureflags.models import (
@@ -44,6 +45,7 @@ from featureflags.models import (
     Value,
     ValueChangelog,
     ValueCondition,
+    Variable,
 )
 from featureflags.services import auth
 from featureflags.services.auth import (
@@ -93,6 +95,19 @@ async def check_value_override(value, *, conn):
         select([Value.value_override]).where(Value.id == value)
     )
     return await result.scalar()
+
+
+async def fetch_val(stmt, *, conn):
+    result = await conn.execute(stmt)
+    return await result.scalar()
+
+
+async def check_exists(stmt, resource_id, *, conn):
+    return await fetch_val(stmt, conn=conn) == resource_id
+
+
+async def check_not_exists(stmt, *, conn):
+    return await fetch_val(stmt, conn=conn) is None
 
 
 @pytest.mark.asyncio
@@ -861,3 +876,58 @@ async def test_update_value_value_override(
     )
 
     assert await check_value_override(value.id, conn=conn) == value_override
+
+
+@pytest.mark.asyncio
+async def test_delete_project(conn, db_engine):
+    # setup project 1
+    project1 = await mk_project(db_engine)
+    flag1 = await mk_flag(db_engine, enabled=True, project=project1)
+    variable1 = await mk_variable(db_engine, project=project1)
+    check1 = await mk_check(db_engine, variable=variable1)
+    cond1 = await mk_condition(
+        db_engine, flag=flag1, checks=[check1.id], project=project1
+    )
+
+    # setup project 2
+    project2 = await mk_project(db_engine)
+    flag2 = await mk_flag(db_engine, enabled=True, project=project2)
+    variable2 = await mk_variable(db_engine, project=project2)
+    check2 = await mk_check(db_engine, variable=variable2)
+    cond2 = await mk_condition(
+        db_engine, flag=flag2, checks=[check2.id], project=project2
+    )
+
+    await delete_project(project1.id.hex, conn=conn)
+
+    # check deleted project's resources gone
+    assert await check_not_exists(
+        select([Flag.id]).where(Flag.id == flag1.id), conn=conn
+    )
+    assert await check_not_exists(
+        select([Condition.id]).where(Condition.id == cond1.id), conn=conn
+    )
+    assert await check_not_exists(
+        select([Check.id]).where(Check.id == check1.id), conn=conn
+    )
+    assert await check_not_exists(
+        select([Variable.id]).where(Variable.id == variable1.id), conn=conn
+    )
+
+    # check other project's resources not touched
+    assert await check_exists(
+        select([Flag.id]).where(Flag.id == flag2.id), flag2.id, conn=conn
+    )
+    assert await check_exists(
+        select([Condition.id]).where(Condition.id == cond2.id),
+        cond2.id,
+        conn=conn,
+    )
+    assert await check_exists(
+        select([Check.id]).where(Check.id == check2.id), check2.id, conn=conn
+    )
+    assert await check_exists(
+        select([Variable.id]).where(Variable.id == variable2.id),
+        variable2.id,
+        conn=conn,
+    )
