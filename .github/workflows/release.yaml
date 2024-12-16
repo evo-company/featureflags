@@ -16,6 +16,9 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Install lets
+      uses: lets-cli/lets-action@v1.1
+
     - name: Set up Node
       uses: actions/setup-node@v4.0.1
       with:
@@ -27,8 +30,9 @@ jobs:
       working-directory: ./ui
       run: npm install
 
-    - name: Build and copy UI bundle
-      run: ./scripts/build-copy-ui-dist.sh
+    - name: Build UI and copy bundle
+      working-directory: ./ui
+      run: npm run build -- --outDir ../featureflags/web/static
 
     - name: Set up Python with PDM ${{ matrix.python-version }}
       uses: pdm-project/setup-pdm@v3

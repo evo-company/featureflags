@@ -20,6 +20,7 @@ import {
   Timeline,
 } from 'antd';
 import { useEffect, useState } from 'react';
+import { useLazyQuery } from "@apollo/client";
 import {
   CopyOutlined,
   HistoryOutlined,
@@ -36,7 +37,6 @@ import { Conditions } from './Conditions';
 import { TYPES, KIND_TO_TYPE, KIND, TYPE_TO_KIND } from './constants';
 import { useActions } from './actions';
 import { copyToClipboard, formatTimestamp, replaceValueInArray } from './utils';
-import { useQuery } from "@apollo/client";
 import { FLAG_LAST_ACTION_TIMESTAMP_QUERY } from "./queries";
 
 
@@ -122,13 +122,19 @@ const TimestampRow = ({ label, timestamp }) => (
 );
 
 const HistoryModal = ({ flagId, open, onClose, createdTimestamp, reportedTimestamp }) => {
-  const { data, loading } = useQuery(FLAG_LAST_ACTION_TIMESTAMP_QUERY, {
+  const [getHistory, { data, loading }] = useLazyQuery(FLAG_LAST_ACTION_TIMESTAMP_QUERY, {
     fetchPolicy: "network-only",
     variables: { id: flagId },
     onError: () => {
       message.error("Error fetching last action");
     },
   });
+
+  useEffect(() => {
+    if (open) {
+      getHistory();
+    }
+  }, [open]);
 
   if (loading || !data) {
     return <p>Loading...</p>;

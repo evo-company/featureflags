@@ -75,6 +75,8 @@ ADD "https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRP
 RUN chmod +x /usr/local/bin/grpc_health_probe
 
 COPY ./featureflags /app/featureflags
+# clear static folder in case it exists on host machine
+RUN rm -rf /app/featureflags/web/static
 
 COPY --from=base /app/__pypackages__/3.11/lib /app
 COPY --from=base /app/__pypackages__/3.11/bin/* /bin/

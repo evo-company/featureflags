@@ -8,27 +8,26 @@ Server consists of actual web application and API handlers (HTTP, gRPC):
 
 - Web application:
 
-    - `fastapi_` + `hiku_` + `aiopg_` on backend
-    - `react.js`_ + `Apollo`_ on frontend
+  - `fastapi_` + `hiku_` + `aiopg_` on backend
+  - `react.js`_+ `Apollo`_ on frontend
 
 - gRPC API handler:
 
-    - `grpclib_` + `hiku_`
+  - `grpclib_` + `hiku_`
 
 - HTTP API handler:
 
-    - `fastapi_` + `hiku_`
+  - `fastapi_` + `hiku_`
 
 ADR
 ---
 
 Check important architecture decisions in ``adr/`` directory.
 
-
 Installation
 ------------
 
-On PyPi: https://pypi.org/project/evo-featureflags-server
+On PyPi: <https://pypi.org/project/evo-featureflags-server>
 
 To install with Sentry integration:
 `pip3 install evo-featureflags-server[sentry]`
@@ -45,7 +44,7 @@ Run all this commands:
 - ``lets apply-migrations-dev``
 - ``lets apply-seeds-dev``  # if you have data in ``seeds/`` directory
 - ``lets web`` # in separate terminal
-- ``lets ui`` # in separate terminal
+- ``lets ui`` # in separate terminal, this will start vite dev server
 
 To start API handlers (not required for web application):
 
@@ -54,7 +53,7 @@ To start API handlers (not required for web application):
 
 To build UI and copy it to ``web/static`` directory:
 
-- ``lets build-copy-ui-bundle``
+- ``lets ui-build-dev``
 
 To release package:
 
@@ -71,7 +70,7 @@ TODO:
 - add docs, automate docs build
 - add more tests
 
-.. _fastapi: https://github.com/tiangolo/fastapi
-.. _hiku: https://github.com/vmagamedov/hiku
-.. _aiopg: https://github.com/aio-libs/aiopg
-.. _grpclib: https://github.com/vmagamedov/grpclib
+.. _fastapi: <https://github.com/tiangolo/fastapi>
+.._hiku: <https://github.com/vmagamedov/hiku>
+.. _aiopg: <https://github.com/aio-libs/aiopg>
+.._grpclib: <https://github.com/vmagamedov/grpclib>
