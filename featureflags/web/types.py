@@ -4,6 +4,6 @@ from pydantic import BaseModel
 
 
 class GraphQueryRequest(BaseModel):
-    operationName: str  # noqa: N815
-    variables: dict[str, Any]
     query: str
+    operationName: str | None = None  # noqa: N815
+    variables: dict[str, Any] | None = None
