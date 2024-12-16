@@ -1,6 +1,8 @@
 from uuid import UUID
+from collections import defaultdict
 
 import aiopg.sa
+from hiku.enum import Enum
 from hiku.engine import Engine, pass_context
 from hiku.expr.core import (
     S,
@@ -32,6 +34,7 @@ from hiku.types import (
     Sequence,
     String,
     TypeRef,
+    EnumRef,
 )
 from sqlalchemy import select
 
@@ -41,6 +44,7 @@ from featureflags.graph.metrics import (
     GRAPH_PULL_TIME_HISTOGRAM,
 )
 from featureflags.graph.types import (
+    Action,
     AddCheckOp,
     AddConditionOp,
     AddValueConditionOp,
@@ -55,6 +59,7 @@ from featureflags.graph.types import (
     SaveValueResult,
     DeleteVariableResult,
     DeleteProjectResult,
+    ValueAction,
 )
 from featureflags.graph.utils import is_valid_uuid
 from featureflags.metrics import wrap_metric
@@ -74,6 +79,7 @@ from featureflags.services.auth import UserSession
 from featureflags.utils import (
     exec_expression,
     exec_scalar,
+    exec_many,
 )
 
 
@@ -258,30 +264,6 @@ async def flag_project(ids: list[int]) -> list[int]:
 async def value_project(ids: list[int]) -> list[int]:
     return ids
 
-
-@pass_context
-async def get_flag_last_action_timestamp(
-    ctx: dict, fields: list[Field]
-) -> list[str | None]:
-    if not ctx[GraphContext.USER_SESSION].is_authenticated:
-        return []
-
-    [field] = fields
-    opts = field.options
-    flag_id = UUID(opts["id"])
-
-    result = await exec_scalar(
-        ctx[GraphContext.DB_ENGINE],
-        (
-            select([Changelog.timestamp])
-            .where(Changelog.flag == flag_id)
-            .order_by(Changelog.timestamp.desc())
-            .limit(1)
-        ),
-    )
-    return [str(result) if result else None]
-
-
 @pass_context
 async def get_value_last_action_timestamp(
     ctx: dict, fields: list[Field]
@@ -453,6 +435,31 @@ flag_conditions = LinkQuery(
     to_column=Condition.id,
 )
 
+
+@pass_context
+async def link_flag_changes(
+    ctx: dict, flag_ids: list[UUID],
+) -> list[list[UUID]]:
+    if not ctx[GraphContext.USER_SESSION].is_authenticated:
+        return []
+
+    data = await exec_many(
+        ctx[GraphContext.DB_ENGINE],
+        (
+            select([Changelog])
+            .where(Changelog.flag.in_(flag_ids))
+            .order_by(Changelog.timestamp.desc())
+        ),
+    )
+
+    result = defaultdict(list)
+
+    for row in data:
+        result[row.flag].append(row.id)
+
+    return [result[flag_id] for flag_id in flag_ids]
+
+
 FlagNode = Node(
     "Flag",
     [
@@ -475,6 +482,7 @@ FlagNode = Node(
         ),
         Field("created_timestamp", None, flag_sg),
         Field("reported_timestamp", None, flag_sg),
+        Link("changes", Sequence["Change"], link_flag_changes, requires="id"),
     ],
 )
 
@@ -485,6 +493,32 @@ value_conditions = LinkQuery(
     from_column=ValueCondition.value,
     to_column=ValueCondition.id,
 )
+
+
+@pass_context
+async def link_value_changes(
+    ctx: dict, value_ids: list[UUID],
+) -> list[list[UUID]]:
+    if not ctx[GraphContext.USER_SESSION].is_authenticated:
+        return []
+
+    data = await exec_many(
+        ctx[GraphContext.DB_ENGINE],
+        (
+            select([ValueChangelog])
+            .where(ValueChangelog.value.in_(value_ids))
+            .order_by(ValueChangelog.timestamp.desc())
+        ),
+    )
+
+    result = defaultdict(list)
+
+    for row in data:
+        result[row.value].append(row.id)
+
+    return [result[value_id] for value_id in value_ids]
+
+
 
 ValueNode = Node(
     "Value",
@@ -513,6 +547,7 @@ ValueNode = Node(
         Field("value_override", None, value_sg),
         Field("created_timestamp", None, value_sg),
         Field("reported_timestamp", None, value_sg),
+        Link("changes", Sequence["ValueChange"], link_value_changes, requires="id", description="Changes, recent first"),
     ],
 )
 
@@ -579,7 +614,7 @@ ChangeNode = Node(
         Field("timestamp", None, change_sg),
         Field("_user", None, change_sg.c(S.this.auth_user)),
         Field("_flag", None, change_sg.c(S.this.flag)),
-        Field("actions", None, change_sg),
+        Field("actions", Sequence[EnumRef['FlagAction']], change_sg),
         Link("flag", TypeRef["Flag"], direct_link, requires="_flag"),
         Link("user", TypeRef["User"], direct_link, requires="_user"),
     ],
@@ -594,7 +629,7 @@ ValueChangeNode = Node(
         Field("timestamp", None, value_change_sg),
         Field("_user", None, value_change_sg.c(S.this.auth_user)),
         Field("_value", None, value_change_sg.c(S.this.value)),
-        Field("actions", None, value_change_sg),
+        Field("actions", Sequence[EnumRef['ValueAction']], value_change_sg),
         Link("value", TypeRef["Value"], direct_link, requires="_value"),
         Link("user", TypeRef["User"], direct_link, requires="_user"),
     ],
@@ -602,18 +637,6 @@ ValueChangeNode = Node(
 
 RootNode = Root(
     [
-        Field(
-            "flagLastActionTimestamp",
-            Optional[String],
-            get_flag_last_action_timestamp,
-            options=[Option("id", String)],
-        ),
-        Field(
-            "valueLastActionTimestamp",
-            Optional[String],
-            get_value_last_action_timestamp,
-            options=[Option("id", String)],
-        ),
         Link(
             "flag",
             Optional["Flag"],
@@ -888,6 +911,11 @@ DeleteProjectNode = Node(
     ],
 )
 
+data_types = {
+    "SaveFlagOperation": Record[{"type": String, "payload": Any}],
+    "SaveValueOperation": Record[{"type": String, "payload": Any}],
+}
+
 GRAPH = Graph(
     [
         ProjectNode,
@@ -901,6 +929,22 @@ GRAPH = Graph(
         ChangeNode,
         ValueChangeNode,
         RootNode,
+
+        SignInNode,
+        SignOutNode,
+        SaveFlagNode,
+        SaveValueNode,
+        ResetFlagNode,
+        ResetValueNode,
+        DeleteFlagNode,
+        DeleteValueNode,
+        DeleteVariableNode,
+        DeleteProjectNode,
+    ],
+    data_types=data_types,
+    enums=[
+        Enum.from_builtin(Action, name="FlagAction"),
+        Enum.from_builtin(ValueAction),
     ]
 )
 
@@ -1198,7 +1242,7 @@ async def delete_project(ctx: dict, options: dict) -> DeleteProjectResult:
     return DeleteProjectResult(None)
 
 
-mutation_data_types = {
+data_types = {
     "SaveFlagOperation": Record[{"type": String, "payload": Any}],
     "SaveValueOperation": Record[{"type": String, "payload": Any}],
 }
@@ -1206,16 +1250,6 @@ mutation_data_types = {
 MUTATION_GRAPH = Graph(
     [
         *GRAPH.nodes,
-        SignInNode,
-        SignOutNode,
-        SaveFlagNode,
-        SaveValueNode,
-        ResetFlagNode,
-        ResetValueNode,
-        DeleteFlagNode,
-        DeleteValueNode,
-        DeleteVariableNode,
-        DeleteProjectNode,
         Root(
             [
                 Link(
@@ -1297,7 +1331,7 @@ MUTATION_GRAPH = Graph(
             ]
         ),
     ],
-    data_types=mutation_data_types,
+    data_types=data_types,
 )
 
 GRAPH = apply(GRAPH, [AsyncGraphMetrics("public")])

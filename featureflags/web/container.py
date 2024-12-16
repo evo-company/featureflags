@@ -31,7 +31,7 @@ class Container(containers.DeclarativeContainer):
         Engine,
         providers.Callable(AsyncIOExecutor),
     )
-    graphql_endpoint: AsyncBatchGraphQLEndpoint = providers.Factory(
+    graphql_endpoint: AsyncBatchGraphQLEndpoint = providers.Singleton(
         AsyncBatchGraphQLEndpoint,
         engine=graph_engine,
         query_graph=graph.GRAPH,

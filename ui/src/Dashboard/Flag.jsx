@@ -19,6 +19,7 @@ import {
   Tag,
   Timeline,
 } from 'antd';
+
 import { useEffect, useState } from 'react';
 import { useLazyQuery } from "@apollo/client";
 import {
@@ -37,7 +38,7 @@ import { Conditions } from './Conditions';
 import { TYPES, KIND_TO_TYPE, KIND, TYPE_TO_KIND } from './constants';
 import { useActions } from './actions';
 import { copyToClipboard, formatTimestamp, replaceValueInArray } from './utils';
-import { FLAG_LAST_ACTION_TIMESTAMP_QUERY } from "./queries";
+import { FLAG_HISTORY_QUERY } from "./queries";
 
 
 const ResetButton = ({ onClick, disabled }) => {
@@ -121,12 +122,23 @@ const TimestampRow = ({ label, timestamp }) => (
   </span>
 );
 
+
+const getHistoryItemColor = (actions) => {
+  if (actions.includes('ENABLE_FLAG')) {
+    return 'green';
+  } else if (actions.includes('DISABLE_FLAG')) {
+    return 'red';
+  } else {
+    return 'green';
+  }
+}
+
 const HistoryModal = ({ flagId, open, onClose, createdTimestamp, reportedTimestamp }) => {
-  const [getHistory, { data, loading }] = useLazyQuery(FLAG_LAST_ACTION_TIMESTAMP_QUERY, {
+  const [getHistory, { data, loading }] = useLazyQuery(FLAG_HISTORY_QUERY, {
     fetchPolicy: "network-only",
     variables: { id: flagId },
     onError: () => {
-      message.error("Error fetching last action");
+      message.error("Error fetching flag changelog");
     },
   });
 
@@ -140,15 +152,20 @@ const HistoryModal = ({ flagId, open, onClose, createdTimestamp, reportedTimesta
     return <p>Loading...</p>;
   };
 
-  const { flagLastActionTimestamp: lastActionTimestamp } = data;
+  const { flag: { changes } } = data;
 
-  const history = [];
-
-  if (lastActionTimestamp) {
-    history.push({
-      children: `Last change at ${formatTimestamp(lastActionTimestamp)}`,
-    });
-  }
+  const history = changes.map((change) => {
+    const { timestamp, actions, user } = change;
+    return {
+      color: getHistoryItemColor(actions),
+      children: (
+        <>
+          <p>{`${user.username} at ${formatTimestamp(timestamp)}`}</p>
+          {actions.map((action) => <p>{`- ${action}`}</p>)}
+        </>
+      )
+    };
+  });
 
   return (
     <Modal
@@ -168,9 +185,7 @@ const HistoryModal = ({ flagId, open, onClose, createdTimestamp, reportedTimesta
           <TimestampRow label="Last Reported" timestamp={reportedTimestamp} />
         </Space>
 
-        <Timeline
-          items={history}
-        />
+        <Timeline items={history} />
       </Space>
     </Modal>
   );

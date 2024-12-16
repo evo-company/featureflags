@@ -25,6 +25,7 @@ import {
   CopyOutlined,
   HistoryOutlined,
 } from '@ant-design/icons';
+import { useLazyQuery } from "@apollo/client";
 
 import './Value.less';
 
@@ -37,8 +38,7 @@ import { ValueConditions } from './ValueConditions';
 import { TYPES, KIND_TO_TYPE, KIND, TYPE_TO_KIND } from './constants';
 import { useValueActions } from './actions';
 import { copyToClipboard, replaceValueInArray, formatTimestamp } from './utils';
-import { useQuery } from "@apollo/client";
-import { VALUE_LAST_ACTION_TIMESTAMP_QUERY } from "./queries";
+import { VALUE_HISTORY_QUERY } from "./queries";
 
 
 const ResetButton = ({ onClick, disabled }) => {
@@ -138,28 +138,50 @@ const TimestampRow = ({ label, timestamp }) => (
 );
 
 
+const getHistoryItemColor = (actions) => {
+  if (actions.includes('ENABLE_VALUE')) {
+    return 'green';
+  } else if (actions.includes('DISABLE_VALUE')) {
+    return 'red';
+  } else {
+    return 'green';
+  }
+}
+
 const HistoryModal = ({ valueId, open, onClose, createdTimestamp, reportedTimestamp }) => {
-  const { data, loading } = useQuery(VALUE_LAST_ACTION_TIMESTAMP_QUERY, {
+  const [getHistory, { data, loading }] = useLazyQuery(VALUE_HISTORY_QUERY, {
     fetchPolicy: "network-only",
-    variables: { id: valueId },
+    variables: { id: flagId },
     onError: () => {
-      message.error("Error fetching last action");
+      message.error("Error fetching value changelog");
     },
   });
+
+  useEffect(() => {
+    if (open) {
+      getHistory();
+    }
+  }, [open]);
 
   if (loading || !data) {
     return <p>Loading...</p>;
   };
 
-  const { valueLastActionTimestamp: lastActionTimestamp } = data;
+  const { value: { changes } } = data;
 
-  const history = [];
+  const history = changes.map((change) => {
+    const { timestamp, actions, user } = change;
+    return {
+      color: getHistoryItemColor(actions),
+      children: (
+        <>
+          <p>{`${user.username} at ${formatTimestamp(timestamp)}`}</p>
+          {actions.map((action) => <p>{`- ${action}`}</p>)}
+        </>
+      )
+    };
+  });
 
-  if (lastActionTimestamp) {
-    history.push({
-      children: `Last change at ${formatTimestamp(lastActionTimestamp)}`,
-    });
-  }
 
   return (
     <Modal
@@ -179,9 +201,7 @@ const HistoryModal = ({ valueId, open, onClose, createdTimestamp, reportedTimest
           <TimestampRow label="Last Reported" timestamp={reportedTimestamp} />
         </Space>
 
-        <Timeline
-          items={history}
-        />
+        <Timeline items={history} />
       </Space>
     </Modal>
   );

@@ -13,6 +13,7 @@ import {
 
 import { Dashboard } from './Dashboard'
 import { Auth } from './Auth'
+import { GraphiQLRoot } from './graphiql'
 import { AuthProvider } from './context/auth';
 
 const client = new ApolloClient({
@@ -27,6 +28,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/graphiql" element={<GraphiQLRoot />} />
             <Route path="/sign-in" element={<Auth />} />
           </Routes>
         </AuthProvider>

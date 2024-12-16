@@ -88,9 +88,18 @@ export const FLAGS_QUERY = gql`
   }
 `;
 
-export const FLAG_LAST_ACTION_TIMESTAMP_QUERY = gql`
-  query FlagLastActionTimestamp($id: String!) {
-    flagLastActionTimestamp(id: $id)
+export const FLAG_HISTORY_QUERY = gql`
+  query FlagHistory($id: String!) {
+    flag(id: $id) {
+      changes {
+        timestamp
+        actions
+        user {
+          id
+          username
+        }
+      }
+    }
   }
 `;
 
@@ -178,9 +187,18 @@ export const VALUES_QUERY = gql`
   }
 `;
 
-export const VALUE_LAST_ACTION_TIMESTAMP_QUERY = gql`
-  query ValueLastActionTimestamp($id: String!) {
-    valueLastActionTimestamp(id: $id)
+export const VALUE_HISTORY_QUERY = gql`
+  query ValueHistory($id: String!) {
+    value(id: $id) {
+      changes {
+        timestamp
+        actions
+        user {
+          id
+          username
+        }
+      }
+    }
   }
 `;
 
