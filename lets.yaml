@@ -136,14 +136,15 @@ commands:
       docker-compose run --rm docs \
         sphinx-build -a -b html docs public
 
-  build-copy-ui-bundle:
-    description: Build and copy UI bundle to server
-    cmd: ./scripts/build-copy-ui-dist.sh
-
   ui:
-    description: Build and run UI local
+    description: Build and run UI with dev server
     work_dir: ./ui
     cmd: npm run dev
+
+  ui-build-dev:
+    description: Build UI in development mode, copy static, watch changes
+    work_dir: ./ui
+    cmd: npm run build-dev-watch
 
   ruff:
     description: Run ruff and fix errors

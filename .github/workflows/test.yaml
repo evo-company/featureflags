@@ -34,7 +34,8 @@ jobs:
         run: npm install
 
       - name: Build UI
-        run: lets build-copy-ui-bundle
+        working-directory: ./ui
+        run: npm run build
 
       - name: Run server tests
         run: lets test

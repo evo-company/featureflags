@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build --base /static",
+    "build-dev-watch": "vite build --mode development --watch --base /static --outDir ../featureflags/web/static",
     "preview": "vite preview"
   },
   "dependencies": {
