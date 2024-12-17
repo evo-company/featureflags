@@ -163,9 +163,9 @@ const HistoryModal = ({ valueId, open, onClose, createdTimestamp, reportedTimest
     }
   }, [open]);
 
-  if (loading || !data) {
-    return <p>Loading...</p>;
-  };
+  if (!open || loading || !data) {
+    return null;
+  }
 
   const { value: { changes } } = data;
 

@@ -148,9 +148,9 @@ const HistoryModal = ({ flagId, open, onClose, createdTimestamp, reportedTimesta
     }
   }, [open]);
 
-  if (loading || !data) {
-    return <p>Loading...</p>;
-  };
+  if (!open || loading || !data) {
+    return null;
+  }
 
   const { flag: { changes } } = data;
 
