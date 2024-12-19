@@ -151,7 +151,7 @@ const getHistoryItemColor = (actions) => {
 const HistoryModal = ({ valueId, open, onClose, createdTimestamp, reportedTimestamp }) => {
   const [getHistory, { data, loading }] = useLazyQuery(VALUE_HISTORY_QUERY, {
     fetchPolicy: "network-only",
-    variables: { id: flagId },
+    variables: { id: valueId },
     onError: () => {
       message.error("Error fetching value changelog");
     },
