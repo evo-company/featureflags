@@ -92,7 +92,7 @@ class Config(BaseSettings):
     sentry: SentrySettings
 
     app: AppSettings
-    rpc: RpcSettings
+    rpc: RpcSettings | None = None
     http: HttpSettings
 
 
