@@ -36,6 +36,10 @@ async def create_server(
 
 
 async def main() -> None:
+
+    if config.rpc is None:
+        raise ValueError("GRPC configuration is not set, check your config")
+
     async with contextlib.AsyncExitStack() as stack:
         container = Container()
         await container.init_resources()
