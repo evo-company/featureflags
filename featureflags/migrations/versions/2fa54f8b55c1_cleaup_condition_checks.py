@@ -33,4 +33,5 @@ def upgrade():
             )
 
 
-def downgrade(): ...
+def downgrade():
+    ...

@@ -13,6 +13,7 @@ from featureflags.graph.actions import (
     add_check,
     add_condition,
     add_value_condition,
+    delete_project,
     disable_condition,
     disable_flag,
     disable_value,
@@ -28,7 +29,6 @@ from featureflags.graph.actions import (
     update_changelog,
     update_value_changelog,
     update_value_value_override,
-    delete_project,
 )
 from featureflags.graph.types import ValueAction, ValuesChanges
 from featureflags.models import (

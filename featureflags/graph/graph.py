@@ -1,9 +1,9 @@
-from uuid import UUID
 from collections import defaultdict
+from uuid import UUID
 
 import aiopg.sa
-from hiku.enum import Enum
 from hiku.engine import Engine, pass_context
+from hiku.enum import Enum
 from hiku.expr.core import (
     S,
     if_some,
@@ -29,12 +29,12 @@ from hiku.telemetry.prometheus import AsyncGraphMetrics
 from hiku.types import (
     Any,
     Boolean,
+    EnumRef,
     Optional,
     Record,
     Sequence,
     String,
     TypeRef,
-    EnumRef,
 )
 from sqlalchemy import select
 
@@ -50,15 +50,15 @@ from featureflags.graph.types import (
     AddValueConditionOp,
     AuthResult,
     DeleteFlagResult,
+    DeleteProjectResult,
     DeleteValueResult,
+    DeleteVariableResult,
     GraphContext,
     Operation,
     ResetFlagResult,
     ResetValueResult,
     SaveFlagResult,
     SaveValueResult,
-    DeleteVariableResult,
-    DeleteProjectResult,
     ValueAction,
 )
 from featureflags.graph.utils import is_valid_uuid
@@ -78,8 +78,8 @@ from featureflags.models import (
 from featureflags.services.auth import UserSession
 from featureflags.utils import (
     exec_expression,
-    exec_scalar,
     exec_many,
+    exec_scalar,
 )
 
 
@@ -264,6 +264,7 @@ async def flag_project(ids: list[int]) -> list[int]:
 async def value_project(ids: list[int]) -> list[int]:
     return ids
 
+
 @pass_context
 async def get_value_last_action_timestamp(
     ctx: dict, fields: list[Field]
@@ -438,7 +439,8 @@ flag_conditions = LinkQuery(
 
 @pass_context
 async def link_flag_changes(
-    ctx: dict, flag_ids: list[UUID],
+    ctx: dict,
+    flag_ids: list[UUID],
 ) -> list[list[UUID]]:
     if not ctx[GraphContext.USER_SESSION].is_authenticated:
         return []
@@ -497,7 +499,8 @@ value_conditions = LinkQuery(
 
 @pass_context
 async def link_value_changes(
-    ctx: dict, value_ids: list[UUID],
+    ctx: dict,
+    value_ids: list[UUID],
 ) -> list[list[UUID]]:
     if not ctx[GraphContext.USER_SESSION].is_authenticated:
         return []
@@ -517,7 +520,6 @@ async def link_value_changes(
         result[row.value].append(row.id)
 
     return [result[value_id] for value_id in value_ids]
-
 
 
 ValueNode = Node(
@@ -547,7 +549,13 @@ ValueNode = Node(
         Field("value_override", None, value_sg),
         Field("created_timestamp", None, value_sg),
         Field("reported_timestamp", None, value_sg),
-        Link("changes", Sequence["ValueChange"], link_value_changes, requires="id", description="Changes, recent first"),
+        Link(
+            "changes",
+            Sequence["ValueChange"],
+            link_value_changes,
+            requires="id",
+            description="Changes, recent first",
+        ),
     ],
 )
 
@@ -614,7 +622,7 @@ ChangeNode = Node(
         Field("timestamp", None, change_sg),
         Field("_user", None, change_sg.c(S.this.auth_user)),
         Field("_flag", None, change_sg.c(S.this.flag)),
-        Field("actions", Sequence[EnumRef['FlagAction']], change_sg),
+        Field("actions", Sequence[EnumRef["FlagAction"]], change_sg),
         Link("flag", TypeRef["Flag"], direct_link, requires="_flag"),
         Link("user", TypeRef["User"], direct_link, requires="_user"),
     ],
@@ -629,7 +637,7 @@ ValueChangeNode = Node(
         Field("timestamp", None, value_change_sg),
         Field("_user", None, value_change_sg.c(S.this.auth_user)),
         Field("_value", None, value_change_sg.c(S.this.value)),
-        Field("actions", Sequence[EnumRef['ValueAction']], value_change_sg),
+        Field("actions", Sequence[EnumRef["ValueAction"]], value_change_sg),
         Link("value", TypeRef["Value"], direct_link, requires="_value"),
         Link("user", TypeRef["User"], direct_link, requires="_user"),
     ],
@@ -929,7 +937,6 @@ GRAPH = Graph(
         ChangeNode,
         ValueChangeNode,
         RootNode,
-
         SignInNode,
         SignOutNode,
         SaveFlagNode,
@@ -945,7 +952,7 @@ GRAPH = Graph(
     enums=[
         Enum.from_builtin(Action, name="FlagAction"),
         Enum.from_builtin(ValueAction),
-    ]
+    ],
 )
 
 
@@ -1087,7 +1094,7 @@ async def delete_flag(ctx: dict, options: dict) -> DeleteFlagResult:
 
 
 @pass_context
-async def save_value(ctx: dict, options: dict) -> SaveValueResult:
+async def save_value(ctx: dict, options: dict) -> SaveValueResult:  # noqa: C901
     operations = options["operations"]
 
     if not operations:

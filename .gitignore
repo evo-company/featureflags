@@ -42,3 +42,5 @@ dist/
 configs/*
 !configs/local.yaml
 !configs/test.yaml
+
+.DS_Store
