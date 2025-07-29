@@ -5,6 +5,7 @@ const { Header } = Layout;
 const { Link } = Typography;
 
 import { Logo } from './components/Logo';
+import { Version } from './components/Version';
 import './Base.less';
 import { useAuth, useSignOut } from './hooks';
 import { CenteredSpinner } from './components/Spinner';
@@ -61,6 +62,7 @@ function Base({ children }) {
     <Layout
       style={{
         minHeight: '100vh',
+        position: 'relative',
       }}
     >
       <Header className='header'>
@@ -103,7 +105,12 @@ function Base({ children }) {
           </Space>
         </Flex>
       </Header>
-      {loading ? <CenteredSpinner /> : children}
+      {loading ? <CenteredSpinner /> : (
+        <>
+          {children}
+          <Version />
+        </>
+      )}
     </Layout >
   )
 }
