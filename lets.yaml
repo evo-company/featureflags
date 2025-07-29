@@ -96,15 +96,13 @@ commands:
     description: Apply migrations to local postgres
     depends: [build-dev]
     cmd: |
-      docker-compose run --rm backend \
-        pdm run python3 -m featureflags alembic -- upgrade head
+      docker-compose run --rm backend python3 -m featureflags alembic -- upgrade head
 
   rollback-migration-dev:
     description: Rollback migrations to local postgres
     depends: [build-dev]
     cmd: |
-      docker-compose run --rm backend \
-        pdm run python3 -m featureflags alembic -- downgrade -1
+      docker-compose run --rm backend python3 -m featureflags alembic -- downgrade -1
 
   create-migration:
     description: |
@@ -112,8 +110,7 @@ commands:
       Example: lets create-migration add_date_created_column_to_user_table
     depends: [build-dev]
     cmd: |
-      docker-compose run --rm backend \
-        pdm run python3 -m featureflags alembic -- revision --autogenerate -m ${LETS_COMMAND_ARGS}
+      docker-compose run --rm backend python3 -m featureflags alembic -- revision --autogenerate -m ${LETS_COMMAND_ARGS}
 
   apply-seeds-dev:
     description: Apply seeds to local postgres
@@ -150,36 +147,32 @@ commands:
     description: Run ruff and fix errors
     depends: [build-dev]
     cmd: |
-      docker-compose run -T --rm backend \
-        pdm run ruff ${LETS_COMMAND_ARGS}
+      docker-compose run -T --rm backend ruff check featureflags --fix ${LETS_COMMAND_ARGS}
 
   ruff-diff:
     description: Run ruff to check diff
     depends: [build-dev]
     cmd: |
-      docker-compose run -T --rm backend \
-        pdm run ruff-diff ${LETS_COMMAND_ARGS}
+      docker-compose run -T --rm backend ruff check featureflags ${LETS_COMMAND_ARGS}
 
   mypy:
     description: Run mypy
     depends: [build-dev]
     cmd: |
-      docker-compose run -T --rm backend \
-        pdm run mypy ${LETS_COMMAND_ARGS}
+      docker-compose run -T --rm backend mypy featureflags ${LETS_COMMAND_ARGS}
 
   black:
     description: Run black
     depends: [build-dev]
     cmd: |
-      docker-compose run -T --rm backend \
-        pdm run black ${LETS_COMMAND_ARGS}
+      docker-compose run -T --rm backend black featureflags ${LETS_COMMAND_ARGS}
 
   fmt:
     description: Run black and ruff
     depends: [build-dev]
     cmd: |
-      docker-compose run -T --rm backend \
-        pdm run fmt
+      docker-compose run -T --rm backend black featureflags
+      docker-compose run -T --rm backend ruff check featureflags --fix
 
   release:
     description: |
@@ -194,4 +187,4 @@ commands:
       Example:
         lets release 1.0.0 --message="Added feature"
     cmd: |
-      VERSION=${LETSOPT_VERSION} MESSAGE=${LETSOPT_MESSAGE} pdm run release
+      VERSION=${LETSOPT_VERSION} MESSAGE=${LETSOPT_MESSAGE} ./scripts/release.sh

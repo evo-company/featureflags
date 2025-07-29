@@ -52,6 +52,7 @@ services:
       - main
     volumes:
       - ./featureflags:/app/featureflags
+      - ./pyproject.toml:/app/pyproject.toml
       - ./scripts:/app/scripts
       - ./configs:/app/configs
       - ./.ipython:/app/.ipython
