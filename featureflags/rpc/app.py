@@ -36,6 +36,14 @@ async def create_server(
 
 
 async def main() -> None:
+    from featureflags import __version__, __build_version__
+
+    log.info(
+        "Starting rpc server. Version: %s, Build version: %s",
+        __version__,
+        __build_version__,
+    )
+
     async with contextlib.AsyncExitStack() as stack:
         container = Container()
         await container.init_resources()

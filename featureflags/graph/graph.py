@@ -82,10 +82,10 @@ from featureflags.utils import (
     exec_many,
     exec_scalar,
 )
-from featureflags import __version__
+from featureflags import __version__, __build_version__
 
 
-@dataclass
+@dataclass(frozen=True)
 class VersionInfo:
     server_version: str
     build_version: str
@@ -261,19 +261,10 @@ async def root_authenticated(ctx: dict, _options: dict) -> list:
     return [ctx[GraphContext.USER_SESSION].is_authenticated]
 
 
-@pass_context
-async def root_version(ctx: dict, _options: dict) -> list:
-    return [__version__]
-
-
-async def version_info() -> VersionInfo:
-    # TODO: Replace with actual logevo.get_version() when available
-    # For now, using a placeholder build version
-    build_version = "1.22.0"  # Placeholder - should be logevo.get_version()
-    
+async def root_version() -> VersionInfo:
     return VersionInfo(
-        server_version=__version__,  # serverVersion
-        build_version=build_version,  # buildVersion
+        server_version=__version__,
+        build_version=__build_version__,
     )
 
 
@@ -745,17 +736,18 @@ RootNode = Root(
 async def version_field_info(
     fields: list[Field], version_data: list[VersionInfo]
 ) -> list[list]:
-    [version_info] = version_data
-
-    def get_field(name: str) -> str:
+    def get_field(name: str, info: VersionInfo) -> str:
         if name == "serverVersion":
-            return version_info.server_version
+            return info.server_version
         elif name == "buildVersion":
-            return version_info.build_version
+            return info.build_version
         else:
             raise ValueError(f"Unknown field: {name}")
 
-    return [[get_field(f.name)] for f in fields]
+    return [
+        [get_field(f.name, info) for f in fields]
+        for info in version_data
+    ]
 
 
 VersionNode = Node(

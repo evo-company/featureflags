@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -11,6 +12,8 @@ from featureflags.web.api.index import router as index_router
 from featureflags.web.container import Container
 from featureflags.web.lifecycle import configure_lifecycle
 from featureflags.web.middlewares import configure_middlewares
+
+log = logging.getLogger(__name__)
 
 
 def create_app() -> FastAPI:
@@ -47,6 +50,13 @@ def create_app() -> FastAPI:
 
 def main() -> None:
     import uvicorn
+    from featureflags import __version__, __build_version__
+
+    log.info(
+        "Starting web server. Version: %s, Build version: %s",
+        __version__,
+        __build_version__,
+    )
 
     uvicorn.run(
         app="featureflags.web.app:create_app",
