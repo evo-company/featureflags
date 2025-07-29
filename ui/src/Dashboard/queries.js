@@ -2,7 +2,10 @@ import { gql } from '@apollo/client';
 
 export const VERSION_QUERY = gql`
   query Version {
-    version
+    version {
+      serverVersion
+      buildVersion
+    }
   }
 `;
 

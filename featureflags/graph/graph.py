@@ -1,4 +1,5 @@
 from collections import defaultdict
+from dataclasses import dataclass
 from uuid import UUID
 
 import aiopg.sa
@@ -82,6 +83,12 @@ from featureflags.utils import (
     exec_scalar,
 )
 from featureflags import __version__
+
+
+@dataclass
+class VersionInfo:
+    server_version: str
+    build_version: str
 
 
 async def id_field(fields: list, ids: list) -> list[list]:
@@ -257,6 +264,17 @@ async def root_authenticated(ctx: dict, _options: dict) -> list:
 @pass_context
 async def root_version(ctx: dict, _options: dict) -> list:
     return [__version__]
+
+
+async def version_info() -> VersionInfo:
+    # TODO: Replace with actual logevo.get_version() when available
+    # For now, using a placeholder build version
+    build_version = "1.22.0"  # Placeholder - should be logevo.get_version()
+    
+    return VersionInfo(
+        server_version=__version__,  # serverVersion
+        build_version=build_version,  # buildVersion
+    )
 
 
 async def check_variable(ids: list[int]) -> list[int]:
@@ -719,8 +737,33 @@ RootNode = Root(
             ],
         ),
         Field("authenticated", Boolean, root_authenticated),
-        Field("version", String, root_version),
+        Link("version", TypeRef["Version"], root_version, requires=None),
     ]
+)
+
+
+async def version_field_info(
+    fields: list[Field], version_data: list[VersionInfo]
+) -> list[list]:
+    [version_info] = version_data
+
+    def get_field(name: str) -> str:
+        if name == "serverVersion":
+            return version_info.server_version
+        elif name == "buildVersion":
+            return version_info.build_version
+        else:
+            raise ValueError(f"Unknown field: {name}")
+
+    return [[get_field(f.name)] for f in fields]
+
+
+VersionNode = Node(
+    "Version",
+    [
+        Field("serverVersion", String, version_field_info),
+        Field("buildVersion", String, version_field_info),
+    ],
 )
 
 
@@ -944,6 +987,7 @@ GRAPH = Graph(
         ChangeNode,
         ValueChangeNode,
         RootNode,
+        VersionNode,
         SignInNode,
         SignOutNode,
         SaveFlagNode,

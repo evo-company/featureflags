@@ -7,9 +7,11 @@ import { VERSION_QUERY } from '../Dashboard/queries';
 function Version() {
   const { data: versionData } = useQuery(VERSION_QUERY);
 
-  if (!versionData?.version) {
+  if (!versionData?.version?.serverVersion) {
     return null;
   }
+
+  const { serverVersion, buildVersion } = versionData.version;
 
   return (
     <Text
@@ -22,7 +24,7 @@ function Version() {
         opacity: 0.7,
       }}
     >
-      v{versionData.version}
+      v{serverVersion} (build: {buildVersion})
     </Text>
   );
 }
