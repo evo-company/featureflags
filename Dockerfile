@@ -1,9 +1,9 @@
 FROM python:3.11-slim-bullseye as base
 
 ENV PIP_VERSION=23.2.1
-ENV PDM_VERSION=2.9.1
+ENV PDM_VERSION=2.24.2
+ENV UV_VERSION=0.4.20
 ENV PDM_USE_VENV=no
-ENV PYTHONPATH=/app/__pypackages__/3.11/lib
 
 WORKDIR /app
 
@@ -25,11 +25,13 @@ RUN apt-get update && \
   # install tools
   pip install --upgrade pip==${PIP_VERSION} && \
   pip install pdm==${PDM_VERSION} && \
+  pip install uv==${UV_VERSION} && \
   # configure
   pdm config cache_dir /pdm_cache && \
   pdm config check_update false && \
   # install base deps \
-  pdm install --no-lock --prod --no-editable  && \
+  pdm export --prod -o requirements-base.txt -f requirements && \
+  uv pip install --system -r requirements-base.txt --no-deps --no-cache-dir --index-strategy unsafe-best-match && \
   # cleanup base layer to keep image size small
   apt purge --auto-remove -y \
   gcc \
@@ -53,13 +55,17 @@ FROM assets-base as assets-prod
 RUN cd ui && npm run build
 
 FROM base as dev
-RUN pdm install --no-lock -G dev -G sentry -G lint --no-editable
+RUN pdm export -G dev -G sentry -G lint -o requirements-dev.txt -f requirements && \
+  uv pip install --system -r requirements-dev.txt --no-deps --no-cache-dir --index-strategy unsafe-best-match
 
 FROM base as test
-RUN pdm install --no-lock -G test
+
+RUN pdm export -G test -o requirements-test.txt -f requirements && \
+  uv pip install --system -r requirements-test.txt --no-deps --no-cache-dir --index-strategy unsafe-best-match
 
 FROM base as docs
-RUN pdm install --no-lock -G docs
+RUN pdm export -G docs -o requirements-docs.txt -f requirements && \
+  uv pip install --system -r requirements-docs.txt --no-deps --no-cache-dir --index-strategy unsafe-best-match
 
 FROM base AS prd
 
@@ -77,9 +83,6 @@ RUN chmod +x /usr/local/bin/grpc_health_probe
 COPY ./featureflags /app/featureflags
 # clear static folder in case it exists on host machine
 RUN rm -rf /app/featureflags/web/static
-
-COPY --from=base /app/__pypackages__/3.11/lib /app
-COPY --from=base /app/__pypackages__/3.11/bin/* /bin/
 
 COPY --from=assets-prod "ui/dist" "featureflags/web/static"
 

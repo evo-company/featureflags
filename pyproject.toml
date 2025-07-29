@@ -128,7 +128,7 @@ select = [
   "PL",    # pylint
   "RUF",   # ruff-specific
 ]
-ignore = ["S101", "S104", "S105", "DTZ003", "DTZ006", "A003", "B008", "PLR0913"]
+ignore = ["S101", "S104", "S105", "DTZ003", "DTZ006", "A003", "B008", "PLR0913", "PLC0415"]
 exclude = [
   ".bzr",
   ".direnv",

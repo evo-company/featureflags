@@ -92,10 +92,11 @@ async def exec_expression(engine: Engine, stmt: Any) -> Any:
         result = await conn.execute(stmt)
         return [r[0] for r in await result.fetchall()]
 
+
 async def exec_many(engine: Engine, stmt: Any) -> Any:
     async with engine.acquire() as conn:
         result = await conn.execute(stmt)
-        return [r for r in await result.fetchall()]
+        return list(await result.fetchall())
 
 
 def escape_dn_chars(s: str) -> str:
