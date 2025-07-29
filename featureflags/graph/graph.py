@@ -1,4 +1,5 @@
 from collections import defaultdict
+from dataclasses import dataclass
 from uuid import UUID
 
 import aiopg.sa
@@ -81,6 +82,13 @@ from featureflags.utils import (
     exec_many,
     exec_scalar,
 )
+from featureflags import __version__, __build_version__
+
+
+@dataclass(frozen=True)
+class VersionInfo:
+    server_version: str
+    build_version: str
 
 
 async def id_field(fields: list, ids: list) -> list[list]:
@@ -251,6 +259,13 @@ async def root_values_changes(ctx: dict, options: dict) -> list:
 @pass_context
 async def root_authenticated(ctx: dict, _options: dict) -> list:
     return [ctx[GraphContext.USER_SESSION].is_authenticated]
+
+
+async def root_version() -> VersionInfo:
+    return VersionInfo(
+        server_version=__version__,
+        build_version=__build_version__,
+    )
 
 
 async def check_variable(ids: list[int]) -> list[int]:
@@ -713,7 +728,34 @@ RootNode = Root(
             ],
         ),
         Field("authenticated", Boolean, root_authenticated),
+        Link("version", TypeRef["Version"], root_version, requires=None),
     ]
+)
+
+
+async def version_field_info(
+    fields: list[Field], version_data: list[VersionInfo]
+) -> list[list]:
+    def get_field(name: str, info: VersionInfo) -> str:
+        if name == "serverVersion":
+            return info.server_version
+        elif name == "buildVersion":
+            return info.build_version
+        else:
+            raise ValueError(f"Unknown field: {name}")
+
+    return [
+        [get_field(f.name, info) for f in fields]
+        for info in version_data
+    ]
+
+
+VersionNode = Node(
+    "Version",
+    [
+        Field("serverVersion", String, version_field_info),
+        Field("buildVersion", String, version_field_info),
+    ],
 )
 
 
@@ -937,6 +979,7 @@ GRAPH = Graph(
         ChangeNode,
         ValueChangeNode,
         RootNode,
+        VersionNode,
         SignInNode,
         SignOutNode,
         SaveFlagNode,

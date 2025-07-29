@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Important for git describe to work correctly
 
       - name: Install lets
         uses: lets-cli/lets-action@v1.1

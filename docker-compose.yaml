@@ -48,6 +48,7 @@ services:
       PGUSER: postgres
       PGPASS: postgres
       SECRET: 023517f06f444118986877e636b4a226
+      BUILD_VERSION: ${BUILD_VERSION}
     networks:
       - main
     volumes:

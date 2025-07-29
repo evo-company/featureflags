@@ -5,6 +5,8 @@ env:
   COMPOSE_DOCKER_CLI_BUILD: "1"
   CURRENT_UID:
     sh: echo "`id -u`:`id -g`"
+  BUILD_VERSION:
+    sh: git describe --dirty
 
 commands:
   build-target:

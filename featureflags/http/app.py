@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
 
@@ -8,6 +9,8 @@ from featureflags.http.container import Container
 from featureflags.http.lifecycle import configure_lifecycle
 from featureflags.metrics import configure_metrics
 from featureflags.services.auth import set_internal_user_session
+
+log = logging.getLogger(__name__)
 
 
 def create_app() -> FastAPI:
@@ -37,6 +40,14 @@ def create_app() -> FastAPI:
 
 def main() -> None:
     import uvicorn
+
+    from featureflags import __version__, __build_version__
+
+    log.info(
+        "Starting http server. Version: %s, Build version: %s",
+        __version__,
+        __build_version__,
+    )
 
     uvicorn.run(
         app="featureflags.http.app:create_app",

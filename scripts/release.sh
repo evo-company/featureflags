@@ -15,7 +15,15 @@ fi
 
 echo "Releasing ${VERSION} with message: ${MESSAGE}"
 
-echo "__version__ = \"${VERSION}\"" > featureflags/__init__.py
+# Cross-platform sed command that works on both macOS and Linux
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS (BSD sed)
+    sed -i '' "s/^__version__ = \".*\"/__version__ = \"${VERSION}\"/" featureflags/__init__.py
+else
+    # Linux (GNU sed)
+    sed -i "s/^__version__ = \".*\"/__version__ = \"${VERSION}\"/" featureflags/__init__.py
+fi
+
 git add featureflags/__init__.py
 git commit -m "Release ${VERSION}"
 
