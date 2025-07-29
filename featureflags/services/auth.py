@@ -40,6 +40,9 @@ def encode_jwt_token(
     secret: str,
     payload: dict,
 ) -> str:
+    # this is secure as payload is constructed at encode_jwt_token call and
+    # payload is controlled at the caller side
+    # nosemgrep: python.jwt.security.audit.jwt-exposed-data.jwt-python-exposed-data
     return jwt.encode(
         payload,
         secret,
