@@ -6,6 +6,6 @@ User's Guide
 .. toctree::
   :maxdepth: 3
 
-  getting-start
-  integrations
+  introduction
+  clients
   changelog/index
