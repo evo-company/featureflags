@@ -57,7 +57,7 @@ services:
       - ./scripts:/app/scripts
       - ./configs:/app/configs
       - ./.ipython:/app/.ipython
-      - ./README.md:/app/README.md
+      - ./README.rst:/app/README.rst
 
   web:
     <<: *backend
