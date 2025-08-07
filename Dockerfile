@@ -13,7 +13,7 @@ COPY ./pdm.lock .
 # for pyproject.toml to extract version
 COPY ./featureflags/__init__.py ./featureflags/__init__.py
 # for pyproject.toml to read readme
-COPY ./README.md .
+COPY ./README.rst .
 
 RUN apt-get update && \
   apt-get install -y --no-install-recommends \
