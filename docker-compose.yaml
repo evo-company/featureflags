@@ -65,7 +65,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8080:8080"
     command: watchfiles --filter python "python3 -m featureflags web" featureflags
 
   rpc:
@@ -83,7 +83,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8081:8081"
     command: watchfiles --filter python "python3 -m featureflags http" featureflags
 
   ishell:
