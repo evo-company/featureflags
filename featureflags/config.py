@@ -53,21 +53,21 @@ class InstrumentationSettings(BaseSettings):
 
 
 class AppSettings(BaseSettings):
-    port: int = 8000
-    host: str = "0.0.0.0"
-    reload: bool = False
-    max_concurrent_threads: int = 40
-
-
-class HttpSettings(BaseSettings):
     port: int = 8080
     host: str = "0.0.0.0"
     reload: bool = False
     max_concurrent_threads: int = 40
 
 
+class HttpSettings(BaseSettings):
+    port: int = 8081
+    host: str = "0.0.0.0"
+    reload: bool = False
+    max_concurrent_threads: int = 40
+
+
 class RpcSettings(BaseSettings):
-    port: int = 8000
+    port: int = 50051
     host: str = "0.0.0.0"
 
 

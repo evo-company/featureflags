@@ -82,7 +82,7 @@ class FlagsRepository:
         self._db_engine = db_engine
         self._graph_engine = graph_engine
 
-    async def get_project_version(self, project: str) -> int:
+    async def get_project_version(self, project: str) -> int | None:
         async with self._db_engine.acquire() as conn:
             return await select_scalar(
                 conn,

@@ -1,7 +1,7 @@
 import { createGraphiQLFetcher } from '@graphiql/toolkit';
 import { GraphiQL } from 'graphiql';
 import React from 'react';
-import 'graphiql/graphiql.css';
+import 'graphiql/style.css'
 
 const fetcher = createGraphiQLFetcher({ url: '/graphql' });
 

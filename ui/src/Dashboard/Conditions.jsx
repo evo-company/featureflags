@@ -55,22 +55,22 @@ const Condition = ({ onRemove, condition, projectName }) => {
 }
 
 export const Conditions = () => {
-  const flag = useFlagState();
+  const flagState = useFlagState();
   const conditions = useConditions();
   const { addCondition, deleteCondition } = useFlagCtx();
 
-  const noConditions = flag.conditions.length === 0;
+  const noConditions = flagState.conditions.length === 0;
 
   return (
     <Row>
       <Col>
-        {flag.conditions.map((conditionId) => {
+        {flagState.conditions.map((conditionId) => {
           return (
             <Condition
               key={conditionId}
               condition={conditions[conditionId]}
               onRemove={() => deleteCondition(conditions[conditionId])}
-              projectName={flag.projectName}
+              projectName={flagState.projectName}
             />
           )
         })}

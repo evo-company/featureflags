@@ -43,8 +43,18 @@ Then run the server using Lets:
     # Start the UI dev server
     $ lets ui
 
-The server will be available at `http://localhost:8000`.
-The api will be available at `http://localhost:8080`.
+The server will be available at `http://localhost:8080`.
+The api will be available at `http://localhost:8081`.
+
+To create a project for development purposes you can run:
+
+``lets http``
+
+and then execute this command:
+
+.. code-block:: shell
+    curl -X POST http://localhost:8080/flags/load -H "Content-Type: application/json" \
+    -d '{"project": "test", "version": 1, "variables": [{"name": "user.id", "type": 2}], "flags": ["TEST_FLAG"], "values": [["TEST_VALUE", 1]]}'
 
 Configuration
 ~~~~~~~~~~~~~

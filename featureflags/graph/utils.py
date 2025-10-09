@@ -34,6 +34,8 @@ def update_map(map_: dict, update: dict) -> dict:
 async def gen_id(local_id: LocalId, *, conn: SAConnection) -> UUID:
     assert local_id.scope and local_id.value, local_id
 
+    # try to insert new local id. if it already exists, return None,
+    # otherwise return the id
     id_ = await select_scalar(
         conn,
         (
@@ -50,6 +52,8 @@ async def gen_id(local_id: LocalId, *, conn: SAConnection) -> UUID:
             .returning(LocalIdMap.id)
         ),
     )
+    # if previous insert returned None, it means that the id already exists,
+    # try to select the id
     if id_ is None:
         id_ = await select_scalar(
             conn,
