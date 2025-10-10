@@ -114,6 +114,13 @@ export function getSaveOperations(flag, editFlag, conditions, checks, variablesM
 
   const originalConditions = flag.conditions.map((c) => c.id);
   const newConditions = flag_.conditions;
+
+  // First, remove conditions that are no longer present
+  forEach(difference(originalConditions, newConditions), (conditionId) => {
+    ops.push(Operation.disableCondition(conditionId));
+  });
+
+  // Then, add new conditions/update existing conditions/checks
   forEach(difference(newConditions, originalConditions), (conditionId) => {
     let condition = conditions[conditionId];
     let conditionChecks = [];
@@ -191,9 +198,6 @@ export function getSaveOperations(flag, editFlag, conditions, checks, variablesM
     });
     ops.push(Operation.addCondition(flag.id, conditionId, conditionChecks, condition.position));
 
-  });
-  forEach(difference(originalConditions, newConditions), (conditionId) => {
-    ops.push(Operation.disableCondition(conditionId));
   });
   return { ops, errors };
 }
@@ -382,6 +386,13 @@ export function getValueSaveOperations(value, editValue, conditions, checks, var
 
   const originalConditions = value.conditions.map((c) => c.id);
   const newConditions = value_.conditions;
+
+  // First, remove conditions that are no longer present
+  forEach(difference(originalConditions, newConditions), (conditionId) => {
+    ops.push(ValueOperation.disableCondition(conditionId));
+  });
+
+  // Then, add new conditions/update existing conditions/checks
   forEach(difference(newConditions, originalConditions), (conditionId) => {
     let condition = conditions[conditionId];
     let conditionChecks = [];
@@ -460,9 +471,6 @@ export function getValueSaveOperations(value, editValue, conditions, checks, var
       }
     ops.push(ValueOperation.addCondition(value.id, conditionId, conditionChecks, condition.value_override, condition.position));
 
-  });
-  forEach(difference(originalConditions, newConditions), (conditionId) => {
-    ops.push(ValueOperation.disableCondition(conditionId));
   });
   return { ops, errors };
 }

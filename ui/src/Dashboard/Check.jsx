@@ -5,7 +5,7 @@ import {
   InputNumber,
   DatePicker,
   Row,
-  Space,
+  Flex,
   Select,
   message,
 } from 'antd';
@@ -20,7 +20,7 @@ import { DELETE_VARIABLE_MUTATION } from "./queries";
 const { Option } = Select;
 
 const defaultInputProps = {
-  style: { width: 335 },
+  style: { flex: 1 },
   size: "middle"
 }
 
@@ -80,7 +80,7 @@ const CheckInput = ({ conditionId, check, projectName }) => {
       />;
   }
   return <Input
-    style={{ width: 335 }}
+    style={{ flex: 1 }}
     size="middle"
     disabled
   />;
@@ -144,8 +144,8 @@ export const Check = ({ conditionId, check, onDeleteCheck, projectName }) => {
           <MinusOutlined/>
         </Button>
       </Col>
-      <Col span={12}>
-        <Space>
+      <Col span={22}>
+        <Flex gap="small" style={{ width: '100%' }}>
           <Select
             className={check.variable === undefined ? 'empty check-variable-select' : 'check-variable-select'}
             placeholder="variable"
@@ -177,8 +177,10 @@ export const Check = ({ conditionId, check, onDeleteCheck, projectName }) => {
               <Option key={id} value={id}>{title}</Option>
             ))}
           </Select>
-          <CheckInput conditionId={conditionId} check={check} projectName={projectName} />
-        </Space>
+          <Flex flex={1}>
+            <CheckInput conditionId={conditionId} check={check} projectName={projectName} />
+          </Flex>
+        </Flex>
       </Col>
     </Row>
   );

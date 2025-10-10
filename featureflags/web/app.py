@@ -1,4 +1,5 @@
 import logging
+
 from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -50,7 +51,8 @@ def create_app() -> FastAPI:
 
 def main() -> None:
     import uvicorn
-    from featureflags import __version__, __build_version__
+
+    from featureflags import __build_version__, __version__
 
     log.info(
         "Starting web server. Version: %s, Build version: %s",

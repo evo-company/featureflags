@@ -21,29 +21,24 @@ from hiku.graph import (
 )
 from hiku.query import Node as QueryNode
 from hiku.result import Proxy, denormalize
-from hiku.sources.aiopg import (
-    FieldsQuery,
-    LinkQuery,
-)
+from hiku.sources.aiopg import FieldsQuery
 from hiku.sources.graph import SubGraph
 from hiku.telemetry.prometheus import AsyncGraphMetrics
 from hiku.types import (
     Any,
     Boolean,
     EnumRef,
+    Integer,
     Optional,
     Record,
     Sequence,
     String,
     TypeRef,
-    Integer,
 )
 from sqlalchemy import select
-from sqlalchemy.sql.selectable import Select
 
-from featureflags import __version__, __build_version__
+from featureflags import __build_version__, __version__
 from featureflags.graph import actions
-from featureflags.graph.utils import LinkQuery
 from featureflags.graph.metrics import (
     GRAPH_PULL_ERRORS_COUNTER,
     GRAPH_PULL_TIME_HISTOGRAM,
@@ -66,7 +61,7 @@ from featureflags.graph.types import (
     SaveValueResult,
     ValueAction,
 )
-from featureflags.graph.utils import is_valid_uuid
+from featureflags.graph.utils import LinkQuery, is_valid_uuid
 from featureflags.metrics import wrap_metric
 from featureflags.models import (
     AuthUser,

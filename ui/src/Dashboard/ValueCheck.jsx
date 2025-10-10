@@ -5,7 +5,7 @@ import {
   InputNumber,
   DatePicker,
   Row,
-  Space,
+  Flex,
   Select,
 } from 'antd';
 import {
@@ -22,7 +22,7 @@ import {
 const { Option } = Select;
 
 const defaultInputProps = {
-  style: { width: 165 },
+  style: { width: '100%' },
   size: "middle"
 }
 
@@ -75,14 +75,14 @@ const CheckInput = ({ conditionId, check, projectName }) => {
       />;
   }
   return <Input
-    style={{ width: 165 }}
+    style={{ width: '100%' }}
     size="middle"
     placeholder="check"
     disabled
   />;
 }
 
-export const ValueCheck = ({ conditionId, check, onDeleteCheck, conditionValueOverride, onValueConditionOverrideChange, projectName }) => {
+export const ValueCheck = ({ conditionId, check, onDeleteCheck, projectName }) => {
   const projectsMap = useProjectsMap();
   const project = projectsMap[projectName];
   const { setVariable, setOperator } = useValueChecks();
@@ -107,8 +107,8 @@ export const ValueCheck = ({ conditionId, check, onDeleteCheck, conditionValueOv
           <MinusOutlined/>
         </Button>
       </Col>
-      <Col span={12}>
-        <Space>
+      <Col span={22}>
+        <Flex gap="small" style={{ width: '100%' }}>
           <Select
             className={check.variable === undefined ? 'empty check-variable-select' : 'check-variable-select'}
             placeholder="variable"
@@ -131,15 +131,10 @@ export const ValueCheck = ({ conditionId, check, onDeleteCheck, conditionValueOv
               <Option key={id} value={id}>{title}</Option>
             ))}
           </Select>
-          <CheckInput conditionId={conditionId} check={check} projectName={projectName} />
-          <Input
-              value={conditionValueOverride}
-              style={{ width: 165 }}
-              size="middle"
-              onChange={onValueConditionOverrideChange}
-              placeholder="value override"
-          />
-        </Space>
+          <Flex flex={1}>
+            <CheckInput conditionId={conditionId} check={check} projectName={projectName} />
+          </Flex>
+        </Flex>
       </Col>
     </Row>
   );
