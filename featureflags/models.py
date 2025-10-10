@@ -148,7 +148,11 @@ class Condition(Base):
     checks = Column("checks", ARRAY(UUID(as_uuid=True), as_tuple=True))
 
     __table_args__ = (
-        UniqueConstraint(flag, position, name="condition_flag_position_unique"),
+        UniqueConstraint(
+            flag,
+            position,
+            name="condition_flag_position_unique",
+        ),
     )
 
 
@@ -229,12 +233,20 @@ class ValueCondition(Base):
     id = Column(UUID(as_uuid=True), primary_key=True)
     value: UUID = Column(ForeignKey("value.id"), nullable=False)
     position = Column(Integer, nullable=False, default=0)
+    """
+    If condition is matched for value, ValueCondition.value_override will
+    be used instead of Value.value_default/Value.value_override
+    """
     value_override = Column(String, nullable=False)
 
     checks = Column("checks", ARRAY(UUID(as_uuid=True), as_tuple=True))
 
     __table_args__ = (
-        UniqueConstraint(value, position, name="value_condition_value_position_unique"),
+        UniqueConstraint(
+            value,
+            position,
+            name="value_condition_value_position_unique",
+        ),
     )
 
 

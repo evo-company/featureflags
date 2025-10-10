@@ -36,7 +36,7 @@ async def create_server(
 
 
 async def main() -> None:
-    from featureflags import __version__, __build_version__
+    from featureflags import __build_version__, __version__
 
     log.info(
         "Starting rpc server. Version: %s, Build version: %s",

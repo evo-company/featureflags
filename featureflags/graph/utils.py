@@ -1,16 +1,16 @@
 import uuid
+from collections.abc import Iterable
 from datetime import datetime
 from uuid import UUID, uuid4
-from collections.abc import Iterable
 
-from aiopg.sa import SAConnection
 import sqlalchemy
-from sqlalchemy import and_, select
-from sqlalchemy.sql.selectable import Select
-from sqlalchemy.dialects.postgresql import insert
+from aiopg.sa import SAConnection
 from hiku.sources.aiopg import (
     LinkQuery as _LinkQuery,
 )
+from sqlalchemy import and_, select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.sql.selectable import Select
 
 from featureflags.graph.types import (
     LocalId,

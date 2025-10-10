@@ -320,7 +320,7 @@ export const Value = ({ value, isSearch }) => {
 
   const getNextConditionPosition = () => {
     const positions = Object.values(conditions).map(c => c.position);
-    return Math.max(...positions) + 1;
+    return positions.length > 0 ? Math.max(...positions) + 1 : 0;
   }
 
   const newTempCondition = () => {

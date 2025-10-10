@@ -3,6 +3,7 @@ import {
   Col,
   Row,
   Space,
+  Input,
 } from 'antd';
 import {
   CloseOutlined,
@@ -25,6 +26,14 @@ const ValueCondition = ({ onRemove, condition, onValueConditionOverrideChange, p
 
   return (
     <div className='condition-block'>
+      <Row className='value-condition-override'>
+      <Input
+          value={condition.value_override}
+          size="middle"
+          onChange={onValueConditionOverrideChange}
+          placeholder="value override"
+      />
+      </Row>
       {condition.checks.map((checkId, idx) => {
         return (
           <ValueCheck
@@ -33,8 +42,6 @@ const ValueCondition = ({ onRemove, condition, onValueConditionOverrideChange, p
             conditionId={condition.id}
             check={checks[checkId]}
             onDeleteCheck={() => deleteCheck(condition.id, checkId)}
-            conditionValueOverride={condition.value_override}
-            onValueConditionOverrideChange={onValueConditionOverrideChange}
             projectName={projectName}
           />
         )
