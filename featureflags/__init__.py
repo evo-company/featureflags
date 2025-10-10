@@ -1,4 +1,4 @@
 import os
 
-__version__ = "1.24.1"
+__version__ = "1.24.2"
 __build_version__ = os.getenv("BUILD_VERSION", "0")
