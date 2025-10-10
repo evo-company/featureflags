@@ -34,6 +34,13 @@ services:
       retries: 5
       start_period: 80s
 
+  ldap:
+    image: glauth/glauth
+    volumes:
+      - ./configs/ldap.cfg:/app/config/config.cfg
+    networks:
+      - main
+
   backend: &backend
     image: featureflags-server-dev
     init: true
@@ -64,6 +71,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      ldap:
+        condition: service_started
     ports:
       - "127.0.0.1:8080:8080"
     command: watchfiles --filter python "python3 -m featureflags web" featureflags

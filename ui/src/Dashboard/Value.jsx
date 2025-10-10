@@ -245,7 +245,6 @@ const getInitialValueState = (value) => ({
   enabled: value.enabled,
   value_default: value.value_default,
   value_override: value.value_override,
-  // TODO sort conditions, because after save, the order is not guaranteed now
   conditions: value.conditions.map((c) => c.id),
   createdTimestamp: value.created_timestamp,
   reportedTimestamp: value.reported_timestamp,
@@ -319,6 +318,11 @@ export const Value = ({ value, isSearch }) => {
     if (cb) cb(_value);
   }
 
+  const getNextConditionPosition = () => {
+    const positions = Object.values(conditions).map(c => c.position);
+    return Math.max(...positions) + 1;
+  }
+
   const newTempCondition = () => {
     // creating empty check for new condition
     const check = newTempCheck();
@@ -327,6 +331,7 @@ export const Value = ({ value, isSearch }) => {
     return {
       id: uniqueId('temp'),
       checks: [check.id],
+      position: getNextConditionPosition(),
     }
   }
 
@@ -536,13 +541,12 @@ export const Value = ({ value, isSearch }) => {
   return (
     <Card
       size="small"
-      className={saveValueFailed ? 'invalid' : ''}
+      className={saveValueFailed ? 'value-card invalid' : 'value-card'}
       title={<ValueTitle
         isSearch={isSearch}
         projectName={value.project.name}
         name={value.name}
       />}
-      style={{ width: 800, borderRadius: '5px' }}
     >
       <ValueContext.Provider value={ctx}>
         <HistoryModal
@@ -552,7 +556,10 @@ export const Value = ({ value, isSearch }) => {
           reportedTimestamp={value.reported_timestamp}
           onClose={() => setHistoryModalOpen(false)}
         />
-        <Space size="middle" direction="vertical">
+        <Space
+          size="middle" direction="vertical"
+          className='value-card-content'
+        >
           <Buttons
             onToggle={toggleEnabled}
             onReset={resetValue}

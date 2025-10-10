@@ -12,7 +12,7 @@ import {
 import { CloseOutlined, MinusOutlined } from '@ant-design/icons';
 
 import './Check.less';
-import { Operators, TYPES, Type } from './constants';
+import { Operators, Operator, TYPES, Type } from './constants';
 import { useMutation } from '@apollo/client';
 import { useChecks, useProjectsMap } from './context';
 import { DELETE_VARIABLE_MUTATION } from "./queries";
@@ -46,10 +46,17 @@ const CheckInput = ({ conditionId, check, projectName }) => {
         onChange={(e) => setValueString(conditionId, check.id, e.target.value)}
       />;
     case Type.NUMBER:
+      const customProps = {};
+      if (check.operator === Operator.PERCENT) {
+        customProps.min = 0;
+        customProps.max = 100;
+      }
       return <InputNumber
         className={check.kind === undefined ? 'empty' : ''}
         {...defaultInputProps}
+        {...customProps}
         value={check.value_number}
+        allowClear
         onChange={(value) => {
           setValueNumber(conditionId, check.id, value)
         }}
@@ -140,8 +147,7 @@ export const Check = ({ conditionId, check, onDeleteCheck, projectName }) => {
       <Col span={12}>
         <Space>
           <Select
-            className={check.variable === undefined ? 'empty' : ''}
-            style={{ width: 170 }}
+            className={check.variable === undefined ? 'empty check-variable-select' : 'check-variable-select'}
             placeholder="variable"
             value={check.variable}
             onChange={onVariableOptionChange}

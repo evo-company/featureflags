@@ -215,6 +215,7 @@ async def add_condition(
             {
                 Condition.id: id_,
                 Condition.flag: flag_id,
+                Condition.position: op.position,
                 Condition.checks: checks,
             }
         )
@@ -431,6 +432,7 @@ async def add_value_condition(
             {
                 ValueCondition.id: id_,
                 ValueCondition.value: value_id,
+                ValueCondition.position: op.position,
                 ValueCondition.checks: checks,
                 ValueCondition.value_override: value_override,
             }

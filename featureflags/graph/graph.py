@@ -36,10 +36,14 @@ from hiku.types import (
     Sequence,
     String,
     TypeRef,
+    Integer,
 )
 from sqlalchemy import select
+from sqlalchemy.sql.selectable import Select
 
+from featureflags import __version__, __build_version__
 from featureflags.graph import actions
+from featureflags.graph.utils import LinkQuery
 from featureflags.graph.metrics import (
     GRAPH_PULL_ERRORS_COUNTER,
     GRAPH_PULL_TIME_HISTOGRAM,
@@ -82,7 +86,6 @@ from featureflags.utils import (
     exec_many,
     exec_scalar,
 )
-from featureflags import __version__, __build_version__
 
 
 @dataclass(frozen=True)
@@ -342,6 +345,7 @@ _ConditionNode = Node(
     [
         ID_FIELD,
         Field("checks", None, condition_fq),
+        Field("position", Integer, condition_fq),
     ],
 )
 
@@ -356,6 +360,7 @@ _ValueConditionNode = Node(
         ID_FIELD,
         Field("checks", None, value_condition_fq),
         Field("value_override", None, value_condition_fq),
+        Field("position", Integer, value_condition_fq),
     ],
 )
 
@@ -449,6 +454,7 @@ flag_conditions = LinkQuery(
     GraphContext.DB_ENGINE,
     from_column=Condition.flag,
     to_column=Condition.id,
+    order_by=[Condition.position],
 )
 
 
@@ -509,6 +515,7 @@ value_conditions = LinkQuery(
     GraphContext.DB_ENGINE,
     from_column=ValueCondition.value,
     to_column=ValueCondition.id,
+    order_by=[ValueCondition.position],
 )
 
 
@@ -582,6 +589,7 @@ ConditionNode = Node(
         ID_FIELD,
         Field("_checks", None, condition_sg.c(S.this.checks)),
         Link("checks", Sequence["Check"], direct_link, requires="_checks"),
+        Field("position", Integer, condition_sg),
     ],
 )
 
@@ -594,6 +602,7 @@ ValueConditionNode = Node(
         Field("_checks", None, value_condition_sg.c(S.this.checks)),
         Link("checks", Sequence["Check"], direct_link, requires="_checks"),
         Field("value_override", String, value_condition_sg),
+        Field("position", Integer, value_condition_sg),
     ],
 )
 

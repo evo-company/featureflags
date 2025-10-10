@@ -25,10 +25,11 @@ const Condition = ({ onRemove, condition, projectName }) => {
 
   return (
     <div className='condition-block'>
-      {condition.checks.map((checkId) => {
+      {condition.checks.map((checkId, idx) => {
         return (
           <Check
-            key={checkId}
+            // using idx as key because checkId is not unique and changes when condition/check is touched
+            key={idx}
             conditionId={condition.id}
             check={checks[checkId]}
             onDeleteCheck={() => deleteCheck(condition.id, checkId)}
@@ -63,18 +64,19 @@ export const Conditions = () => {
 
   return (
     <Row>
-      <Col>
-        {flagState.conditions.map((conditionId) => {
+      <Col style={{ width: '100%' }}>
+        {flagState.conditions.map((conditionId, idx) => {
           return (
             <Condition
-              key={conditionId}
+              // using idx as key because conditionId is not unique and changes when condition/check is touched
+              key={idx}
               condition={conditions[conditionId]}
               onRemove={() => deleteCondition(conditions[conditionId])}
               projectName={flagState.projectName}
             />
           )
         })}
-        <Button onClick={addCondition} type="dashed" style={{ width: 775 }}>
+        <Button onClick={addCondition} type="dashed" style={{ width: '100%' }}>
           {noConditions
             ? 'add condition'
             : <span><PlusOutlined /> or</span>}

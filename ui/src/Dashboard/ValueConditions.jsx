@@ -25,10 +25,11 @@ const ValueCondition = ({ onRemove, condition, onValueConditionOverrideChange, p
 
   return (
     <div className='condition-block'>
-      {condition.checks.map((checkId) => {
+      {condition.checks.map((checkId, idx) => {
         return (
           <ValueCheck
-            key={checkId}
+            key={idx}
+            // using idx as key because checkId is not unique and changes when condition/check is touched
             conditionId={condition.id}
             check={checks[checkId]}
             onDeleteCheck={() => deleteCheck(condition.id, checkId)}
@@ -65,11 +66,12 @@ export const ValueConditions = () => {
 
   return (
     <Row>
-      <Col>
-        {value.conditions.map((conditionId) => {
+      <Col style={{ width: '100%' }}>
+        {value.conditions.map((conditionId, idx) => {
           return (
             <ValueCondition
-              key={conditionId}
+              key={idx}
+              // using idx as key because conditionId is not unique and changes when condition/check is touched
               condition={conditions[conditionId]}
               onRemove={() => deleteCondition(conditions[conditionId])}
               onValueConditionOverrideChange={(e) => updateValueConditionOverride(conditionId, e.target.value)}
@@ -77,7 +79,7 @@ export const ValueConditions = () => {
             />
           )
         })}
-        <Button onClick={addCondition} type="dashed" style={{ width: 775 }}>
+        <Button onClick={addCondition} type="dashed" style={{ width: '100%' }}>
           {noConditions
             ? 'add condition'
             : <span><PlusOutlined /> or</span>}

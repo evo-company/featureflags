@@ -226,7 +226,6 @@ const getInitialFlagState = (flag) => ({
   dirty: false,
   overridden: flag.overridden,
   enabled: flag.enabled,
-  // TODO sort conditions, because after save, the order is not guaranteed now
   conditions: flag.conditions.map((c) => c.id),
   createdTimestamp: flag.created_timestamp,
   reportedTimestamp: flag.reported_timestamp,
@@ -299,6 +298,11 @@ export const Flag = ({ flag, isSearch }) => {
     if (cb) cb(_flag);
   }
 
+  const getNextConditionPosition = () => {
+    const positions = Object.values(conditions).map(c => c.position);
+    return Math.max(...positions) + 1;
+  }
+
   const newTempCondition = () => {
     // creating empty check for new condition
     const check = newTempCheck();
@@ -307,6 +311,7 @@ export const Flag = ({ flag, isSearch }) => {
     return {
       id: uniqueId('temp'),
       checks: [check.id],
+      position: getNextConditionPosition(),
     }
   }
 
@@ -505,13 +510,12 @@ export const Flag = ({ flag, isSearch }) => {
   return (
     <Card
       size="small"
-      className={saveFlagFailed ? 'invalid' : ''}
+      className={saveFlagFailed ? 'flag-card invalid' : 'flag-card'}
       title={<FlagTitle
         isSearch={isSearch}
         projectName={flag.project.name}
         name={flag.name}
       />}
-      style={{ width: 800, borderRadius: '5px' }}
     >
       <FlagContext.Provider value={ctx}>
         <HistoryModal

@@ -124,6 +124,7 @@ class AddConditionOp:
     flag_id: str
     local_id: LocalId
     checks: list[Check]
+    position: int
 
     def __init__(self, op: dict):
         self.local_id = LocalId(
@@ -131,6 +132,7 @@ class AddConditionOp:
             value=op["local_id"]["value"],
         )
         self.flag_id = op["flag_id"]
+        self.position = op.get("position", 0)
         self.checks = [
             self.Check(
                 local_id=LocalId(
@@ -155,6 +157,7 @@ class AddValueConditionOp:
     value_id: str
     local_id: LocalId
     checks: list[Check]
+    position: int
 
     def __init__(self, op: dict):
         self.local_id = LocalId(
@@ -162,6 +165,7 @@ class AddValueConditionOp:
             value=op["local_id"]["value"],
         )
         self.value_id = op["value_id"]
+        self.position = op.get("position", 0)
         self.checks = [
             self.Check(
                 local_id=LocalId(

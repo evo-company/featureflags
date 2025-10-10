@@ -55,6 +55,8 @@ and then execute this command:
     curl -X POST http://localhost:8080/flags/load -H "Content-Type: application/json" \
     -d '{"project": "test", "version": 1, "variables": [{"name": "user.id", "type": 2}], "flags": ["TEST_FLAG"], "values": [["TEST_VALUE", 1]]}'
 
+Default username is ``admin`` and password is ``admin`` if you run with `configs/local.yaml` configuration file (default)
+
 To start API handlers (not required for web application):
 
 - ``lets http`` in separate terminal (this will start http server on ``http://localhost:8080``)

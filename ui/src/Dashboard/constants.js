@@ -6,7 +6,7 @@ export const Type = {
   SET: 4
 }
 
-const Operator = {
+export const Operator = {
     __DEFAULT__: 0,
     EQUAL: 1,
     LESS_THAN: 2,
