@@ -71,13 +71,14 @@ class Operation {
     }
   }
 
-  static addCondition(flagId, conditionId, conditionChecks) {
+  static addCondition(flagId, conditionId, conditionChecks, position) {
     return {
       type: 'add_condition',
       payload: {
         flag_id: flagId,
         local_id: Operation._localId(conditionId),
-        checks: conditionChecks
+        checks: conditionChecks,
+        position: position
       }
     }
   }
@@ -146,7 +147,10 @@ export function getSaveOperations(flag, editFlag, conditions, checks, variablesM
             }
             break;
           case Type.NUMBER:
-            if (!isNumber(check.value_number) || !check.hasOwnProperty('value_number')) {
+            if (!isNumber(check.value_number) && check.hasOwnProperty('value_number')) {
+              errors.invalidValue = "Number value is invalid";
+              console.log(check);
+            } else if (!isNumber(check.value_number) || !check.hasOwnProperty('value_number')) {
               errors.internalError = true;
               console.log(check);
             } else {
@@ -185,7 +189,7 @@ export function getSaveOperations(flag, editFlag, conditions, checks, variablesM
         conditionChecks.push({ id: checkId })
       }
     });
-    ops.push(Operation.addCondition(flag.id, conditionId, conditionChecks));
+    ops.push(Operation.addCondition(flag.id, conditionId, conditionChecks, condition.position));
 
   });
   forEach(difference(originalConditions, newConditions), (conditionId) => {
@@ -204,7 +208,17 @@ export const useActions = (flag) => {
       variables: {
         id: flag.id
       }
-    }]
+    }],
+    onCompleted: (data) => {
+      if (data.saveFlag && data.saveFlag.errors) {
+        message.error(data.saveFlag.errors.join(', '));
+      } else {
+        message.success(`Flag "${flag.name}" saved successfully`);
+      }
+    },
+    onError: (error) => {
+      message.error(`Error saving flag "${flag.name}": ${error.message}`);
+    }
   });
   const [resetFlagMut] = useMutation(RESET_FLAG_MUTATION, {
     variables: {
@@ -234,7 +248,9 @@ export const useActions = (flag) => {
       errors
     } = getSaveOperations(flag, flagState, conditions, checks, project.variablesMap);
     if (!isEmpty(errors)) {
-      if (errors.internalError) {
+      if (errors.invalidValue) {
+        message.error(errors.invalidValue);
+      } else if (errors.internalError) {
         message.error(INTERNAL_ERROR);
       } else if (errors.missingValue) {
         message.error(MISSING_VALUE);
@@ -322,7 +338,7 @@ class ValueOperation {
     }
   }
 
-  static addCondition(valueId, conditionId, conditionChecks, valueConditionOverride) {
+  static addCondition(valueId, conditionId, conditionChecks, valueConditionOverride, position) {
     return {
       type: 'add_value_condition',
       payload: {
@@ -330,6 +346,7 @@ class ValueOperation {
         local_id: ValueOperation._localId(conditionId),
         checks: conditionChecks,
         value_condition_override: valueConditionOverride,
+        position: position
       }
     }
   }
@@ -441,7 +458,7 @@ export function getValueSaveOperations(value, editValue, conditions, checks, var
         errors.missingValue = true;
         return;
       }
-    ops.push(ValueOperation.addCondition(value.id, conditionId, conditionChecks, condition.value_override));
+    ops.push(ValueOperation.addCondition(value.id, conditionId, conditionChecks, condition.value_override, condition.position));
 
   });
   forEach(difference(originalConditions, newConditions), (conditionId) => {

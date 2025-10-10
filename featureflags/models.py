@@ -143,8 +143,13 @@ class Condition(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True)
     flag: UUID = Column(ForeignKey("flag.id"), nullable=False)
+    position = Column(Integer, nullable=False, default=0)
 
     checks = Column("checks", ARRAY(UUID(as_uuid=True), as_tuple=True))
+
+    __table_args__ = (
+        UniqueConstraint(flag, position, name="condition_flag_position_unique"),
+    )
 
 
 class Check(Base):
@@ -223,9 +228,14 @@ class ValueCondition(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True)
     value: UUID = Column(ForeignKey("value.id"), nullable=False)
+    position = Column(Integer, nullable=False, default=0)
     value_override = Column(String, nullable=False)
 
     checks = Column("checks", ARRAY(UUID(as_uuid=True), as_tuple=True))
+
+    __table_args__ = (
+        UniqueConstraint(value, position, name="value_condition_value_position_unique"),
+    )
 
 
 class ValueChangelog(Base):

@@ -86,6 +86,10 @@ commands:
     cmd: |
       docker compose run --rm test
 
+  ldap:
+    description: Run ldap server
+    cmd: docker-compose up ldap
+
   postgres:
     description: Run postgres
     cmd: docker-compose up postgres

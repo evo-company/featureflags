@@ -110,8 +110,7 @@ export const ValueCheck = ({ conditionId, check, onDeleteCheck, conditionValueOv
       <Col span={12}>
         <Space>
           <Select
-            className={check.variable === undefined ? 'empty' : ''}
-            style={{ width: 170 }}
+            className={check.variable === undefined ? 'empty check-variable-select' : 'check-variable-select'}
             placeholder="variable"
             value={check.variable}
             onChange={onVariableOptionChange}

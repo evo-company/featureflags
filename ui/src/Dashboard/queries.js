@@ -36,6 +36,7 @@ const FLAG_FRAGMENT = gql`
     }
     conditions {
       id
+      position
       checks {
         id
         variable {
@@ -127,6 +128,7 @@ const VALUE_FRAGMENT = gql`
     }
     conditions {
       id
+      position
       value_override
       checks {
         id

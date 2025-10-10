@@ -31,8 +31,8 @@ postgres:
   timeout: 10
 
 ldap:
-  host: null
-  base_dn: null
+  host: ldap://ldap:3893
+  base_dn: dc=evo,dc=dev
 
 instrumentation:
   prometheus_port: 9100

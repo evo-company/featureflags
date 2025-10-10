@@ -1,10 +1,16 @@
 import uuid
 from datetime import datetime
 from uuid import UUID, uuid4
+from collections.abc import Iterable
 
 from aiopg.sa import SAConnection
+import sqlalchemy
 from sqlalchemy import and_, select
+from sqlalchemy.sql.selectable import Select
 from sqlalchemy.dialects.postgresql import insert
+from hiku.sources.aiopg import (
+    LinkQuery as _LinkQuery,
+)
 
 from featureflags.graph.types import (
     LocalId,
@@ -91,3 +97,26 @@ async def get_auth_user(username: str, *, conn: SAConnection) -> UUID:
             user_id = await select_scalar(conn, user_id_select)
             assert user_id is not None
     return user_id
+
+
+class LinkQuery(_LinkQuery):
+    """LinkQuery with support for ordering results."""
+
+    def __init__(
+        self,
+        engine_key: str,
+        *,
+        from_column: sqlalchemy.Column,
+        to_column: sqlalchemy.Column,
+        order_by: list[sqlalchemy.Column] | None = None,
+    ) -> None:
+        super().__init__(
+            engine_key, from_column=from_column, to_column=to_column
+        )
+        self.order_by = order_by or []
+
+    def select_expr(self, ids: Iterable) -> Select | None:
+        expr = super().select_expr(ids)
+        if expr is not None and self.order_by:
+            expr = expr.order_by(*self.order_by)
+        return expr
