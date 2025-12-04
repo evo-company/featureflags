@@ -137,7 +137,8 @@ commands:
     depends: [build-docs]
     cmd: |
       docker-compose run --rm docs \
-        sphinx-build -a -b html docs public
+        sphinx-build -a -b html docs docs/build
+      echo "Docs generated at docs/build/index.html"
 
   ui:
     description: Build and run UI with dev server

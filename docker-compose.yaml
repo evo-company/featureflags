@@ -65,6 +65,7 @@ services:
       - ./configs:/app/configs
       - ./.ipython:/app/.ipython
       - ./README.rst:/app/README.rst
+      - ./docs:/app/docs
 
   web:
     <<: *backend
