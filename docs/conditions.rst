@@ -62,6 +62,10 @@ Applicable to **Set** variables.
 
     On web ui side you create new condition with ``user_roles`` variable, ``included in`` operator and provide values separated by comma, e.g ``admin,superadmin```
 
+    .. image:: _static/images/condition-set-included-in.png
+        :width: 700
+        :alt: UI
+
     .. code-block:: python
 
         class FlagsDefaults:
