@@ -54,7 +54,35 @@ Applicable to **Timestamp** variables.
 Set Operators
 ~~~~~~~~~~~~~
 
+``Set`` variables are sets of ``strings``. In order to use ``set`` conditions, you need to pass a set of strings as the value to the context.
+
 Applicable to **Set** variables.
 
-*   **Subset**: Checks if the set in the context is a subset of the defined set (i.e., all elements in the context set must exist in the defined set).
-*   **Superset**: Checks if the set in the context is a superset of the defined set (i.e., the context set must contain all elements of the defined set).
+*   **Subset (Included In)**: Checks if the set in the context is a subset of the defined set (i.e., all elements in the context set must exist in the defined set).
+
+    On web ui side you create new condition with ``user_roles`` variable, ``included in`` operator and provide values separated by comma, e.g ``admin,superadmin```
+
+    .. code-block:: python
+
+        class FlagsDefaults:
+            ADMIN_ACCESS = False
+
+        manager = HttpxManager(
+            url="http://localhost:8080",
+            project="my-project",
+            variables=[Variable("user_roles", VariableType.SET)],
+            defaults=FlagsDefaults,
+        )
+        client = FeatureFlagsClient(manager)
+
+        @app.get("/admin")
+        def admin():
+            auth_user = User(role="admin")
+
+            with client.flags({"set": {auth_user.role}}) as f:
+                if f.ADMIN_ACCESS:
+                    return "Admin access granted"
+
+                return "Admin access denied"
+
+*   **Superset (Includes)**: Checks if the set in the context is a superset of the defined set (i.e., the context set must contain all elements of the defined set).
