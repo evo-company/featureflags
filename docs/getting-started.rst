@@ -1,5 +1,5 @@
-Concepts
-========
+Getting started
+===============
 
 This section explains the core concepts of the FeatureFlags system and how they work together.
 
@@ -21,13 +21,13 @@ Example flag usage:
 
     from featureflags_client.http.client import FeatureFlagsClient
     from featureflags_client.http.managers.requests import RequestsManager
-    
+
     # Define your flags with default values
     class Flags:
         NEW_UI_FEATURE = False
         BETA_MODE = False
         PREMIUM_FEATURES = False
-    
+
     # Initialize client
     manager = RequestsManager(
         url="http://localhost:8080",
@@ -41,7 +41,7 @@ Example flag usage:
 
     # Preload flags and values from server
     client.preload()
-    
+
     # Use flags in your application
     with client.flags({"user.id": "123"}) as flags:
         if flags.NEW_UI_FEATURE:
@@ -84,7 +84,7 @@ Example value usage:
 
     # Preload values from server
     client.preload()
-    
+
     # Use values in your application
     with client.values({"user.id": "123"}) as values:
         items_per_page = values.PAGINATION_LIMIT
@@ -162,12 +162,12 @@ Example variable usage:
 .. code-block:: python
 
     from featureflags_client.http.types import Variable, VariableType
-    
+
     # Define variables for your project
     USER_ID = Variable("user.id", VariableType.NUMBER)
     USER_EMAIL = Variable("user.email", VariableType.STRING)
     REQUEST_IP = Variable("request.ip", VariableType.STRING)
-    
+
     # Use variables in conditions
     manager = RequestsManager(
         url="http://localhost:8080",

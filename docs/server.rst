@@ -53,6 +53,7 @@ To create a project for development purposes you can run:
 and then execute this command:
 
 .. code-block:: shell
+
     curl -X POST http://localhost:8080/flags/load -H "Content-Type: application/json" \
     -d '{"project": "test", "version": 1, "variables": [{"name": "user.id", "type": 2}], "flags": ["TEST_FLAG"], "values": [["TEST_VALUE", 1]]}'
 
