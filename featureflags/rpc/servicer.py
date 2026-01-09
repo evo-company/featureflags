@@ -14,7 +14,7 @@ from featureflags.graph.proto_adapter import populate_result_proto
 from featureflags.models import Project
 from featureflags.protobuf import service_grpc, service_pb2
 from featureflags.rpc.db import add_statistics
-from featureflags.rpc.metrics import track
+from featureflags.rpc.metrics import GRPC_METHOD_COUNT, track
 from featureflags.rpc.utils import debug_cancellation
 from featureflags.services.auth import (
     user_session,
@@ -49,6 +49,7 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
         try:
             request: service_pb2.ExchangeRequest = await stream.recv_message()
         except asyncio.CancelledError:
+            GRPC_METHOD_COUNT.labels("Exchange", "unknown").inc()
             h2_conn = stream._stream._h2_connection
             window = h2_conn._inbound_flow_control_window_manager
             log.info(
@@ -69,6 +70,8 @@ class FeatureFlagsServicer(service_grpc.FeatureFlagsBase):
                 stream.metadata,
             )
             raise
+
+        GRPC_METHOD_COUNT.labels("Exchange", request.project).inc()
 
         async with self._db_engine.acquire() as conn:
             await add_statistics(
