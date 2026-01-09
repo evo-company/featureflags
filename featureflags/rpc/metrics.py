@@ -16,7 +16,9 @@ GRPC_METHOD_TIME = Histogram(
 )
 
 GRPC_METHOD_COUNT = Counter(
-    "grpc_method_call_count", "how many times grpc method called", ["method"]
+    "grpc_method_call_count",
+    "how many times grpc method called",
+    ["method", "project"],
 )
 
 GRPC_METHOD_IN_PROGRESS = Gauge(
@@ -31,7 +33,6 @@ def track(func: Callable) -> Callable:
     async def wrapper(*args: Any, **kwargs: Any) -> Any:
         func_name = func.__name__
 
-        GRPC_METHOD_COUNT.labels(func_name).inc()
         GRPC_METHOD_IN_PROGRESS.labels(func_name).inc()
 
         start_time = time.perf_counter()
