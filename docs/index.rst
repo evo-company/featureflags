@@ -17,4 +17,5 @@ User's Guide
   conditions
   deployment
   development
+  prometheus-metrics
   changelog/index
