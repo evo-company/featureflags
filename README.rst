@@ -21,6 +21,7 @@ Client
 
 * Python - https://github.com/evo-company/featureflags-py
 * JavaScript - https://github.com/evo-company/featureflags-js
+* Go - https://github.com/evo-company/featureflags-go
 
 Documentation
 -------------
