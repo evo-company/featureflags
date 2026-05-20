@@ -30,9 +30,12 @@ postgres:
   database: featureflags-test
   timeout: 10
 
+# Dummy values — test_environ=true overrides this with DummyLDAP at the
+# DI layer. The block has to exist only so the root validator sees at
+# least one auth method configured.
 ldap:
-  host: null
-  base_dn: null
+  host: ldap://test
+  base_dn: dc=test
 
 instrumentation:
   prometheus_port: null

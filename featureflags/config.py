@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 import yaml
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 log = logging.getLogger(__name__)
@@ -43,9 +43,67 @@ class PostgresSettings(BaseSettings):
         )
 
 
-class LdapSettings(BaseSettings):
-    host: str | None
-    base_dn: str | None
+class LdapAuthSettings(BaseSettings):
+    host: str
+    base_dn: str
+
+
+class OidcClient(BaseSettings):
+    id: str
+    name: str
+    read_only: bool = False
+    # Confidential clients (most web clients) have a secret used at the
+    # token-exchange step. Public clients (e.g. CLI device-code) leave it null
+    # and rely on PKCE alone.
+    client_secret: str | None = None
+
+
+class OidcProvider(BaseSettings):
+    """
+    Configuration for one OpenID Connect identity provider (Google, Microsoft
+    Entra ID, Auth0, Okta, Keycloak, …). Every IdP that follows the OIDC spec
+    works with the same verification code; only "issuer" / endpoints / clients
+    differ.
+
+    When the three explicit endpoint fields are omitted, they are discovered
+    from "{issuer}/.well-known/openid-configuration" on first use.
+
+    Splitting "authorization_endpoint" from the others is useful in test
+    setups where the browser and the server reach the IdP through different
+    URLs (e.g. "http://localhost:9000" vs "http://mock-oidc:9000" inside a
+    docker network).
+    """
+
+    name: str
+    display_name: str | None = None
+    issuer: str
+    jwks_uri: str | None = None
+    authorization_endpoint: str | None = None
+    token_endpoint: str | None = None
+    # If non-empty, the email domain on the verified ID token must be one of
+    # these values. Replaces the Google-only "hd" claim check.
+    allowed_email_domains: list[str] = Field(default_factory=list)
+    clients: list[OidcClient] = Field(default_factory=list)
+
+    @property
+    def client_by_id(self) -> dict[str, OidcClient]:
+        return {c.id: c for c in self.clients}
+
+    @property
+    def web_client(self) -> OidcClient | None:
+        """First non-read-only client — the one used for the cookie flow."""
+        for c in self.clients:
+            if not c.read_only:
+                return c
+        return None
+
+
+class OidcAuthSettings(BaseSettings):
+    providers: list[OidcProvider] = Field(default_factory=list)
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.providers)
 
 
 class InstrumentationSettings(BaseSettings):
@@ -86,7 +144,8 @@ class Config(BaseSettings):
     test_environ: bool = False
 
     postgres: PostgresSettings
-    ldap: LdapSettings
+    ldap: LdapAuthSettings | None = None
+    oidc: OidcAuthSettings | None = None
     logging: LoggingSettings
     instrumentation: InstrumentationSettings
     sentry: SentrySettings
@@ -94,6 +153,16 @@ class Config(BaseSettings):
     app: AppSettings
     rpc: RpcSettings
     http: HttpSettings
+
+    @model_validator(mode="after")
+    def _require_at_least_one_auth_method(self) -> "Config":
+        if self.ldap is None and (self.oidc is None or not self.oidc.providers):
+            raise ValueError(
+                "At least one authentication method must be configured: "
+                "set 'ldap' (host + base_dn) or 'oidc' (with at least one "
+                "provider in 'oidc.providers')."
+            )
+        return self
 
 
 def _load_config() -> Config:

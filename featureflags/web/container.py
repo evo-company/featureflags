@@ -1,5 +1,3 @@
-from typing import Literal
-
 from dependency_injector import containers, providers
 from hiku.endpoint.graphql import AsyncBatchGraphQLEndpoint
 from hiku.engine import Engine
@@ -8,11 +6,25 @@ from hiku.executors.asyncio import AsyncIOExecutor
 from featureflags.config import config
 from featureflags.graph import graph
 from featureflags.services.db import init_db_engine
-from featureflags.services.ldap import LDAP, DummyLDAP
+from featureflags.services.ldap import LDAP, BaseLDAP, DummyLDAP
+from featureflags.services.oidc_auth import OidcAuthenticator
 
 
-def select_main_or_testing_dependency() -> Literal["main", "testing"]:
-    return "testing" if config.test_environ else "main"
+def _build_ldap_service() -> BaseLDAP | None:
+    if config.test_environ:
+        return DummyLDAP(user_is_bound=True)
+    if config.ldap is None:
+        return None
+    return LDAP(host=config.ldap.host, base_dn=config.ldap.base_dn)
+
+
+def _build_oidc_authenticators() -> dict[str, OidcAuthenticator]:
+    if config.oidc is None:
+        return {}
+    return {
+        provider.name: OidcAuthenticator(provider)
+        for provider in config.oidc.providers
+    }
 
 
 class Container(containers.DeclarativeContainer):
@@ -40,15 +52,6 @@ class Container(containers.DeclarativeContainer):
 
     db_engine = providers.Resource(init_db_engine)
 
-    ldap_service = providers.Selector(
-        selector=select_main_or_testing_dependency,
-        main=providers.Factory(
-            LDAP,
-            host=config.ldap.host,
-            base_dn=config.ldap.base_dn,
-        ),
-        testing=providers.Factory(
-            DummyLDAP,
-            user_is_bound=True,
-        ),
-    )
+    ldap_service = providers.Singleton(_build_ldap_service)
+
+    oidc_authenticators = providers.Singleton(_build_oidc_authenticators)

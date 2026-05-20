@@ -63,8 +63,14 @@ class AuthUser(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True)
     username = Column(String, nullable=False, unique=True)
+    # Namespaced OIDC subject "{provider}:{sub}" for users authenticated via
+    # an OIDC identity provider. Null for legacy LDAP-only users.
+    oidc_subject = Column(String, nullable=True, unique=True)
 
-    __table_args__ = (Index("auth_user_username_idx", username),)
+    __table_args__ = (
+        Index("auth_user_username_idx", username),
+        Index("auth_user_oidc_subject_idx", oidc_subject),
+    )
 
 
 class AuthSession(Base):

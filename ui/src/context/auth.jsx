@@ -8,6 +8,15 @@ export const AuthContext = createContext({});
 const AUTH_QUERY = gql`
   query Auth {
     authenticated
+    authMethods {
+      ldapEnabled
+      oidcEnabled
+    }
+    oidcProviders {
+      name
+      displayName
+      loginUrl
+    }
   }
 `;
 
@@ -49,9 +58,13 @@ export function AuthProvider({ children }) {
     }
   });
   const authenticated = loading ? false : data.authenticated;
+  const authMethods = loading ? null : data.authMethods;
+  const oidcProviders = loading ? [] : (data.oidcProviders || []);
 
   const auth = {
     authenticated,
+    authMethods,
+    oidcProviders,
   };
 
   const actions = {

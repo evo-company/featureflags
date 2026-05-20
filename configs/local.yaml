@@ -34,6 +34,22 @@ ldap:
   host: ldap://ldap:3893
   base_dn: dc=evo,dc=dev
 
+# OIDC is opt-in — omit this section to disable. Each provider follows the
+# OIDC spec (Google, Microsoft Entra ID, Auth0, Okta, Keycloak, …).
+# oidc:
+#   providers:
+#     - name: google
+#       issuer: https://accounts.google.com
+#       allowed_email_domains: [example.com]
+#       clients:
+#         - id: "11111-web.apps.googleusercontent.com"
+#           name: web
+#           read_only: false
+#           client_secret: "..."
+#         - id: "22222-cli.apps.googleusercontent.com"
+#           name: cli
+#           read_only: true
+
 instrumentation:
   prometheus_port: 9100
 

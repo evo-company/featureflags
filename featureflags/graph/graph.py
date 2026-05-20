@@ -38,6 +38,7 @@ from hiku.types import (
 from sqlalchemy import select
 
 from featureflags import __build_version__, __version__
+from featureflags.config import config as runtime_config
 from featureflags.graph import actions
 from featureflags.graph.metrics import (
     GRAPH_PULL_ERRORS_COUNTER,
@@ -87,6 +88,19 @@ from featureflags.utils import (
 class VersionInfo:
     server_version: str
     build_version: str
+
+
+@dataclass(frozen=True)
+class OidcProviderInfo:
+    name: str
+    display_name: str
+    login_url: str
+
+
+@dataclass(frozen=True)
+class AuthMethodsInfo:
+    ldap_enabled: bool
+    oidc_enabled: bool
 
 
 async def id_field(fields: list, ids: list) -> list[list]:
@@ -264,6 +278,37 @@ async def root_version() -> VersionInfo:
         server_version=__version__,
         build_version=__build_version__,
     )
+
+
+async def root_auth_methods() -> AuthMethodsInfo:
+    return AuthMethodsInfo(
+        ldap_enabled=runtime_config.ldap is not None,
+        oidc_enabled=(
+            runtime_config.oidc is not None and runtime_config.oidc.enabled
+        ),
+    )
+
+
+async def root_oidc_providers() -> list[OidcProviderInfo]:
+    if runtime_config.oidc is None:
+        return []
+    providers: list[OidcProviderInfo] = []
+    for provider in runtime_config.oidc.providers:
+        # Only expose providers that have a non-read-only client — those
+        # are the ones the cookie flow can use. Read-only-only providers
+        # exist for CLI Bearer use and have no UI affordance.
+        if provider.web_client is None:
+            continue
+        providers.append(
+            OidcProviderInfo(
+                name=provider.name,
+                display_name=(
+                    provider.display_name or provider.name.capitalize()
+                ),
+                login_url=f"/oidc/{provider.name}/login",
+            )
+        )
+    return providers
 
 
 async def check_variable(ids: list[int]) -> list[int]:
@@ -733,6 +778,18 @@ RootNode = Root(
         ),
         Field("authenticated", Boolean, root_authenticated),
         Link("version", TypeRef["Version"], root_version, requires=None),
+        Link(
+            "authMethods",
+            TypeRef["AuthMethods"],
+            root_auth_methods,
+            requires=None,
+        ),
+        Link(
+            "oidcProviders",
+            Sequence[TypeRef["OidcProvider"]],
+            root_oidc_providers,
+            requires=None,
+        ),
     ]
 )
 
@@ -748,10 +805,7 @@ async def version_field_info(
         else:
             raise ValueError(f"Unknown field: {name}")
 
-    return [
-        [get_field(f.name, info) for f in fields]
-        for info in version_data
-    ]
+    return [[get_field(f.name, info) for f in fields] for info in version_data]
 
 
 VersionNode = Node(
@@ -759,6 +813,53 @@ VersionNode = Node(
     [
         Field("serverVersion", String, version_field_info),
         Field("buildVersion", String, version_field_info),
+    ],
+)
+
+
+async def auth_methods_field_info(
+    fields: list[Field], data: list[AuthMethodsInfo]
+) -> list[list]:
+    def get_field(name: str, info: AuthMethodsInfo):
+        if name == "ldapEnabled":
+            return info.ldap_enabled
+        if name == "oidcEnabled":
+            return info.oidc_enabled
+        raise ValueError(f"Unknown field: {name}")
+
+    return [[get_field(f.name, info) for f in fields] for info in data]
+
+
+AuthMethodsNode = Node(
+    "AuthMethods",
+    [
+        Field("ldapEnabled", Boolean, auth_methods_field_info),
+        Field("oidcEnabled", Boolean, auth_methods_field_info),
+    ],
+)
+
+
+async def oidc_provider_field_info(
+    fields: list[Field], data: list[OidcProviderInfo]
+) -> list[list]:
+    def get_field(name: str, info: OidcProviderInfo):
+        if name == "name":
+            return info.name
+        if name == "displayName":
+            return info.display_name
+        if name == "loginUrl":
+            return info.login_url
+        raise ValueError(f"Unknown field: {name}")
+
+    return [[get_field(f.name, info) for f in fields] for info in data]
+
+
+OidcProviderNode = Node(
+    "OidcProvider",
+    [
+        Field("name", String, oidc_provider_field_info),
+        Field("displayName", String, oidc_provider_field_info),
+        Field("loginUrl", String, oidc_provider_field_info),
     ],
 )
 
@@ -984,6 +1085,8 @@ GRAPH = Graph(
         ValueChangeNode,
         RootNode,
         VersionNode,
+        AuthMethodsNode,
+        OidcProviderNode,
         SignInNode,
         SignOutNode,
         SaveFlagNode,
@@ -1008,6 +1111,10 @@ async def sing_in(ctx: dict, options: dict) -> AuthResult:
     if ctx[GraphContext.USER_SESSION].is_authenticated:
         return AuthResult(None)
 
+    ldap = ctx[GraphContext.LDAP_SERVICE]
+    if ldap is None:
+        return AuthResult("LDAP sign-in is not configured")
+
     username = options["username"]
     password = options["password"]
 
@@ -1022,7 +1129,7 @@ async def sing_in(ctx: dict, options: dict) -> AuthResult:
             password,
             conn=conn,
             session=ctx[GraphContext.USER_SESSION],
-            ldap=ctx[GraphContext.LDAP_SERVICE],
+            ldap=ldap,
         )
 
     return AuthResult(error_msg)
