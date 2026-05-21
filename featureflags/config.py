@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from pathlib import Path
 
 import yaml
@@ -12,6 +13,21 @@ CONFIG_PATH_ENV_VAR = "CONFIG_PATH"
 
 CONFIGS_DIR = Path().parent / "configs"
 DEFAULT_CONFIG_PATH = CONFIGS_DIR / "local.yaml"
+
+_ENV_VAR_PATTERN = re.compile(
+    r"\$\{([A-Za-z_]\w*)\}|\$([A-Za-z_]\w*)"
+)
+
+
+def _resolve_env_match(match: re.Match[str]) -> str:
+    env_name = match.group(1) or match.group(2)
+    try:
+        return os.environ[env_name]
+    except KeyError as e:
+        raise ValueError(
+            f"Config references env var {env_name!r}, "
+            "but it is not set in the environment."
+        ) from e
 
 
 class LoggingSettings(BaseSettings):
@@ -59,18 +75,12 @@ class OidcClient(BaseSettings):
 
     @model_validator(mode="after")
     def _resolve_secret_from_env(self) -> "OidcClient":
-        # "$VAR" indirection keeps the secret out of the YAML file (which is
-        # typically Git-tracked) and reads it from an env var instead — usually
-        # backed by a K8s Secret in production.
-        if self.client_secret and self.client_secret.startswith("$"):
-            env_name = self.client_secret[1:]
-            try:
-                self.client_secret = os.environ[env_name]
-            except KeyError as e:
-                raise ValueError(
-                    f"OIDC client_secret refers to env var {env_name!r}, "
-                    "but it is not set in the environment."
-                ) from e
+        # "$VAR" / "${VAR}" so the secret can come from an env var (typically
+        # a K8s Secret) instead of being inlined in the Git-tracked YAML.
+        if self.client_secret:
+            self.client_secret = _ENV_VAR_PATTERN.sub(
+                _resolve_env_match, self.client_secret
+            )
         return self
 
 

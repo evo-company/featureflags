@@ -21,14 +21,22 @@ def test_configs_smoke(path: PosixPath) -> None:
     _load_config()
 
 
+@pytest.mark.parametrize(
+    ("placeholder", "expected"),
+    [
+        ("$OIDC_TEST_SECRET", "from-env"),
+        ("${OIDC_TEST_SECRET}", "from-env"),
+        ("prefix-${OIDC_TEST_SECRET}-suffix", "prefix-from-env-suffix"),
+    ],
+)
 def test_oidc_client_secret_resolves_from_env(
     monkeypatch: pytest.MonkeyPatch,
+    placeholder: str,
+    expected: str,
 ) -> None:
     monkeypatch.setenv("OIDC_TEST_SECRET", "from-env")
-    client = OidcClient(
-        id="cid", name="web", client_secret="$OIDC_TEST_SECRET"
-    )
-    assert client.client_secret == "from-env"
+    client = OidcClient(id="cid", name="web", client_secret=placeholder)
+    assert client.client_secret == expected
 
 
 def test_oidc_client_secret_missing_env_raises(
@@ -36,4 +44,4 @@ def test_oidc_client_secret_missing_env_raises(
 ) -> None:
     monkeypatch.delenv("OIDC_TEST_MISSING", raising=False)
     with pytest.raises(ValueError, match="OIDC_TEST_MISSING"):
-        OidcClient(id="cid", name="web", client_secret="$OIDC_TEST_MISSING")
+        OidcClient(id="cid", name="web", client_secret="${OIDC_TEST_MISSING}")
