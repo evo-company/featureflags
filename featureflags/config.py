@@ -57,6 +57,22 @@ class OidcClient(BaseSettings):
     # and rely on PKCE alone.
     client_secret: str | None = None
 
+    @model_validator(mode="after")
+    def _resolve_secret_from_env(self) -> "OidcClient":
+        # "$VAR" indirection keeps the secret out of the YAML file (which is
+        # typically Git-tracked) and reads it from an env var instead — usually
+        # backed by a K8s Secret in production.
+        if self.client_secret and self.client_secret.startswith("$"):
+            env_name = self.client_secret[1:]
+            try:
+                self.client_secret = os.environ[env_name]
+            except KeyError as e:
+                raise ValueError(
+                    f"OIDC client_secret refers to env var {env_name!r}, "
+                    "but it is not set in the environment."
+                ) from e
+        return self
+
 
 class OidcProvider(BaseSettings):
     """
