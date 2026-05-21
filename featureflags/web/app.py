@@ -10,6 +10,7 @@ from featureflags.web.api.graph import router as graphql_router
 from featureflags.web.api.health import router as health_router
 from featureflags.web.api.index import STATIC_DIR
 from featureflags.web.api.index import router as index_router
+from featureflags.web.api.oidc import router as oidc_router
 from featureflags.web.container import Container
 from featureflags.web.lifecycle import configure_lifecycle
 from featureflags.web.middlewares import configure_middlewares
@@ -29,6 +30,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(index_router)
     app.include_router(graphql_router)
+    app.include_router(oidc_router)
 
     static_files = StaticFiles(
         directory=STATIC_DIR,

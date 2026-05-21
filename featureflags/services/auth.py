@@ -13,8 +13,15 @@ from fastapi import Request, Response
 from sqlalchemy import select
 
 from featureflags.config import config
-from featureflags.errors import UserNotAuthorizedError
+from featureflags.errors import (
+    ReadOnlySessionError,
+    UserNotAuthorizedError,
+)
 from featureflags.models import AuthSession
+from featureflags.services.oidc_auth import (
+    InvalidTokenError,
+    OidcAuthenticator,
+)
 from featureflags.utils import select_first
 from featureflags.web.constants import (
     ACCESS_TOKEN_TTL,
@@ -143,11 +150,35 @@ class EmptyAccessTokenState(BaseState):
         return None  # preserve empty session
 
 
+@dataclass(frozen=True)
+class BearerTokenState(BaseState):
+    """
+    Stateless Bearer-authenticated session — an OIDC ID token sent by a CLI
+    or service. Each request must carry its own token; no cookie renewal.
+    """
+
+    user: UUID
+    provider: str
+    client_name: str | None
+    read_only: bool
+
+    def get_access_token(self) -> str | None:
+        return None
+
+
 class BaseUserSession(ABC):
     @property
     @abstractmethod
     def is_authenticated(self) -> bool:
         raise NotImplementedError()
+
+    @property
+    def is_read_only(self) -> bool:
+        """
+        Default to False — only Bearer-auth sessions backed by a read-only
+        client override this.
+        """
+        return False
 
 
 @dataclass
@@ -163,6 +194,10 @@ class UserSession(BaseUserSession):
     @property
     def is_authenticated(self) -> bool:
         return self.state.user is not None
+
+    @property
+    def is_read_only(self) -> bool:
+        return isinstance(self.state, BearerTokenState) and self.state.read_only
 
     @property
     def user(self) -> UUID | None:
@@ -295,6 +330,62 @@ async def set_user_session_from_cookie(
     )
 
 
+async def set_user_session_from_bearer(
+    request: Request,
+    engine: aiopg.sa.Engine,
+    oidc_authenticators: dict[str, OidcAuthenticator],
+) -> bool:
+    """
+    Try Bearer-token auth. Returns "True" if an Authorization header was
+    present and consumed. Raises "UserNotAuthorizedError" when a Bearer
+    header is present but no configured authenticator accepts the token.
+
+    Routes to the right authenticator by the token's unverified "iss"
+    claim — a forged "iss" still loses at signature verification because
+    each authenticator only trusts its own JWKS.
+    """
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return False
+
+    token = auth_header[len("Bearer ") :]
+    try:
+        unverified = decode_jwt_token(
+            secret=config.secret,
+            access_token=token,
+            verify_signature=False,
+        )
+    except jwt.PyJWTError as e:
+        raise UserNotAuthorizedError() from e
+
+    iss = unverified.get("iss")
+    authenticators = oidc_authenticators.values()
+    authenticator = next(
+        (a for a in authenticators if a.provider.issuer == iss),
+        None,
+    )
+    if authenticator is None:
+        raise UserNotAuthorizedError()
+
+    try:
+        principal = await authenticator.authenticate(token, engine=engine)
+    except InvalidTokenError as e:
+        raise UserNotAuthorizedError() from e
+
+    user_session.set(
+        UserSession(
+            state=BearerTokenState(
+                user=principal.user_id,
+                provider=principal.provider,
+                client_name=principal.client_name,
+                read_only=principal.read_only,
+            ),
+            secret=config.secret,
+        )
+    )
+    return True
+
+
 async def set_user_session_to_response(response: Response) -> None:
     if access_token_cookie := user_session.get().get_access_token():
         response.set_cookie(
@@ -312,8 +403,11 @@ def set_internal_user_session() -> None:
 
 def auth_required(func: Callable) -> Callable:
     async def wrapper(*args: Any, **kwargs: Any) -> Any:
-        if not user_session.get().is_authenticated:
+        user = user_session.get()
+        if not user.is_authenticated:
             raise UserNotAuthorizedError()
+        if user.is_read_only:
+            raise ReadOnlySessionError()
         return await func(*args, **kwargs)
 
     return wrapper

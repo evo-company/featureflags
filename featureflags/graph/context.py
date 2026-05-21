@@ -8,17 +8,20 @@ from featureflags.graph.types import (
 )
 from featureflags.services.auth import BaseUserSession
 from featureflags.services.ldap import BaseLDAP
+from featureflags.services.oidc_auth import OidcAuthenticator
 
 
 def init_graph_context(
     session: BaseUserSession,
-    ldap: BaseLDAP,
+    ldap: BaseLDAP | None,
     engine: aiopg.sa.Engine,
+    oidc_authenticators: dict[str, OidcAuthenticator] | None = None,
 ) -> dict:
     return {
         GraphContext.DB_ENGINE: engine,
         GraphContext.USER_SESSION: session,
         GraphContext.LDAP_SERVICE: ldap,
+        GraphContext.OIDC_AUTHENTICATORS: oidc_authenticators or {},
         GraphContext.DIRTY_PROJECTS: DirtyProjects(),
         GraphContext.CHANGES: Changes(),
         GraphContext.VALUES_CHANGES: ValuesChanges(),

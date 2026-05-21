@@ -1,10 +1,10 @@
-import { Layout, Typography, Input, Button, Form } from 'antd';
+import { Layout, Typography, Input, Button, Form, Divider, Space } from 'antd';
 
 const { Content } = Layout;
 const { Title } = Typography;
 
 import { Base } from './Base';
-import { useSignIn } from './hooks';
+import { useAuth, useSignIn } from './hooks';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 
@@ -73,8 +73,20 @@ const AuthForm = () => {
   )
 }
 
+const OidcButton = ({ provider }) => (
+  <Button
+    block
+    size="large"
+    href={provider.loginUrl}
+    style={{ borderRadius: '5px' }}
+  >
+    Sign in with {provider.displayName}
+  </Button>
+);
+
 function Auth() {
   const [_, error] = useSignIn();
+  const { auth } = useAuth();
   const [invalid, setInvalid] = useState(false);
 
   useEffect(() => {
@@ -85,6 +97,13 @@ function Auth() {
       }, 500);
     }
   }, [error]);
+
+  const methods = auth.authMethods;
+  const ldapEnabled = !methods || methods.ldapEnabled;
+  const oidcProviders = (auth.oidcProviders || []).filter(
+    (p) => !!p.loginUrl
+  );
+  const showOidc = !!methods && methods.oidcEnabled && oidcProviders.length > 0;
 
   return (
     <Base>
@@ -116,7 +135,15 @@ function Auth() {
                   width: '400px'
                 }}
               >
-                  <AuthForm />
+                  {ldapEnabled && <AuthForm />}
+                  {ldapEnabled && showOidc && <Divider plain>or</Divider>}
+                  {showOidc && (
+                    <Space direction="vertical" style={{ width: '100%' }} size="small">
+                      {oidcProviders.map((provider) => (
+                        <OidcButton key={provider.name} provider={provider} />
+                      ))}
+                    </Space>
+                  )}
               </div>
             </div>
           </Content>
