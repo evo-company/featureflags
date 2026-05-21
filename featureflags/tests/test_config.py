@@ -45,3 +45,10 @@ def test_oidc_client_secret_missing_env_raises(
     monkeypatch.delenv("OIDC_TEST_MISSING", raising=False)
     with pytest.raises(ValueError, match="OIDC_TEST_MISSING"):
         OidcClient(id="cid", name="web", client_secret="${OIDC_TEST_MISSING}")
+
+
+def test_oidc_client_secret_invalid_var_name_passes_through() -> None:
+    # "$5" is not a valid env var name (must start with a letter/underscore),
+    # so the regex does not match and the value is left untouched.
+    client = OidcClient(id="cid", name="web", client_secret="cost-$5.00")
+    assert client.client_secret == "cost-$5.00"
