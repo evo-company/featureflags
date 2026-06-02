@@ -18,7 +18,7 @@ import hashlib
 import json
 import logging
 import secrets
-from datetime import UTC, datetime
+from datetime import datetime
 from urllib.parse import quote
 
 import aiopg.sa
@@ -227,7 +227,7 @@ async def oidc_callback(
         )
 
     session = user_session.get()
-    now = datetime.now(UTC)
+    now = datetime.utcnow()
     expiration_time = now + AUTH_SESSION_TTL
     async with db_engine.acquire() as conn:
         await conn.execute(
