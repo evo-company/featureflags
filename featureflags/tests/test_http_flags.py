@@ -98,3 +98,49 @@ async def test_load_registers_entities_when_not_readonly(
     assert [f.name for f in response.flags] == ["NEW_FLAG"]
     assert await project_id_by_name(db_engine, "new-project") is not None
     assert await flag_id_by_name(db_engine, "NEW_FLAG") is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("readonly", [True, False])
+async def test_sync_unknown_project(db_engine, graph_engine, readonly):
+    repo = FlagsRepository(
+        db_engine=db_engine, graph_engine=graph_engine, readonly=readonly
+    )
+
+    response = await repo.sync(
+        SyncFlagsRequest(project="unknown-project", version=5)
+    )
+
+    assert response.version == 0
+    assert response.flags == []
+    assert response.values == []
+
+
+@pytest.mark.asyncio
+async def test_sync_empty_diff_until_version_bump(
+    readonly_flags_repo, db_engine
+):
+    project = await mk_project(db_engine, version=0)
+    flag = await mk_flag(db_engine, project=project, enabled=True)
+
+    # client is at the current version: empty diff, even though the flag
+    # row exists (registered-but-unconfigured flags have no effect)
+    response = await readonly_flags_repo.sync(
+        SyncFlagsRequest(project=project.name, version=0)
+    )
+    assert response.version == 0
+    assert response.flags == []
+
+    # a UI edit on the master bumps the version (replicated here)
+    async with db_engine.acquire() as conn:
+        await conn.execute(
+            Project.__table__.update()
+            .where(Project.id == project.id)
+            .values({Project.version: 1})
+        )
+
+    response = await readonly_flags_repo.sync(
+        SyncFlagsRequest(project=project.name, version=0)
+    )
+    assert response.version == 1
+    assert [f.name for f in response.flags] == [flag.name]

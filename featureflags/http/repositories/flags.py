@@ -149,6 +149,9 @@ class FlagsRepository:
         """
 
         current_version = await self.get_project_version(request.project)
+        if current_version is None:
+            # Project is not in the database (e.g. not replicated yet).
+            return SyncFlagsResponse(version=0)
 
         if request.version != current_version:
             result = await exec_denormalize_graph(
