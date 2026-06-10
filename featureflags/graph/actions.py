@@ -6,7 +6,7 @@ from sqlalchemy import or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from featureflags.graph.constants import AUTH_SESSION_TTL
-from featureflags.graph.metrics import track
+from featureflags.graph.metrics import set_flag_state_metric, track
 from featureflags.graph.types import (
     Action,
     AddCheckOp,
@@ -35,6 +35,22 @@ from featureflags.models import (
 from featureflags.services.auth import UserSession, auth_required
 from featureflags.services.ldap import BaseLDAP
 from featureflags.utils import select_scalar
+
+
+async def get_flag_metric_labels(
+    flag_uuid: UUID, *, conn: SAConnection
+) -> tuple[str, str] | None:
+    result = await conn.execute(
+        select(
+            [Flag.name.label("flag_name"), Project.name.label("project_name")]
+        )
+        .select_from(
+            Flag.__table__.join(Project.__table__, Flag.project == Project.id)
+        )
+        .where(Flag.id == flag_uuid)
+    )
+    row = await result.first()
+    return (row.flag_name, row.project_name) if row else None
 
 
 @track
@@ -109,6 +125,10 @@ async def enable_flag(
     dirty.by_flag.add(flag_uuid)
     changes.add(flag_uuid, Action.ENABLE_FLAG)
 
+    labels = await get_flag_metric_labels(flag_uuid, conn=conn)
+    if labels:
+        set_flag_state_metric(*labels, enabled=True)
+
 
 @auth_required
 @track
@@ -129,6 +149,10 @@ async def disable_flag(
     )
     dirty.by_flag.add(flag_uuid)
     changes.add(flag_uuid, Action.DISABLE_FLAG)
+
+    labels = await get_flag_metric_labels(flag_uuid, conn=conn)
+    if labels:
+        set_flag_state_metric(*labels, enabled=False)
 
 
 @auth_required
