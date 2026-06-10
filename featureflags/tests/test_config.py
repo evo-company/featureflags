@@ -2,10 +2,12 @@ import os
 from pathlib import PosixPath
 
 import pytest
+import yaml
 
 from featureflags.config import (
     CONFIG_PATH_ENV_VAR,
     CONFIGS_DIR,
+    Config,
     OidcClient,
     _load_config,
 )
@@ -52,3 +54,19 @@ def test_oidc_client_secret_invalid_var_name_passes_through() -> None:
     # so the regex does not match and the value is left untouched.
     client = OidcClient(id="cid", name="web", client_secret="cost-$5.00")
     assert client.client_secret == "cost-$5.00"
+
+
+def test_readonly_defaults_to_false() -> None:
+    os.environ[CONFIG_PATH_ENV_VAR] = (CONFIGS_DIR / "test.yaml").as_posix()
+    config = _load_config()
+    assert config.readonly is False
+
+
+def test_readonly_parses_from_yaml() -> None:
+    with open(CONFIGS_DIR / "test.yaml") as f:
+        data = yaml.safe_load(f)
+    data["readonly"] = True
+
+    config = Config(**data)
+
+    assert config.readonly is True

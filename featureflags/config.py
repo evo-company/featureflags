@@ -163,6 +163,9 @@ class Config(BaseSettings):
     debug: bool
     secret: str = Field(..., alias="SECRET")
     test_environ: bool = False
+    # Readonly replica mode: the server runs against a readonly Postgres
+    # replica and must not perform any DB writes on client-facing paths.
+    readonly: bool = False
 
     postgres: PostgresSettings
     ldap: LdapAuthSettings | None = None
