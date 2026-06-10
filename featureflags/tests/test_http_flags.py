@@ -82,9 +82,7 @@ async def test_load_readonly_existing_project(readonly_flags_repo, db_engine):
 
 
 @pytest.mark.asyncio
-async def test_load_registers_entities_when_not_readonly(
-    flags_repo, db_engine
-):
+async def test_load_registers_entities_when_not_readonly(flags_repo, db_engine):
     request = PreloadFlagsRequest(
         project="new-project",
         version=0,
