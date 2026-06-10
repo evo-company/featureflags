@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 import faker
 import pytest
+from prometheus_client import REGISTRY
 from sqlalchemy import and_, exists, func, select
 
 from featureflags.graph.actions import (
@@ -69,6 +70,12 @@ from featureflags.tests.state import (
 from featureflags.utils import select_scalar
 
 f = faker.Faker()
+
+
+def get_flag_state_metric(flag, project):
+    return REGISTRY.get_sample_value(
+        "flag_state", {"flag": flag.name, "project": project.name}
+    )
 
 
 async def get_version(project, *, conn):
@@ -288,7 +295,8 @@ async def test_switching_flag(
     after,
     action_type,
 ):
-    flag = await mk_flag(db_engine, enabled=before)
+    project = await mk_project(db_engine)
+    flag = await mk_flag(db_engine, enabled=before, project=project)
     assert await check_flag(flag.id, conn=conn) == before
 
     await action(
@@ -300,6 +308,7 @@ async def test_switching_flag(
     assert dirty_projects.by_flag == {flag.id}
     assert changes.get_actions() == [(flag.id, [action_type])]
     assert await check_flag(flag.id, conn=conn) is after
+    assert get_flag_state_metric(flag, project) == int(after)
 
 
 @pytest.mark.asyncio

@@ -1,6 +1,6 @@
 from collections.abc import Callable
 
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Gauge, Histogram
 
 from featureflags.metrics import wrap_metric
 
@@ -28,6 +28,16 @@ GRAPH_PULL_ERRORS_COUNTER = Counter(
     "Graph pull errors count",
     [],
 )
+
+FLAG_STATE_GAUGE = Gauge(
+    "flag_state",
+    "Feature flag state (1 - enabled, 0 - disabled)",
+    ["flag", "project"],
+)
+
+
+def set_flag_state_metric(flag: str, project: str, enabled: bool) -> None:
+    FLAG_STATE_GAUGE.labels(flag=flag, project=project).set(int(enabled))
 
 
 def track(func: Callable) -> Callable:
