@@ -9,9 +9,7 @@ authors = [
   { name = "Vladimir Magamedov", email = "vladimir@magamedov.com" },
 ]
 dependencies = [
-  "grpclib==0.4.6",
   "hiku==0.7.5",
-  "protobuf<4.0.0",
   "sqlalchemy[mypy]==1.4.42",
   "aiopg[sa]==1.4.0",
   "psycopg2==2.9.7",
@@ -35,7 +33,6 @@ dependencies = [
   "typer>=0.9.0",
   "jinja2>=3.1.2",
   "dependency-injector>=4.41.0",
-  "grpcio>=1.59.0",
   "prometheus-fastapi-instrumentator>=6.1.0",
 ]
 
@@ -48,7 +45,7 @@ Repository = "https://github.com/evo-company/featureflags"
 Homepage = "https://github.com/evo-company/featureflags"
 
 [project.optional-dependencies]
-sentry = ["sentry-sdk[fastapi,grpcio]>=1.40.5"]
+sentry = ["sentry-sdk[fastapi]>=1.40.5"]
 
 [build-system]
 requires = ["pdm-backend"]
@@ -59,7 +56,6 @@ lint = [
     "black~=23.9.1",
     "ruff>=0.12.5",
     "mypy>=1.6.0",
-    "types-protobuf>=4.24.0.20240106",
     "types-PyYAML>=6.0.12.12",
     "sqlalchemy-stubs>=0.4",
 ]
@@ -96,7 +92,6 @@ fmt = { composite = ["black", "ruff"] }
 
 [tool.pytest.ini_options]
 addopts = "-p no:warnings -p no:cacheprovider -q --tb=native"
-filterwarnings = ["ignore::DeprecationWarning:google.*"]
 log_cli = true
 testpaths = ["featureflags/tests"]
 asyncio_mode = "auto"
@@ -112,7 +107,6 @@ extend-exclude = '''
   | .venv
   | venv
   | .ve
-  | featureflags/protobuf
 )/
 '''
 
@@ -146,7 +140,6 @@ exclude = [
   ".ve",
   "__pycache__",
   "featureflags/migrations",
-  "featureflags/protobuf",
 ]
 
 [tool.ruff.lint]
@@ -211,21 +204,9 @@ exclude = [
   "venv",
   ".ve",
   "featureflags/migrations",
-  "featureflags/protobuf",
   "featureflags/tests",
 ]
 
 [[tool.mypy.overrides]]
 module = "hiku.*"
 follow_imports = "skip"
-
-[[tool.mypy.overrides]]
-module = "featureflags.protobuf.*"
-follow_imports = "skip"
-disallow_untyped_decorators = false
-disable_error_code = ["no-untyped-def", "attr-defined"]
-
-[[tool.mypy.overrides]]
-module = "featureflags.graph.proto_adapter"
-disallow_untyped_decorators = false
-disable_error_code = ["no-untyped-def", "attr-defined"]

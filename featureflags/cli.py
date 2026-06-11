@@ -30,19 +30,6 @@ def web() -> None:
     web_main()
 
 
-@cli.command(name="rpc", help="Run rpc server")
-def rpc() -> None:
-    import asyncio
-
-    import uvloop
-
-    from featureflags.rpc.app import main as rpc_main
-
-    log.info("Executing command: `rpc`")
-    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-    asyncio.run(rpc_main())
-
-
 @cli.command(name="http", help="Run http server")
 def http() -> None:
     from featureflags.http.app import main as http_main

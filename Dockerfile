@@ -76,10 +76,6 @@ ENV TINI_VERSION=v0.19.0
 ADD "https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini" "/tini"
 RUN chmod +x /tini
 
-ENV GRPC_HEALTH_PROBE_VERSION=v0.4.19
-ADD "https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64" "/usr/local/bin/grpc_health_probe"
-RUN chmod +x /usr/local/bin/grpc_health_probe
-
 COPY ./featureflags /app/featureflags
 # clear static folder in case it exists on host machine
 RUN rm -rf /app/featureflags/web/static

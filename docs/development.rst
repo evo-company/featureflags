@@ -14,7 +14,6 @@ Run all this commands:
 - `http://localhost:8080` - web application with `lets ui`
 - `http://localhost:3001` - web application with `lets ui-build-dev`
 - `http://localhost:8081` - http api
-- `localhost:50051` - grpc api
 
 To create a project for development purposes you can run:
 
@@ -32,7 +31,6 @@ Default username is ``admin`` and password is ``admin`` if you run with `configs
 To start API handlers (not required for web application):
 
 - ``lets http`` in separate terminal (this will start http server on ``http://localhost:8080``)
-- ``lets rpc`` in separate terminal (this will start grpc server on ``localhost:50051``)
 
 To build UI and copy it to ``web/static`` directory:
 

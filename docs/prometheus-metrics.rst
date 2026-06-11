@@ -15,31 +15,6 @@ HTTP Metrics
       - ``handler`` (string) - HTTP request handler (e.g. ``/load``, ``/sync``)
       - ``project`` (string) - Project name
 
-gRPC Metrics
-------------
-
-.. describe:: grpc_method_time_seconds
-
-   Time spent in gRPC methods.
-
-   :labels:
-      - ``method`` (string) - gRPC method name
-
-.. describe:: grpc_method_call_count
-
-   How many times gRPC method was called.
-
-   :labels:
-      - ``method`` (string) - gRPC method name
-      - ``project`` (string) - Project name
-
-.. describe:: grpc_method_call_in_progress
-
-   How many gRPC method calls are in progress.
-
-   :labels:
-      - ``method`` (string) - gRPC method name
-
 Graph Metrics
 -------------
 

@@ -46,28 +46,6 @@ class EntityCache:
         self.variable: defaultdict[UUID, dict[str, UUID]] = defaultdict(dict)
 
 
-class FlagAggStats(defaultdict):
-    """
-    Used to collect flags statistics in aggregated state
-
-    acc[interval][flag] -> [positive_count, negative_count]
-    """
-
-    def __init__(self) -> None:
-        super().__init__(lambda: defaultdict(lambda: [0, 0]))
-
-
-class ValueAggStats(defaultdict):
-    """
-    Used to collect values statistics in aggregated state
-
-    acc[interval][value] -> [positive_count, negative_count]
-    """
-
-    def __init__(self) -> None:
-        super().__init__(lambda: defaultdict(lambda: [0, 0]))
-
-
 async def select_scalar(conn: SAConnection, stmt: Any) -> Any:
     result = await conn.execute(stmt)
     return await result.scalar()

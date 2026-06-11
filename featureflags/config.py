@@ -150,11 +150,6 @@ class HttpSettings(BaseSettings):
     max_concurrent_threads: int = 40
 
 
-class RpcSettings(BaseSettings):
-    port: int = 50051
-    host: str = "0.0.0.0"
-
-
 class SentrySettings(BaseSettings):
     enabled: bool = False
     dsn: str | None = None
@@ -177,7 +172,6 @@ class Config(BaseSettings):
     sentry: SentrySettings
 
     app: AppSettings
-    rpc: RpcSettings
     http: HttpSettings
 
     @model_validator(mode="after")

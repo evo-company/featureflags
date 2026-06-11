@@ -15,8 +15,6 @@ from sqlalchemy.schema import Column, ForeignKey, MetaData
 from sqlalchemy.types import Boolean, Enum, String
 
 from featureflags.graph.types import Action, ValueAction
-from featureflags.protobuf.graph_pb2 import Check as CheckProto
-from featureflags.protobuf.graph_pb2 import Variable as VariableProto
 from featureflags.utils import ArrayOfEnum
 
 metadata = MetaData()
@@ -28,13 +26,6 @@ class VariableType(enum.Enum):
     NUMBER = 2
     TIMESTAMP = 3
     SET = 4
-
-    @classmethod
-    def from_pb(cls, value: int) -> "VariableType":
-        return cls.__members__[VariableProto.Type.Name(value)]
-
-    def to_pb(self) -> VariableProto.Type:
-        return VariableProto.Type.Value(self.name)
 
 
 class Operator(enum.Enum):
@@ -49,13 +40,6 @@ class Operator(enum.Enum):
     WILDCARD = 9
     SUBSET = 10
     SUPERSET = 11
-
-    @classmethod
-    def from_pb(cls, value: int) -> "Operator":
-        return cls.__members__[CheckProto.Operator.Name(value)]
-
-    def to_pb(self) -> CheckProto.Operator:
-        return CheckProto.Operator.Value(self.name)
 
 
 class AuthUser(Base):

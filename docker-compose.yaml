@@ -78,15 +78,6 @@ services:
       - "127.0.0.1:8080:8080"
     command: watchfiles --filter python "python3 -m featureflags web" featureflags
 
-  rpc:
-    <<: *backend
-    depends_on:
-      postgres:
-        condition: service_healthy
-    ports:
-      - "127.0.0.1:50051:50051"
-    command: watchfiles --filter python "python3 -m featureflags rpc" featureflags
-
   http:
     <<: *backend
     depends_on:
