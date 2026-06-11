@@ -58,19 +58,13 @@ commands:
     description: Run whole application
     depends:
       - build-dev
-    cmd: docker-compose up web rpc client
+    cmd: docker-compose up web client
 
   web:
     description: Run web server
     depends:
       - build-dev
     cmd: docker-compose up web
-
-  rpc:
-    description: Run grpc server
-    depends:
-      - build-dev
-    cmd: docker-compose up rpc
 
   http:
     description: Run http server

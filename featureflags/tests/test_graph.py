@@ -2,15 +2,12 @@ from datetime import datetime
 from uuid import uuid4
 
 import pytest
-from google.protobuf.wrappers_pb2 import BoolValue  # type: ignore
 from hiku.builder import Q, build
 from hiku.result import denormalize
 
 from featureflags.graph.graph import GRAPH, exec_graph
-from featureflags.graph.proto_adapter import populate_result_proto
 from featureflags.graph.types import Action, ValueAction
 from featureflags.graph.utils import is_valid_uuid
-from featureflags.protobuf import graph_pb2
 from featureflags.services.auth import (
     EmptyAccessTokenState,
     ExpiredAccessTokenState,
@@ -155,52 +152,6 @@ async def test_flags(
         ],
     }
 
-    assert populate_result_proto(
-        result, graph_pb2.Result()
-    ) == graph_pb2.Result(
-        Root=graph_pb2.Root(
-            flags=[graph_pb2.Ref(Flag=flag.id.hex)],
-        ),
-        Project={
-            project.id.hex: graph_pb2.Project(
-                id=project.id.hex,
-                name=project.name,
-                variables=[graph_pb2.Ref(Variable=variable.id.hex)],
-            ),
-        },
-        Variable={
-            variable.id.hex: graph_pb2.Variable(
-                id=variable.id.hex,
-                name=variable.name,
-                type=variable.type.to_pb(),
-            ),
-        },
-        Flag={
-            flag.id.hex: graph_pb2.Flag(
-                id=flag.id.hex,
-                name=flag.name,
-                project=graph_pb2.Ref(Project=flag.project.hex),
-                enabled=BoolValue(value=flag.enabled or False),
-                conditions=[graph_pb2.Ref(Condition=condition.id.hex)],
-                overridden=BoolValue(value=overridden),
-            ),
-        },
-        Condition={
-            condition.id.hex: graph_pb2.Condition(
-                id=condition.id.hex,
-                checks=[graph_pb2.Ref(Check=check.id.hex)],
-            ),
-        },
-        Check={
-            check.id.hex: graph_pb2.Check(
-                id=check.id.hex,
-                variable=graph_pb2.Ref(Variable=variable.id.hex),
-                operator=check.operator.to_pb(),
-                value_string=check.value_string,
-            ),
-        },
-    )
-
 
 @pytest.mark.asyncio
 async def test_flags_by_ids(db_engine, graph_engine, test_session):
@@ -225,19 +176,6 @@ async def test_flags_by_ids(db_engine, graph_engine, test_session):
             },
         ],
     }
-    assert populate_result_proto(
-        result, graph_pb2.Result()
-    ) == graph_pb2.Result(
-        Root=graph_pb2.Root(
-            flags_by_ids=[graph_pb2.Ref(Flag=flag.id.hex)],
-        ),
-        Flag={
-            flag.id.hex: graph_pb2.Flag(
-                id=flag.id.hex,
-                name=flag.name,
-            ),
-        },
-    )
 
 
 @pytest.mark.asyncio
@@ -273,19 +211,6 @@ async def test_projects(db_engine, graph_engine, test_session):
     }
     assert any(p == expected for p in plain_result["projects"])
 
-    result_proto = populate_result_proto(result, graph_pb2.Result())
-    assert graph_pb2.Ref(Project=project.id.hex) in result_proto.Root.projects
-    assert result_proto.Project[project.id.hex] == graph_pb2.Project(
-        id=project.id.hex,
-        name=project.name,
-        variables=[graph_pb2.Ref(Variable=variable.id.hex)],
-    )
-    assert result_proto.Variable[variable.id.hex] == graph_pb2.Variable(
-        id=variable.id.hex,
-        name=variable.name,
-        type=variable.type.to_pb(),
-    )
-
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
@@ -316,8 +241,6 @@ async def test_authenticated(state, value, db_engine, graph_engine):
     result = await exec_graph(graph_engine, query, db_engine, user_session)
 
     assert result["authenticated"] is value
-    result_proto = populate_result_proto(result, graph_pb2.Result())
-    assert result_proto.Root.authenticated is value
 
 
 @pytest.mark.asyncio
