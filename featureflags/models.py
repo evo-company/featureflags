@@ -255,3 +255,28 @@ class ValueChangelog(Base):
             Enum(ValueAction, name="value_changelog_actions"), as_tuple=True
         )
     )
+
+
+class NotificationChannelType(enum.Enum):
+    SLACK_WEBHOOK = 1
+
+
+class NotificationChannel(Base):
+    __tablename__ = "notification_channel"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    name = Column(String, nullable=False, unique=True)
+    type = Column(
+        Enum(NotificationChannelType, name="notification_channel_type"),
+        nullable=False,
+    )
+    webhook_url = Column(String, nullable=False)
+
+
+class ProjectNotificationChannel(Base):
+    __tablename__ = "project_notification_channel"
+
+    project: UUID = Column(ForeignKey("project.id"), primary_key=True)
+    channel: UUID = Column(
+        ForeignKey("notification_channel.id"), primary_key=True
+    )
