@@ -177,20 +177,20 @@ mutation returns a node with an `error` field; actions in
 
 Queries:
 - Root link `notificationChannels: Sequence[NotificationChannel]` — all
-  channels, auth required. Node fields: `id`, `name`, `type`, `webhookUrl`.
+  channels, auth required. Node fields: `id`, `name`, `type`, `webhook_url`.
 - `Project` node: new link `notificationChannels:
   Sequence[NotificationChannel]` via M2M `LinkQuery`.
 
 Mutations:
 - `saveNotificationChannel(id: Optional[String], name: String!,
-  webhookUrl: String!) → {error}` — create when `id` is null, else update.
+  webhook_url: String!) → {error}` — create when `id` is null, else update.
   Validates: non-empty name, name unique (DB constraint surfaced as
   error), URL starts with `http://` or `https://`. Type is implicitly
   `SLACK_WEBHOOK`.
 - `deleteNotificationChannel(id: String!) → {error}` — deletes M2M rows
   first, then the channel.
-- `setProjectNotificationChannels(projectId: String!,
-  channelIds: [String!]!) → {error}` — replaces the project's set
+- `setProjectNotificationChannels(project_id: String!,
+  channel_ids: [String!]!) → {error}` — replaces the project's set
   (delete all M2M rows for the project, insert the given ones).
 
 New actions: `save_notification_channel`, `delete_notification_channel`,
