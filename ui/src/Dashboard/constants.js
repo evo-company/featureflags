@@ -29,7 +29,6 @@ export const TYPES = {
             Operator.LESS_OR_EQUAL,
             Operator.GREATER_THAN,
             Operator.GREATER_OR_EQUAL,
-            Operator.PERCENT,
             Operator.CONTAINS,
             Operator.REGEXP,
             Operator.WILDCARD
