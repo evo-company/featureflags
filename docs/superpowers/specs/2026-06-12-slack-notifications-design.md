@@ -30,6 +30,9 @@ Reference message (existing "Flag Master" bot):
   uses a multi-select.
 - No emoji / instance prefix in messages (the 🇺🇦 in the reference is
   dropped).
+- No links in messages: the flag/value name renders in backticks (Slack
+  inline code) instead of linking back to the UI. No `public_url` config
+  setting.
 - Delivery is **best-effort, async**: the mutation response never waits on
   Slack; failures are logged + counted in a Prometheus metric; no retries,
   no outbox.
@@ -125,34 +128,31 @@ bar:
   "attachments": [
     {
       "color": "#36a64f",
-      "text": "Flag <https://ff.example.com/#/?project=shopex&tab=flags&term=FLAG_NAME|FLAG_NAME>: true\nConditions:\nuser.email eq one@example.com\nUpdated: editor@example.com",
+      "text": "Flag `FLAG_NAME`: true\nConditions:\nuser.email eq one@example.com\nUpdated: editor@example.com",
       "mrkdwn_in": ["text"]
     }
   ]
 }
 ```
 
-Title line:
+Title line (`` `NAME` `` is the flag/value name in backticks — Slack
+inline code; no link):
 
 | Case | Title | Color |
 |---|---|---|
-| Flag enabled (after change) | `Flag NAME: true` | `#36a64f` (green) |
-| Flag disabled (after change) | `Flag NAME: false` | `#d63232` (red) |
-| `RESET_FLAG` in actions | `Flag NAME: reset` | `#aaaaaa` (grey) |
-| Flag deleted | `Flag NAME: deleted` | `#aaaaaa` (grey) |
-| Value enabled | `Value NAME: enabled, override: "42" (default: "10")` | green |
-| Value disabled | `Value NAME: disabled, override: "42" (default: "10")` | red |
-| `RESET_VALUE` in actions | `Value NAME: reset` | grey |
-| Value deleted | `Value NAME: deleted` | grey |
+| Flag enabled (after change) | ``Flag `NAME`: true`` | `#36a64f` (green) |
+| Flag disabled (after change) | ``Flag `NAME`: false`` | `#d63232` (red) |
+| `RESET_FLAG` in actions | ``Flag `NAME`: reset`` | `#aaaaaa` (grey) |
+| Flag deleted | ``Flag `NAME`: deleted`` | `#aaaaaa` (grey) |
+| Value enabled | ``Value `NAME`: enabled, override: "42" (default: "10")`` | green |
+| Value disabled | ``Value `NAME`: disabled, override: "42" (default: "10")`` | red |
+| `RESET_VALUE` in actions | ``Value `NAME`: reset`` | grey |
+| Value deleted | ``Value `NAME`: deleted`` | grey |
 
 - Reset/deleted take precedence over the enabled-state rendering.
 - "Enabled" means the stored `enabled` column is `True`; `False` and
   `None` (never overridden) both render as `false` / `disabled` — same
   coercion the GraphQL graph applies.
-- `NAME` is a Slack link
-  `{public_url}/#/?project={project_name}&tab=flags|values&term={name}`
-  when the new optional `public_url` config setting is set; plain text
-  otherwise.
 
 Conditions block (omitted when the entity has no conditions, e.g. the
 `SHOPEX_9126` reference message):
@@ -228,14 +228,7 @@ React + antd + Apollo, existing patterns (`ui/src/Dashboard/`):
 
 ## Config
 
-One new optional setting in `featureflags/config.py`:
-
-```yaml
-public_url: https://ff.example.com   # used only for links in messages
-```
-
-`Config.public_url: str | None = None`. When unset, messages contain plain
-names instead of links.
+No new config settings — channels live in the DB.
 
 ## Error handling
 
@@ -261,7 +254,7 @@ pytest, existing patterns from `featureflags/tests/test_actions.py`:
   enabled/disabled/reset/deleted; value with override/default; condition
   rendering — multi-check joins, every operator, every value kind
   (string/number/timestamp/set); value-condition `→ "override"` suffix;
-  link with and without `public_url`.
+  name rendered in backticks.
 - **Dispatch**: `httpx.MockTransport` capturing POSTs — payload shape,
   one message per changed entity, fan-out to multiple channels; failure
   path increments the error metric and does not raise; deleted-flag event
