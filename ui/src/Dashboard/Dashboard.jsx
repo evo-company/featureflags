@@ -68,6 +68,8 @@ function Dashboard({ projects }) {
     if (projectFromQuery) {
       setSelected(projectFromQuery);
       scrollToProject(projectFromQuery);
+    } else {
+      setSelected('');
     }
   }, [projectFromQuery]);
 
