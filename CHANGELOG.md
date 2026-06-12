@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replica in a second datacenter. Unknown projects are served as an empty
   state with `version: 0` instead of failing.
 
+### Fixed
+- **UI**: Redirect to the root page right after a project is deleted ([#61](https://github.com/evo-company/featureflags/issues/61)). The projects list is refreshed via Apollo cache instead of a delayed full page reload, and the deleted project is cleared from the selection state.
+
 ### Removed
 - **gRPC Server**: Removed the gRPC server, protobuf definitions and related dependencies; the gRPC API is superseded by the HTTP API
   - Removed `featureflags/rpc/` (server, servicer, container, db sync, metrics) and the `rpc` CLI command

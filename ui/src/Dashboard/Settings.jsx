@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button, message, Space, Typography, Modal, Card } from 'antd';
 import { useMutation } from '@apollo/client';
-import { DELETE_PROJECT_MUTATION } from "./queries";
+import { DELETE_PROJECT_MUTATION, PROJECTS_QUERY } from "./queries";
 import { HeaderTabs } from "./Tabs";
 
 
@@ -65,26 +65,28 @@ export const SettingsContainer = ({ projectName, projectsMap }) => {
   const navigate = useNavigate();
 
   const [deleteProject] = useMutation(DELETE_PROJECT_MUTATION, {
-    variables: { id: project.id },
+    variables: { id: project?.id },
+    refetchQueries: [{ query: PROJECTS_QUERY }],
     onCompleted: (data) => {
       if (data.deleteProject && data.deleteProject.error) {
         message.error(data.deleteProject.error);
       } else {
-        message.success(`Project "${project.name}" removed successfully`);
-        setTimeout(() => {
-          navigate(`/`);
-          window.location.reload();
-        }, 2000);
+        message.success(`Project "${projectName}" removed successfully`);
+        navigate(`/`);
       }
     },
     onError: (error) => {
-      message.error(`Error removing project "${project.name}": ${error.message}`);
+      message.error(`Error removing project "${projectName}": ${error.message}`);
     }
   });
 
   const handleRemove = () => {
     deleteProject();
   };
+
+  if (!project) {
+    return null;
+  }
 
   return (
     <View>
