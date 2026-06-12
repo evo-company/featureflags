@@ -33,9 +33,9 @@ Read documentation_
 .. _project: https://github.com/evo-company/featureflags
 .. |documentation| image:: https://img.shields.io/badge/docs-featureflags.rtfd.io-blue.svg
 .. _documentation: https://featureflags.readthedocs.io/en/latest/
-.. |version| image:: https://img.shields.io/pypi/v/evo-featureflags-server.svg?label=pypi&color=green
+.. |version| image:: https://img.shields.io/pypi/v/evo-featureflags-server.svg?label=pypi-stable&color=green
 .. _version: https://pypi.org/project/evo-featureflags-server/
-.. |tag| image:: https://img.shields.io/github/tag/evo-company/featureflags.svg?label=latest
+.. |tag| image:: https://img.shields.io/github/tag/evo-company/featureflags.svg?label=pypi-latest
 .. _tag: https://pypi.org/project/evo-featureflags-server/#history
 .. |license| image:: https://img.shields.io/pypi/l/featureflags.svg
 .. _license: https://github.com/evo-company/featureflags/blob/master/LICENSE.txt
