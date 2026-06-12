@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Readonly replica mode**: new `readonly` config option. When enabled, the
+  `http` server skips all client-triggered DB writes (flag registration,
+  report timestamps) so the server can run against a readonly Postgres
+  replica in a second datacenter. Unknown projects are served as an empty
+  state with `version: 0` instead of failing.
+
 ### Removed
 - **gRPC Server**: Removed the gRPC server, protobuf definitions and related dependencies; the gRPC API is superseded by the HTTP API
   - Removed `featureflags/rpc/` (server, servicer, container, db sync, metrics) and the `rpc` CLI command

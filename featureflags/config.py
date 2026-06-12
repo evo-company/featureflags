@@ -14,9 +14,7 @@ CONFIG_PATH_ENV_VAR = "CONFIG_PATH"
 CONFIGS_DIR = Path().parent / "configs"
 DEFAULT_CONFIG_PATH = CONFIGS_DIR / "local.yaml"
 
-_ENV_VAR_PATTERN = re.compile(
-    r"\$\{([A-Za-z_]\w*)\}|\$([A-Za-z_]\w*)"
-)
+_ENV_VAR_PATTERN = re.compile(r"\$\{([A-Za-z_]\w*)\}|\$([A-Za-z_]\w*)")
 
 
 def _resolve_env_match(match: re.Match[str]) -> str:
@@ -163,6 +161,9 @@ class Config(BaseSettings):
     debug: bool
     secret: str = Field(..., alias="SECRET")
     test_environ: bool = False
+    # Readonly replica mode: the server runs against a readonly Postgres
+    # replica and must not perform any DB writes on client-facing paths.
+    readonly: bool = False
 
     postgres: PostgresSettings
     ldap: LdapAuthSettings | None = None

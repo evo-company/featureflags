@@ -2,6 +2,7 @@ from dependency_injector import containers, providers
 from hiku.engine import Engine
 from hiku.executors.asyncio import AsyncIOExecutor
 
+from featureflags.config import config
 from featureflags.http.repositories.flags import FlagsRepository
 from featureflags.services.db import init_db_engine
 
@@ -29,4 +30,5 @@ class Container(containers.DeclarativeContainer):
         FlagsRepository,
         db_engine=db_engine,
         graph_engine=graph_engine,
+        readonly=config.readonly,
     )

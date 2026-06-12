@@ -78,9 +78,11 @@ class FlagsRepository:
         self,
         db_engine: aiopg.sa.Engine,
         graph_engine: Engine,
+        readonly: bool = False,
     ) -> None:
         self._db_engine = db_engine
         self._graph_engine = graph_engine
+        self._readonly = readonly
 
     async def get_project_version(self, project: str) -> int | None:
         async with self._db_engine.acquire() as conn:
@@ -110,11 +112,20 @@ class FlagsRepository:
         """
         Initialize project from request, create/update entities in the database
         and return available flags.
+
+        In readonly mode registration is skipped: flags unknown to this
+        instance are absent from the response and clients fall back to
+        their in-code defaults.
         """
 
-        await self.prepare_project(request)
+        if not self._readonly:
+            await self.prepare_project(request)
 
         current_version = await self.get_project_version(request.project)
+        if current_version is None:
+            # Project is not in the database (e.g. not replicated yet).
+            # Serve an empty but valid state instead of failing.
+            return PreloadFlagsResponse(version=0)
 
         result = await exec_denormalize_graph(
             graph_engine=self._graph_engine,
@@ -138,6 +149,9 @@ class FlagsRepository:
         """
 
         current_version = await self.get_project_version(request.project)
+        if current_version is None:
+            # Project is not in the database (e.g. not replicated yet).
+            return SyncFlagsResponse(version=0)
 
         if request.version != current_version:
             result = await exec_denormalize_graph(
