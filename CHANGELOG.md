@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed `grpclib`, `grpcio`, `protobuf` and `types-protobuf` dependencies
   - Removed the `rpc` service from docker-compose, `grpc_health_probe` from the Dockerfile, rpc config sections and gRPC docs
 
+### Internal
+- Release workflow now creates a GitHub Release for each pushed `v*` tag, with notes taken from the matching `CHANGELOG.md` section (auto-generated when missing) and pre-release marking for non-final versions
+
 ## [1.26.0rc3] - 2026-06-10
 
 ### Added
