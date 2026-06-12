@@ -40,6 +40,12 @@ To release package:
 
 - ``lets release 1.0.0 --message="Added feature"``
 
+This pushes a ``v*`` tag, which triggers the release workflow: the package is
+published to PyPI and a GitHub Release is created automatically. Release notes
+are taken from the version's section in ``CHANGELOG.md`` (or auto-generated
+from merged PRs when the section is missing), so update the changelog before
+releasing. Non-final versions (e.g. ``1.26.0rc1``) are marked as pre-releases.
+
 Pre-commit
 
 ``./scripts/enable-hooks.sh``
