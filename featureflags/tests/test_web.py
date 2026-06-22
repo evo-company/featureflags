@@ -4,9 +4,21 @@ from sqlalchemy import select
 
 from featureflags.graph import graph
 from featureflags.graph.context import init_graph_context
-from featureflags.models import Flag, Value
+from featureflags.models import (
+    Flag,
+    NotificationChannel,
+    ProjectNotificationChannel,
+    Value,
+)
 from featureflags.services import auth
-from featureflags.tests.state import mk_auth_user, mk_flag, mk_value
+from featureflags.tests.state import (
+    mk_auth_user,
+    mk_flag,
+    mk_notification_channel,
+    mk_project,
+    mk_value,
+)
+from featureflags.utils import select_first
 
 
 async def check_flag(flag, conn):
@@ -28,6 +40,32 @@ async def check_value(value, conn):
 
 async def get_value(value, conn):
     result = await conn.execute(select([Value.id]).where(Value.id == value))
+    return await result.scalar()
+
+
+def make_graphql_endpoint(graph_engine):
+    return AsyncBatchGraphQLEndpoint(
+        engine=graph_engine,
+        query_graph=graph.GRAPH,
+        mutation_graph=graph.MUTATION_GRAPH,
+    )
+
+
+async def dispatch_as_user(graphql_endpoint, query, db_engine, ldap, user):
+    ctx = init_graph_context(
+        session=auth.TestSession(user.id),
+        engine=db_engine,
+        ldap=ldap,
+    )
+    return await graphql_endpoint.dispatch(query, ctx)
+
+
+async def get_channel(channel_id, conn):
+    result = await conn.execute(
+        select([NotificationChannel.id]).where(
+            NotificationChannel.id == channel_id
+        )
+    )
     return await result.scalar()
 
 
@@ -205,3 +243,149 @@ async def test_delete_value_graph(
     assert res["data"]["deleteValue"]["error"] is None
 
     assert await get_value(value.id, conn) is None
+
+
+@pytest.mark.asyncio
+async def test_save_notification_channel_graph(
+    db_engine, conn, graph_engine, ldap
+):
+    user = await mk_auth_user(db_engine)
+    query = {
+        "query": """
+            mutation SaveChannel($name: String!, $webhook_url: String!) {
+                saveNotificationChannel(
+                    name: $name, webhook_url: $webhook_url
+                ) { error }
+            }
+        """,
+        "variables": {
+            "name": "alerts",
+            "webhook_url": "https://hooks.slack.com/services/T0/B0/x",
+        },
+    }
+
+    res = await dispatch_as_user(
+        make_graphql_endpoint(graph_engine), query, db_engine, ldap, user
+    )
+
+    assert res["data"]["saveNotificationChannel"]["error"] is None
+    row = await select_first(
+        conn,
+        select([NotificationChannel.__table__]).where(
+            NotificationChannel.name == "alerts"
+        ),
+    )
+    assert row is not None
+
+
+@pytest.mark.asyncio
+async def test_save_notification_channel_invalid_url(
+    db_engine, graph_engine, ldap
+):
+    user = await mk_auth_user(db_engine)
+    query = {
+        "query": """
+            mutation SaveChannel($name: String!, $webhook_url: String!) {
+                saveNotificationChannel(
+                    name: $name, webhook_url: $webhook_url
+                ) { error }
+            }
+        """,
+        "variables": {"name": "alerts", "webhook_url": "not-a-url"},
+    }
+
+    res = await dispatch_as_user(
+        make_graphql_endpoint(graph_engine), query, db_engine, ldap, user
+    )
+
+    assert res["data"]["saveNotificationChannel"]["error"] == (
+        "Webhook URL must be an http(s) URL"
+    )
+
+
+@pytest.mark.asyncio
+async def test_save_notification_channel_duplicate_name(
+    db_engine, graph_engine, ldap
+):
+    existing = await mk_notification_channel(db_engine)
+    user = await mk_auth_user(db_engine)
+    query = {
+        "query": """
+            mutation SaveChannel($name: String!, $webhook_url: String!) {
+                saveNotificationChannel(
+                    name: $name, webhook_url: $webhook_url
+                ) { error }
+            }
+        """,
+        "variables": {
+            "name": existing.name,
+            "webhook_url": "https://hooks.slack.com/services/T0/B0/x",
+        },
+    }
+
+    res = await dispatch_as_user(
+        make_graphql_endpoint(graph_engine), query, db_engine, ldap, user
+    )
+
+    error = res["data"]["saveNotificationChannel"]["error"]
+    assert error == f'Channel "{existing.name}" already exists'
+
+
+@pytest.mark.asyncio
+async def test_delete_notification_channel_graph(
+    db_engine, conn, graph_engine, ldap
+):
+    channel = await mk_notification_channel(db_engine)
+    user = await mk_auth_user(db_engine)
+    query = {
+        "query": """
+            mutation DeleteChannel($id: String!) {
+                deleteNotificationChannel(id: $id) { error }
+            }
+        """,
+        "variables": {"id": str(channel.id)},
+    }
+
+    res = await dispatch_as_user(
+        make_graphql_endpoint(graph_engine), query, db_engine, ldap, user
+    )
+
+    assert res["data"]["deleteNotificationChannel"]["error"] is None
+    assert await get_channel(channel.id, conn) is None
+
+
+@pytest.mark.asyncio
+async def test_set_project_notification_channels_graph(
+    db_engine, conn, graph_engine, ldap
+):
+    project = await mk_project(db_engine)
+    channel = await mk_notification_channel(db_engine)
+    user = await mk_auth_user(db_engine)
+    query = {
+        "query": """
+            mutation SetChannels(
+                $project_id: String!, $channel_ids: [String!]!
+            ) {
+                setProjectNotificationChannels(
+                    project_id: $project_id, channel_ids: $channel_ids
+                ) { error }
+            }
+        """,
+        "variables": {
+            "project_id": str(project.id),
+            "channel_ids": [str(channel.id)],
+        },
+    }
+
+    res = await dispatch_as_user(
+        make_graphql_endpoint(graph_engine), query, db_engine, ldap, user
+    )
+
+    assert res["data"]["setProjectNotificationChannels"]["error"] is None
+    row = await select_first(
+        conn,
+        select([ProjectNotificationChannel.channel]).where(
+            ProjectNotificationChannel.project == project.id
+        ),
+    )
+    assert row.channel == channel.id

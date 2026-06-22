@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 import aiopg.sa
+import psycopg2
 from hiku.engine import Engine, pass_context
 from hiku.enum import Enum
 from hiku.expr.core import (
@@ -51,6 +52,7 @@ from featureflags.graph.types import (
     AddValueConditionOp,
     AuthResult,
     DeleteFlagResult,
+    DeleteNotificationChannelResult,
     DeleteProjectResult,
     DeleteValueResult,
     DeleteVariableResult,
@@ -59,7 +61,9 @@ from featureflags.graph.types import (
     ResetFlagResult,
     ResetValueResult,
     SaveFlagResult,
+    SaveNotificationChannelResult,
     SaveValueResult,
+    SetProjectNotificationChannelsResult,
     ValueAction,
 )
 from featureflags.graph.utils import LinkQuery, is_valid_uuid
@@ -1111,6 +1115,74 @@ DeleteProjectNode = Node(
     ],
 )
 
+
+async def save_notification_channel_info(
+    fields: list[Field], results: list[SaveNotificationChannelResult]
+) -> list[list]:
+    [result] = results
+
+    def get_field(name: str) -> str | None:
+        if name == "error":
+            return result.error
+
+        raise ValueError(f"Unknown field: {name}")
+
+    return [[get_field(f.name)] for f in fields]
+
+
+SaveNotificationChannelNode = Node(
+    "SaveNotificationChannel",
+    [
+        Field("error", None, save_notification_channel_info),
+    ],
+)
+
+
+async def delete_notification_channel_info(
+    fields: list[Field], results: list[DeleteNotificationChannelResult]
+) -> list[list]:
+    [result] = results
+
+    def get_field(name: str) -> str | None:
+        if name == "error":
+            return result.error
+
+        raise ValueError(f"Unknown field: {name}")
+
+    return [[get_field(f.name)] for f in fields]
+
+
+DeleteNotificationChannelNode = Node(
+    "DeleteNotificationChannel",
+    [
+        Field("error", None, delete_notification_channel_info),
+    ],
+)
+
+
+async def set_project_notification_channels_info(
+    fields: list[Field],
+    results: list[SetProjectNotificationChannelsResult],
+) -> list[list]:
+    [result] = results
+
+    def get_field(name: str) -> str | None:
+        if name == "error":
+            return result.error
+
+        raise ValueError(f"Unknown field: {name}")
+
+    return [[get_field(f.name)] for f in fields]
+
+
+SetProjectNotificationChannelsNode = Node(
+    "SetProjectNotificationChannels",
+    [
+        Field("error", None, set_project_notification_channels_info),
+    ],
+)
+
+
 data_types = {
     "SaveFlagOperation": Record[{"type": String, "payload": Any}],
     "SaveValueOperation": Record[{"type": String, "payload": Any}],
@@ -1143,6 +1215,9 @@ GRAPH = Graph(
         DeleteValueNode,
         DeleteVariableNode,
         DeleteProjectNode,
+        SaveNotificationChannelNode,
+        DeleteNotificationChannelNode,
+        SetProjectNotificationChannelsNode,
     ],
     data_types=data_types,
     enums=[
@@ -1449,6 +1524,64 @@ async def delete_project(ctx: dict, options: dict) -> DeleteProjectResult:
     return DeleteProjectResult(None)
 
 
+@pass_context
+async def save_notification_channel(
+    ctx: dict, options: dict
+) -> SaveNotificationChannelResult:
+    name = (options["name"] or "").strip()
+    webhook_url = (options["webhook_url"] or "").strip()
+    channel_id = options.get("id")
+
+    if not name:
+        return SaveNotificationChannelResult("Name is required")
+    if not webhook_url.startswith(("http://", "https://")):
+        return SaveNotificationChannelResult(
+            "Webhook URL must be an http(s) URL"
+        )
+
+    async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
+        try:
+            await actions.save_notification_channel(
+                channel_id, name, webhook_url, conn=conn
+            )
+        except psycopg2.IntegrityError:
+            return SaveNotificationChannelResult(
+                f'Channel "{name}" already exists'
+            )
+        except Exception as e:
+            return SaveNotificationChannelResult(str(e))
+
+    return SaveNotificationChannelResult(None)
+
+
+@pass_context
+async def delete_notification_channel(
+    ctx: dict, options: dict
+) -> DeleteNotificationChannelResult:
+    async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
+        try:
+            await actions.delete_notification_channel(options["id"], conn=conn)
+        except Exception as e:
+            return DeleteNotificationChannelResult(str(e))
+
+    return DeleteNotificationChannelResult(None)
+
+
+@pass_context
+async def set_project_notification_channels(
+    ctx: dict, options: dict
+) -> SetProjectNotificationChannelsResult:
+    async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
+        try:
+            await actions.set_project_notification_channels(
+                options["project_id"], options["channel_ids"], conn=conn
+            )
+        except Exception as e:
+            return SetProjectNotificationChannelsResult(str(e))
+
+    return SetProjectNotificationChannelsResult(None)
+
+
 data_types = {
     "SaveFlagOperation": Record[{"type": String, "payload": Any}],
     "SaveValueOperation": Record[{"type": String, "payload": Any}],
@@ -1533,6 +1666,34 @@ MUTATION_GRAPH = Graph(
                     TypeRef["DeleteProject"],
                     delete_project,
                     options=[Option("id", String)],
+                    requires=None,
+                ),
+                Link(
+                    "saveNotificationChannel",
+                    TypeRef["SaveNotificationChannel"],
+                    save_notification_channel,
+                    options=[
+                        Option("id", Optional[String], default=None),
+                        Option("name", String),
+                        Option("webhook_url", String),
+                    ],
+                    requires=None,
+                ),
+                Link(
+                    "deleteNotificationChannel",
+                    TypeRef["DeleteNotificationChannel"],
+                    delete_notification_channel,
+                    options=[Option("id", String)],
+                    requires=None,
+                ),
+                Link(
+                    "setProjectNotificationChannels",
+                    TypeRef["SetProjectNotificationChannels"],
+                    set_project_notification_channels,
+                    options=[
+                        Option("project_id", String),
+                        Option("channel_ids", Sequence[String]),
+                    ],
                     requires=None,
                 ),
             ]

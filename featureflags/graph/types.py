@@ -216,3 +216,15 @@ class DeleteVariableResult(NamedTuple):
 
 class DeleteProjectResult(NamedTuple):
     error: str | None = None
+
+
+class SaveNotificationChannelResult(NamedTuple):
+    error: str | None = None
+
+
+class DeleteNotificationChannelResult(NamedTuple):
+    error: str | None = None
+
+
+class SetProjectNotificationChannelsResult(NamedTuple):
+    error: str | None = None
