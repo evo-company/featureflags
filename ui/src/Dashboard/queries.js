@@ -19,6 +19,10 @@ export const PROJECTS_QUERY = gql`
         name
         type
       }
+      notificationChannels {
+        id
+        name
+      }
     }
   }
 `;
@@ -216,6 +220,51 @@ export const VALUE_HISTORY_QUERY = gql`
 export const DELETE_PROJECT_MUTATION = gql`
   mutation DeleteProject($id: String!) {
     deleteProject(id: $id) {
+      error
+    }
+  }
+`;
+
+export const NOTIFICATION_CHANNELS_QUERY = gql`
+  query NotificationChannels {
+    notificationChannels {
+      id
+      name
+      type
+      webhook_url
+    }
+  }
+`;
+
+export const SAVE_NOTIFICATION_CHANNEL_MUTATION = gql`
+  mutation SaveNotificationChannel(
+    $id: String
+    $name: String!
+    $webhook_url: String!
+  ) {
+    saveNotificationChannel(id: $id, name: $name, webhook_url: $webhook_url) {
+      error
+    }
+  }
+`;
+
+export const DELETE_NOTIFICATION_CHANNEL_MUTATION = gql`
+  mutation DeleteNotificationChannel($id: String!) {
+    deleteNotificationChannel(id: $id) {
+      error
+    }
+  }
+`;
+
+export const SET_PROJECT_NOTIFICATION_CHANNELS_MUTATION = gql`
+  mutation SetProjectNotificationChannels(
+    $project_id: String!
+    $channel_ids: [String!]!
+  ) {
+    setProjectNotificationChannels(
+      project_id: $project_id
+      channel_ids: $channel_ids
+    ) {
       error
     }
   }
