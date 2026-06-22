@@ -1,19 +1,36 @@
+import json
 from datetime import datetime
+from uuid import uuid4
 
+import httpx
 import pytest
+from prometheus_client import REGISTRY
 
-from featureflags.graph.types import Action, ValueAction
+from featureflags.graph.types import Action, Changes, ValueAction, ValuesChanges
 from featureflags.models import Operator
+from featureflags.services import auth
 from featureflags.services.notifications import (
     CheckInfo,
     ConditionInfo,
     GREEN,
     GREY,
+    NotificationsService,
     RED,
     render_check_value,
     render_deleted_message,
     render_flag_message,
     render_value_message,
+)
+from featureflags.tests.state import (
+    mk_auth_user,
+    mk_check,
+    mk_condition,
+    mk_flag,
+    mk_notification_channel,
+    mk_project,
+    mk_project_notification_channel,
+    mk_value,
+    mk_variable,
 )
 
 
@@ -227,3 +244,240 @@ def test_operator_rendering(operator, label):
         username="u",
     )
     assert f"var {label} v" in attachment(payload)["text"]
+
+
+# ---------------------------------------------------------------------------
+# NotificationsService tests
+# ---------------------------------------------------------------------------
+
+
+def make_service(requests):
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200)
+
+    return NotificationsService(transport=httpx.MockTransport(handler))
+
+
+def sent_error_count(channel_name):
+    return (
+        REGISTRY.get_sample_value(
+            "slack_notification_errors_total", {"channel": channel_name}
+        )
+        or 0
+    )
+
+
+@pytest.mark.asyncio
+async def test_dispatch_flag_changes_sends_message(db_engine):
+    project = await mk_project(db_engine)
+    channel = await mk_notification_channel(
+        db_engine, webhook_url="https://hooks.example.com/abc"
+    )
+    await mk_project_notification_channel(
+        db_engine, project=project, channel=channel
+    )
+    user = await mk_auth_user(db_engine, username="editor@example.com")
+    variable = await mk_variable(db_engine, project=project, name="user.email")
+    flag = await mk_flag(
+        db_engine, name="MY_FLAG", enabled=True, project=project
+    )
+    check = await mk_check(
+        db_engine, variable=variable, value_string="x@y.com"
+    )
+    await mk_condition(
+        db_engine, flag=flag, project=project, checks=[check.id]
+    )
+
+    requests = []
+    service = make_service(requests)
+    changes = Changes()
+    changes.add(flag.id, Action.ENABLE_FLAG)
+
+    service.dispatch_flag_changes(
+        db_engine, auth.TestSession(user=user.id), changes
+    )
+    await service.wait_idle()
+
+    [request] = requests
+    assert str(request.url) == "https://hooks.example.com/abc"
+    body = json.loads(request.content)
+    assert body == {
+        "attachments": [
+            {
+                "color": "#36a64f",
+                "text": (
+                    "Flag `MY_FLAG`: true\n"
+                    "Conditions:\n"
+                    "user.email eq x@y.com\n"
+                    "Updated: editor@example.com"
+                ),
+                "mrkdwn_in": ["text"],
+            }
+        ]
+    }
+
+
+@pytest.mark.asyncio
+async def test_dispatch_flag_changes_fans_out_to_all_channels(db_engine):
+    project = await mk_project(db_engine)
+    channel_1 = await mk_notification_channel(
+        db_engine, webhook_url="https://hooks.example.com/one"
+    )
+    channel_2 = await mk_notification_channel(
+        db_engine, webhook_url="https://hooks.example.com/two"
+    )
+    await mk_project_notification_channel(
+        db_engine, project=project, channel=channel_1
+    )
+    await mk_project_notification_channel(
+        db_engine, project=project, channel=channel_2
+    )
+    user = await mk_auth_user(db_engine)
+    flag = await mk_flag(db_engine, enabled=True, project=project)
+
+    requests = []
+    service = make_service(requests)
+    changes = Changes()
+    changes.add(flag.id, Action.ENABLE_FLAG)
+
+    service.dispatch_flag_changes(
+        db_engine, auth.TestSession(user=user.id), changes
+    )
+    await service.wait_idle()
+
+    assert {str(r.url) for r in requests} == {
+        "https://hooks.example.com/one",
+        "https://hooks.example.com/two",
+    }
+
+
+@pytest.mark.asyncio
+async def test_dispatch_without_channels_sends_nothing(db_engine):
+    project = await mk_project(db_engine)
+    user = await mk_auth_user(db_engine)
+    flag = await mk_flag(db_engine, enabled=True, project=project)
+
+    requests = []
+    service = make_service(requests)
+    changes = Changes()
+    changes.add(flag.id, Action.ENABLE_FLAG)
+
+    service.dispatch_flag_changes(
+        db_engine, auth.TestSession(user=user.id), changes
+    )
+    await service.wait_idle()
+
+    assert requests == []
+
+
+@pytest.mark.asyncio
+async def test_dispatch_value_changes_sends_message(db_engine):
+    project = await mk_project(db_engine)
+    channel = await mk_notification_channel(
+        db_engine, webhook_url="https://hooks.example.com/val"
+    )
+    await mk_project_notification_channel(
+        db_engine, project=project, channel=channel
+    )
+    user = await mk_auth_user(db_engine, username="editor@example.com")
+    value = await mk_value(
+        db_engine,
+        name="MY_VALUE",
+        enabled=True,
+        value_default="10",
+        value_override="42",
+        project=project,
+    )
+
+    requests = []
+    service = make_service(requests)
+    changes = ValuesChanges()
+    changes.add(value.id, ValueAction.ENABLE_VALUE)
+
+    service.dispatch_value_changes(
+        db_engine, auth.TestSession(user=user.id), changes
+    )
+    await service.wait_idle()
+
+    [request] = requests
+    body = json.loads(request.content)
+    assert body["attachments"][0]["text"] == (
+        'Value `MY_VALUE`: enabled, override: "42" (default: "10")\n'
+        "Updated: editor@example.com"
+    )
+
+
+@pytest.mark.asyncio
+async def test_dispatch_flag_deleted_sends_message(db_engine):
+    project = await mk_project(db_engine)
+    channel = await mk_notification_channel(
+        db_engine, webhook_url="https://hooks.example.com/del"
+    )
+    await mk_project_notification_channel(
+        db_engine, project=project, channel=channel
+    )
+    user = await mk_auth_user(db_engine, username="editor@example.com")
+
+    requests = []
+    service = make_service(requests)
+
+    # the flag row does not exist anymore at dispatch time
+    service.dispatch_flag_deleted(
+        db_engine, auth.TestSession(user=user.id), "GONE_FLAG", project.id
+    )
+    await service.wait_idle()
+
+    [request] = requests
+    body = json.loads(request.content)
+    assert body["attachments"][0]["color"] == "#aaaaaa"
+    assert body["attachments"][0]["text"] == (
+        "Flag `GONE_FLAG`: deleted\nUpdated: editor@example.com"
+    )
+
+
+@pytest.mark.asyncio
+async def test_send_failure_is_swallowed_and_counted(db_engine):
+    project = await mk_project(db_engine)
+    channel = await mk_notification_channel(
+        db_engine,
+        name="broken-channel",
+        webhook_url="https://hooks.example.com/broken",
+    )
+    await mk_project_notification_channel(
+        db_engine, project=project, channel=channel
+    )
+    user = await mk_auth_user(db_engine)
+    flag = await mk_flag(db_engine, enabled=True, project=project)
+
+    def handler(request):
+        return httpx.Response(500)
+
+    service = NotificationsService(transport=httpx.MockTransport(handler))
+    changes = Changes()
+    changes.add(flag.id, Action.ENABLE_FLAG)
+
+    errors_before = sent_error_count("broken-channel")
+    service.dispatch_flag_changes(
+        db_engine, auth.TestSession(user=user.id), changes
+    )
+    await service.wait_idle()  # must not raise
+
+    assert sent_error_count("broken-channel") == errors_before + 1
+
+
+@pytest.mark.asyncio
+async def test_dispatch_missing_flag_sends_nothing(db_engine):
+    user = await mk_auth_user(db_engine)
+
+    requests = []
+    service = make_service(requests)
+    changes = Changes()
+    changes.add(uuid4(), Action.ENABLE_FLAG)
+
+    service.dispatch_flag_changes(
+        db_engine, auth.TestSession(user=user.id), changes
+    )
+    await service.wait_idle()
+
+    assert requests == []
