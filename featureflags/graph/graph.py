@@ -87,6 +87,7 @@ from featureflags.utils import (
     exec_expression,
     exec_many,
     exec_scalar,
+    select_first,
 )
 
 
@@ -1332,6 +1333,14 @@ async def save_flag(ctx: dict, options: dict) -> SaveFlagResult:
             changes=ctx[GraphContext.CHANGES],
         )
 
+    notifications = ctx[GraphContext.NOTIFICATIONS]
+    if notifications is not None:
+        notifications.dispatch_flag_changes(
+            ctx[GraphContext.DB_ENGINE],
+            ctx[GraphContext.USER_SESSION],
+            ctx[GraphContext.CHANGES],
+        )
+
     return SaveFlagResult(None)
 
 
@@ -1353,16 +1362,38 @@ async def reset_flag(ctx: dict, options: dict) -> ResetFlagResult:
             changes=ctx[GraphContext.CHANGES],
         )
 
+    notifications = ctx[GraphContext.NOTIFICATIONS]
+    if notifications is not None:
+        notifications.dispatch_flag_changes(
+            ctx[GraphContext.DB_ENGINE],
+            ctx[GraphContext.USER_SESSION],
+            ctx[GraphContext.CHANGES],
+        )
+
     return ResetFlagResult(None)
 
 
 @pass_context
 async def delete_flag(ctx: dict, options: dict) -> DeleteFlagResult:
+    flag_uuid = UUID(hex=options["id"])
     async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
+        flag_row = await select_first(
+            conn,
+            select([Flag.name, Flag.project]).where(Flag.id == flag_uuid),
+        )
         await actions.delete_flag(
             options["id"],
             conn=conn,
             changes=ctx[GraphContext.CHANGES],
+        )
+
+    notifications = ctx[GraphContext.NOTIFICATIONS]
+    if notifications is not None and flag_row is not None:
+        notifications.dispatch_flag_deleted(
+            ctx[GraphContext.DB_ENGINE],
+            ctx[GraphContext.USER_SESSION],
+            flag_row.name,
+            flag_row.project,
         )
 
     return DeleteFlagResult(None)
@@ -1445,6 +1476,14 @@ async def save_value(ctx: dict, options: dict) -> SaveValueResult:  # noqa: C901
             changes=ctx[GraphContext.VALUES_CHANGES],
         )
 
+    notifications = ctx[GraphContext.NOTIFICATIONS]
+    if notifications is not None:
+        notifications.dispatch_value_changes(
+            ctx[GraphContext.DB_ENGINE],
+            ctx[GraphContext.USER_SESSION],
+            ctx[GraphContext.VALUES_CHANGES],
+        )
+
     return SaveValueResult(None)
 
 
@@ -1466,16 +1505,38 @@ async def reset_value(ctx: dict, options: dict) -> ResetValueResult:
             changes=ctx[GraphContext.VALUES_CHANGES],
         )
 
+    notifications = ctx[GraphContext.NOTIFICATIONS]
+    if notifications is not None:
+        notifications.dispatch_value_changes(
+            ctx[GraphContext.DB_ENGINE],
+            ctx[GraphContext.USER_SESSION],
+            ctx[GraphContext.VALUES_CHANGES],
+        )
+
     return ResetValueResult(None)
 
 
 @pass_context
 async def delete_value(ctx: dict, options: dict) -> DeleteValueResult:
+    value_uuid = UUID(hex=options["id"])
     async with ctx[GraphContext.DB_ENGINE].acquire() as conn:
+        value_row = await select_first(
+            conn,
+            select([Value.name, Value.project]).where(Value.id == value_uuid),
+        )
         await actions.delete_value(
             options["id"],
             conn=conn,
             changes=ctx[GraphContext.VALUES_CHANGES],
+        )
+
+    notifications = ctx[GraphContext.NOTIFICATIONS]
+    if notifications is not None and value_row is not None:
+        notifications.dispatch_value_deleted(
+            ctx[GraphContext.DB_ENGINE],
+            ctx[GraphContext.USER_SESSION],
+            value_row.name,
+            value_row.project,
         )
 
     return DeleteValueResult(None)

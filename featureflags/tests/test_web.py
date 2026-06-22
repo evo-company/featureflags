@@ -4,6 +4,7 @@ from sqlalchemy import select
 
 from featureflags.graph import graph
 from featureflags.graph.context import init_graph_context
+from featureflags.graph.types import Action, ValueAction
 from featureflags.models import (
     Flag,
     NotificationChannel,
@@ -389,3 +390,197 @@ async def test_set_project_notification_channels_graph(
         ),
     )
     assert row.channel == channel.id
+
+
+class FakeNotifications:
+    def __init__(self):
+        self.calls = []
+
+    def dispatch_flag_changes(self, engine, session, changes):
+        self.calls.append(("flag_changes", changes.get_actions()))
+
+    def dispatch_value_changes(self, engine, session, changes):
+        self.calls.append(("value_changes", changes.get_actions()))
+
+    def dispatch_flag_deleted(self, engine, session, flag_name, project_id):
+        self.calls.append(("flag_deleted", flag_name, project_id))
+
+    def dispatch_value_deleted(self, engine, session, value_name, project_id):
+        self.calls.append(("value_deleted", value_name, project_id))
+
+
+async def dispatch_with_notifications(
+    graph_engine, query, db_engine, ldap, user
+):
+    fake = FakeNotifications()
+    ctx = init_graph_context(
+        session=auth.TestSession(user.id),
+        engine=db_engine,
+        ldap=ldap,
+        notifications=fake,
+    )
+    endpoint = make_graphql_endpoint(graph_engine)
+    result = await endpoint.dispatch(query, ctx)
+    return result, fake
+
+
+@pytest.mark.asyncio
+async def test_save_flag_dispatches_notifications(
+    db_engine, graph_engine, ldap
+):
+    flag = await mk_flag(db_engine, enabled=False)
+    user = await mk_auth_user(db_engine)
+    query = {
+        "query": """
+            mutation SaveFlag($operations: [SaveFlagOperation!]!) {
+                saveFlag(operations: $operations) { errors }
+            }
+        """,
+        "variables": {
+            "operations": [
+                {
+                    "type": "enable_flag",
+                    "payload": {"flag_id": flag.id.hex},
+                }
+            ]
+        },
+    }
+
+    result, fake = await dispatch_with_notifications(
+        graph_engine, query, db_engine, ldap, user
+    )
+
+    assert result["data"]["saveFlag"]["errors"] is None
+    assert fake.calls == [
+        ("flag_changes", [(flag.id, [Action.ENABLE_FLAG])])
+    ]
+
+
+@pytest.mark.asyncio
+async def test_reset_flag_dispatches_notifications(
+    db_engine, graph_engine, ldap
+):
+    flag = await mk_flag(db_engine, enabled=True)
+    user = await mk_auth_user(db_engine)
+    query = {
+        "query": """
+            mutation ResetFlag($id: String!) {
+                resetFlag(id: $id) { error }
+            }
+        """,
+        "variables": {"id": str(flag.id)},
+    }
+
+    result, fake = await dispatch_with_notifications(
+        graph_engine, query, db_engine, ldap, user
+    )
+
+    assert result["data"]["resetFlag"]["error"] is None
+    assert fake.calls == [
+        ("flag_changes", [(flag.id, [Action.RESET_FLAG])])
+    ]
+
+
+@pytest.mark.asyncio
+async def test_delete_flag_dispatches_deleted(
+    db_engine, graph_engine, ldap
+):
+    project = await mk_project(db_engine)
+    flag = await mk_flag(db_engine, enabled=True, project=project)
+    user = await mk_auth_user(db_engine)
+    query = {
+        "query": """
+            mutation DeleteFlag($id: String!) {
+                deleteFlag(id: $id) { error }
+            }
+        """,
+        "variables": {"id": str(flag.id)},
+    }
+
+    result, fake = await dispatch_with_notifications(
+        graph_engine, query, db_engine, ldap, user
+    )
+
+    assert result["data"]["deleteFlag"]["error"] is None
+    assert fake.calls == [("flag_deleted", flag.name, project.id)]
+
+
+@pytest.mark.asyncio
+async def test_save_value_dispatches_notifications(
+    db_engine, graph_engine, ldap
+):
+    value = await mk_value(db_engine, enabled=False)
+    user = await mk_auth_user(db_engine)
+    query = {
+        "query": """
+            mutation SaveValue($operations: [SaveValueOperation!]!) {
+                saveValue(operations: $operations) { errors }
+            }
+        """,
+        "variables": {
+            "operations": [
+                {
+                    "type": "enable_value",
+                    "payload": {"value_id": value.id.hex},
+                }
+            ]
+        },
+    }
+
+    result, fake = await dispatch_with_notifications(
+        graph_engine, query, db_engine, ldap, user
+    )
+
+    assert result["data"]["saveValue"]["errors"] is None
+    assert fake.calls == [
+        ("value_changes", [(value.id, [ValueAction.ENABLE_VALUE])])
+    ]
+
+
+@pytest.mark.asyncio
+async def test_reset_value_dispatches_notifications(
+    db_engine, graph_engine, ldap
+):
+    value = await mk_value(db_engine, enabled=True)
+    user = await mk_auth_user(db_engine)
+    query = {
+        "query": """
+            mutation ResetValue($id: String!) {
+                resetValue(id: $id) { error }
+            }
+        """,
+        "variables": {"id": str(value.id)},
+    }
+
+    result, fake = await dispatch_with_notifications(
+        graph_engine, query, db_engine, ldap, user
+    )
+
+    assert result["data"]["resetValue"]["error"] is None
+    assert fake.calls == [
+        ("value_changes", [(value.id, [ValueAction.RESET_VALUE])])
+    ]
+
+
+@pytest.mark.asyncio
+async def test_delete_value_dispatches_deleted(
+    db_engine, graph_engine, ldap
+):
+    project = await mk_project(db_engine)
+    value = await mk_value(db_engine, project=project)
+    user = await mk_auth_user(db_engine)
+    query = {
+        "query": """
+            mutation DeleteValue($id: String!) {
+                deleteValue(id: $id) { error }
+            }
+        """,
+        "variables": {"id": str(value.id)},
+    }
+
+    result, fake = await dispatch_with_notifications(
+        graph_engine, query, db_engine, ldap, user
+    )
+
+    assert result["data"]["deleteValue"]["error"] is None
+    assert fake.calls == [("value_deleted", value.name, project.id)]
