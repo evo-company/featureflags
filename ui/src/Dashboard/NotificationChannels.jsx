@@ -106,7 +106,7 @@ const ChannelFormModal = ({ open, channel, onClose, onSaved }) => {
 
 const NotificationChannels = () => {
   const navigate = useNavigate();
-  const { data, loading } = useQuery(NOTIFICATION_CHANNELS_QUERY, {
+  const { data, loading, error } = useQuery(NOTIFICATION_CHANNELS_QUERY, {
     fetchPolicy: 'network-only',
   });
   const [modalChannel, setModalChannel] = useState(null);
@@ -126,6 +126,18 @@ const NotificationChannels = () => {
 
   if (loading) {
     return <CenteredSpinner />;
+  }
+
+  if (error || !data) {
+    return (
+      <Base>
+        <div style={{ padding: '16px 24px' }}>
+          <Typography.Text type="danger">
+            Failed to load notification channels.
+          </Typography.Text>
+        </div>
+      </Base>
+    );
   }
 
   const columns = [
