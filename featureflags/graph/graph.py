@@ -70,7 +70,9 @@ from featureflags.models import (
     Check,
     Condition,
     Flag,
+    NotificationChannel,
     Project,
+    ProjectNotificationChannel,
     Value,
     ValueChangelog,
     ValueCondition,
@@ -224,6 +226,17 @@ async def root_projects(ctx: dict) -> list:
 
     return await exec_expression(
         ctx[GraphContext.DB_ENGINE], select([Project.id])
+    )
+
+
+@pass_context
+async def root_notification_channels(ctx: dict) -> list:
+    if not ctx[GraphContext.USER_SESSION].is_authenticated:
+        return []
+
+    return await exec_expression(
+        ctx[GraphContext.DB_ENGINE],
+        select([NotificationChannel.id]).order_by(NotificationChannel.name),
     )
 
 
@@ -465,6 +478,26 @@ project_variables = LinkQuery(
     GraphContext.DB_ENGINE, from_column=Variable.project, to_column=Variable.id
 )
 
+notification_channel_fq = FieldsQuery(
+    GraphContext.DB_ENGINE, NotificationChannel.__table__
+)
+
+NotificationChannelNode = Node(
+    "NotificationChannel",
+    [
+        ID_FIELD,
+        Field("name", None, notification_channel_fq),
+        Field("type", None, notification_channel_fq),
+        Field("webhook_url", None, notification_channel_fq),
+    ],
+)
+
+project_notification_channels = LinkQuery(
+    GraphContext.DB_ENGINE,
+    from_column=ProjectNotificationChannel.project,
+    to_column=ProjectNotificationChannel.channel,
+)
+
 ProjectNode = Node(
     "Project",
     [
@@ -473,6 +506,12 @@ ProjectNode = Node(
         Field("version", None, project_fq),
         Link(
             "variables", Sequence["Variable"], project_variables, requires="id"
+        ),
+        Link(
+            "notificationChannels",
+            Sequence["NotificationChannel"],
+            project_notification_channels,
+            requires="id",
         ),
     ],
 )
@@ -758,6 +797,12 @@ RootNode = Root(
             options=[Option("ids", Sequence[String])],
         ),
         Link("projects", Sequence["Project"], root_projects, requires=None),
+        Link(
+            "notificationChannels",
+            Sequence["NotificationChannel"],
+            root_notification_channels,
+            requires=None,
+        ),
         Link(
             "changes",
             Sequence["Change"],
@@ -1075,6 +1120,7 @@ GRAPH = Graph(
     [
         ProjectNode,
         VariableNode,
+        NotificationChannelNode,
         FlagNode,
         ValueNode,
         ConditionNode,

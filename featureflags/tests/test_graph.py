@@ -22,7 +22,9 @@ from featureflags.tests.state import (
     mk_check,
     mk_condition,
     mk_flag,
+    mk_notification_channel,
     mk_project,
+    mk_project_notification_channel,
     mk_value,
     mk_value_changelog_entry,
     mk_value_condition,
@@ -559,3 +561,63 @@ async def test_value_changes_by_project_ids(
             },
         ],
     }
+
+
+@pytest.mark.asyncio
+async def test_notification_channels(db_engine, graph_engine, test_session):
+    channel = await mk_notification_channel(db_engine)
+
+    query = build(
+        [
+            Q.notificationChannels[
+                Q.id,
+                Q.name,
+                Q.webhook_url,
+            ],
+        ]
+    )
+    result = await exec_graph(graph_engine, query, db_engine, test_session)
+    data = denormalize(GRAPH, result)
+
+    assert data == {
+        "notificationChannels": [
+            {
+                "id": channel.id,
+                "name": channel.name,
+                "webhook_url": channel.webhook_url,
+            }
+        ]
+    }
+
+
+@pytest.mark.asyncio
+async def test_project_notification_channels(
+    db_engine, graph_engine, test_session
+):
+    project = await mk_project(db_engine)
+    channel = await mk_notification_channel(db_engine)
+    await mk_project_notification_channel(
+        db_engine, project=project, channel=channel
+    )
+    # another project without channels
+    other_project = await mk_project(db_engine)
+
+    query = build(
+        [
+            Q.projects[
+                Q.id,
+                Q.notificationChannels[
+                    Q.id,
+                    Q.name,
+                ],
+            ],
+        ]
+    )
+    result = await exec_graph(graph_engine, query, db_engine, test_session)
+    data = denormalize(GRAPH, result)
+
+    by_id = {p["id"]: p for p in data["projects"]}
+    assert by_id[project.id]["notificationChannels"] == [
+        {"id": channel.id, "name": channel.name}
+    ]
+    assert by_id[other_project.id]["notificationChannels"] == []
