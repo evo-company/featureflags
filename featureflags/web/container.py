@@ -1,3 +1,5 @@
+from collections.abc import AsyncGenerator
+
 from dependency_injector import containers, providers
 from hiku.endpoint.graphql import AsyncBatchGraphQLEndpoint
 from hiku.engine import Engine
@@ -11,7 +13,9 @@ from featureflags.services.notifications import NotificationsService
 from featureflags.services.oidc_auth import OidcAuthenticator
 
 
-async def _init_notifications_service():  # type: ignore[no-untyped-def]
+async def _init_notifications_service() -> (
+    AsyncGenerator[NotificationsService, None]
+):
     service = NotificationsService()
     yield service
     await service.close()
