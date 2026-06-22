@@ -14,6 +14,7 @@ class GraphContext(Enum):
     CHANGES = "CHANGES"
     VALUES_CHANGES = "VALUES_CHANGES"
     CHECK_IDS = "CHECK_IDS"
+    NOTIFICATIONS = "NOTIFICATIONS"
 
 
 class Operation(Enum):
