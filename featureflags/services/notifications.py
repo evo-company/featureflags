@@ -181,7 +181,7 @@ def render_test_message(name: str, username: str) -> dict:
     return _payload(
         GREEN,
         _render_text(
-            "Test notifiction from featureflags service\n"
+            "Test notifaction from featureflags service\n"
             f"Flag `{name}`: *true*",
             [],
             username,
