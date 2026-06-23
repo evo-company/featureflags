@@ -7,12 +7,10 @@ import {
   Menu,
   AutoComplete,
   Input,
-  Button,
 } from 'antd';
 import {
   SearchOutlined,
   GitlabOutlined,
-  SettingOutlined,
 } from '@ant-design/icons';
 
 const { Content, Sider } = Layout;
@@ -143,17 +141,6 @@ function Dashboard({ projects }) {
             }}
             selectedKeys={[selected]}
           />
-          <div className="sidebar-settings">
-            <Button
-              type="text"
-              block
-              icon={<SettingOutlined />}
-              className="sidebar-settings-button"
-              onClick={() => navigate('/settings')}
-            >
-              Notification settings
-            </Button>
-          </div>
         </Sider>
         <Content
           style={{
