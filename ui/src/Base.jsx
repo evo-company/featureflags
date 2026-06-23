@@ -129,6 +129,7 @@ function Base({ children }) {
             {auth.authenticated && <Button
               type="link"
               onClick={signOut}
+              style={{ paddingInline: 0 }}
             >Sign out</Button>}
           </Flex>
         </Flex>
