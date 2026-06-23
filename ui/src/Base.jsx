@@ -66,7 +66,12 @@ function Base({ children }) {
       }}
     >
       <Header className='header'>
-        <Flex gap="middle" direction='horizontal' justify='space-between'>
+        <Flex
+          gap="middle"
+          direction='horizontal'
+          justify='space-between'
+          align='center'
+        >
           <Typography.Title
             style={{
               color: "#fff",
@@ -84,7 +89,7 @@ function Base({ children }) {
               </Link>
             </Space>
           </Typography.Title>
-          <Space>
+          <Space size="middle" align="center">
             {auth.authenticated && tab && (
               <Input
                 ref={inputRef}
