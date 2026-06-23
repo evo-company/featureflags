@@ -65,11 +65,11 @@ def test_render_flag_message_enabled_with_conditions():
     assert att["color"] == GREEN
     assert att["mrkdwn_in"] == ["text"]
     assert att["text"] == (
-        "Flag `MY_FLAG`: true\n"
+        "Flag `MY_FLAG`: *true*\n"
         "Conditions:\n"
         "user.email eq x@y.com\n"
         "user.company_id eq 3150894 and user.is_staff eq true\n"
-        "Updated: editor@example.com"
+        "Updated by: editor@example.com"
     )
 
 
@@ -84,7 +84,9 @@ def test_render_flag_message_disabled_no_conditions():
 
     att = attachment(payload)
     assert att["color"] == RED
-    assert att["text"] == ("Flag `MY_FLAG`: false\nUpdated: editor@example.com")
+    assert att["text"] == (
+        "Flag `MY_FLAG`: *false*\nUpdated by: editor@example.com"
+    )
 
 
 def test_render_flag_message_enabled_none_renders_false():
@@ -98,7 +100,7 @@ def test_render_flag_message_enabled_none_renders_false():
 
     att = attachment(payload)
     assert att["color"] == RED
-    assert att["text"].startswith("Flag `MY_FLAG`: false")
+    assert att["text"].startswith("Flag `MY_FLAG`: *false*")
 
 
 def test_render_flag_message_reset():
@@ -112,7 +114,9 @@ def test_render_flag_message_reset():
 
     att = attachment(payload)
     assert att["color"] == GREY
-    assert att["text"] == ("Flag `MY_FLAG`: reset\nUpdated: editor@example.com")
+    assert att["text"] == (
+        "Flag `MY_FLAG`: *reset*\nUpdated by: editor@example.com"
+    )
 
 
 def test_render_deleted_message():
@@ -125,7 +129,7 @@ def test_render_deleted_message():
     att = attachment(payload)
     assert att["color"] == GREY
     assert att["text"] == (
-        "Flag `MY_FLAG`: deleted\nUpdated: editor@example.com"
+        "Flag `MY_FLAG`: *deleted*\nUpdated by: editor@example.com"
     )
 
 
@@ -139,8 +143,8 @@ def test_render_test_message():
     assert att["color"] == GREEN
     assert att["text"] == (
         "Test notifaction from featureflags service\n"
-        "Flag `alerts`: true\n"
-        "Updated: editor@example.com"
+        "Flag `alerts`: *true*\n"
+        "Updated by: editor@example.com"
     )
 
 
@@ -163,10 +167,10 @@ def test_render_value_message_enabled_with_condition_override():
     att = attachment(payload)
     assert att["color"] == GREEN
     assert att["text"] == (
-        'Value `MY_VALUE`: enabled, override: "42" (default: "10")\n'
+        'Value `MY_VALUE`: *enabled*, override: "42" (default: "10")\n'
         "Conditions:\n"
         'user.email eq x@y.com → "99"\n'
-        "Updated: editor@example.com"
+        "Updated by: editor@example.com"
     )
 
 
@@ -184,7 +188,7 @@ def test_render_value_message_disabled():
     att = attachment(payload)
     assert att["color"] == RED
     assert att["text"].startswith(
-        'Value `MY_VALUE`: disabled, override: "42" (default: "10")'
+        'Value `MY_VALUE`: *disabled*, override: "42" (default: "10")'
     )
 
 
@@ -202,7 +206,7 @@ def test_render_value_message_reset():
     att = attachment(payload)
     assert att["color"] == GREY
     assert att["text"] == (
-        "Value `MY_VALUE`: reset\nUpdated: editor@example.com"
+        "Value `MY_VALUE`: *reset*\nUpdated by: editor@example.com"
     )
 
 
@@ -315,10 +319,10 @@ async def test_dispatch_flag_changes_sends_message(db_engine):
             {
                 "color": "#36a64f",
                 "text": (
-                    "Flag `MY_FLAG`: true\n"
+                    "Flag `MY_FLAG`: *true*\n"
                     "Conditions:\n"
                     "user.email eq x@y.com\n"
-                    "Updated: editor@example.com"
+                    "Updated by: editor@example.com"
                 ),
                 "mrkdwn_in": ["text"],
             }
@@ -411,8 +415,8 @@ async def test_dispatch_value_changes_sends_message(db_engine):
     [request] = requests
     body = json.loads(request.content)
     assert body["attachments"][0]["text"] == (
-        'Value `MY_VALUE`: enabled, override: "42" (default: "10")\n'
-        "Updated: editor@example.com"
+        'Value `MY_VALUE`: *enabled*, override: "42" (default: "10")\n'
+        "Updated by: editor@example.com"
     )
 
 
@@ -440,7 +444,7 @@ async def test_dispatch_flag_deleted_sends_message(db_engine):
     body = json.loads(request.content)
     assert body["attachments"][0]["color"] == "#aaaaaa"
     assert body["attachments"][0]["text"] == (
-        "Flag `GONE_FLAG`: deleted\nUpdated: editor@example.com"
+        "Flag `GONE_FLAG`: *deleted*\nUpdated by: editor@example.com"
     )
 
 
@@ -467,8 +471,8 @@ async def test_send_test_notification_sends_message(db_engine):
                 "color": "#36a64f",
                 "text": (
                     "Test notifaction from featureflags service\n"
-                    "Flag `alerts`: true\n"
-                    "Updated: editor@example.com"
+                    "Flag `alerts`: *true*\n"
+                    "Updated by: editor@example.com"
                 ),
                 "mrkdwn_in": ["text"],
             }
