@@ -241,7 +241,8 @@ const NotificationChannels = () => {
   return (
     <Base>
       <div style={{ padding: '16px 24px' }}>
-        <Space direction="vertical" size="middle" style={{ width: 1200 }}>
+        <div style={{ width: 1200, maxWidth: '100%', margin: '0 auto' }}>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <Button
             type="link"
             icon={<ArrowLeftOutlined />}
@@ -274,7 +275,8 @@ const NotificationChannels = () => {
               pagination={false}
             />
           </Card>
-        </Space>
+          </Space>
+        </div>
         <ChannelFormModal
           open={modalOpen}
           channel={modalChannel}

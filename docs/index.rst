@@ -15,6 +15,7 @@ User's Guide
   client
   clients
   conditions
+  notifications
   deployment
   development
   prometheus-metrics
