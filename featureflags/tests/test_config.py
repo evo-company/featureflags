@@ -15,7 +15,7 @@ from featureflags.config import (
 
 @pytest.mark.parametrize(
     "path",
-    CONFIGS_DIR.iterdir(),
+    [path for path in CONFIGS_DIR.iterdir() if path.is_file()],
 )
 def test_configs_smoke(path: PosixPath) -> None:
     """Test that the config loads."""

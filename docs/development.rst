@@ -23,14 +23,25 @@ and then execute this command:
 
 .. code-block:: shell
 
-    curl -X POST http://localhost:8080/flags/load -H "Content-Type: application/json" \
+    curl -X POST http://localhost:8081/flags/load -H "Content-Type: application/json" \
     -d '{"project": "test", "version": 1, "variables": [{"name": "user.id", "type": 2}], "flags": ["TEST_FLAG"], "values": [["TEST_VALUE", 1]]}'
 
 Default username is ``admin`` and password is ``admin`` if you run with `configs/local.yaml` configuration file (default)
 
 To start API handlers (not required for web application):
 
-- ``lets http`` in separate terminal (this will start http server on ``http://localhost:8080``)
+- ``lets http`` in separate terminal (this will start http server on ``http://localhost:8081``)
+
+To test the HTTP service with the example Flask client:
+
+- make sure ``uv`` is installed
+- run ``lets http`` in one terminal
+- run ``lets run-example-client`` in another terminal
+- open ``http://127.0.0.1:5000`` or call it with curl
+
+``lets run-example-client`` uses ``uv run --no-project --with requests --with flask --with evo-featureflags-client`` so it ignores this repository's server dependencies and you do not need to create a virtualenv for the example.
+
+The example client is in ``examples/http/`` and connects to the FeatureFlags HTTP API. You can use it to verify that flag evaluation works end-to-end against the local service.
 
 To build UI and copy it to ``web/static`` directory:
 

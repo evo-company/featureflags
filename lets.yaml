@@ -144,6 +144,10 @@ commands:
     work_dir: ./ui
     cmd: npm run build-dev-watch
 
+  run-example-client:
+    description: Run example Flask client against the HTTP API
+    cmd: uv run --no-project --with requests --with flask --with evo-featureflags-client examples/http/flask_server.py
+
   ruff:
     description: Run ruff and fix errors
     depends: [build-dev]
