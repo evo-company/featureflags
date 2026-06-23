@@ -19,6 +19,7 @@ from featureflags.services.notifications import (
     render_check_value,
     render_deleted_message,
     render_flag_message,
+    render_test_message,
     render_value_message,
 )
 from featureflags.tests.state import (
@@ -125,6 +126,21 @@ def test_render_deleted_message():
     assert att["color"] == GREY
     assert att["text"] == (
         "Flag `MY_FLAG`: deleted\nUpdated: editor@example.com"
+    )
+
+
+def test_render_test_message():
+    payload = render_test_message(
+        name="alerts",
+        username="editor@example.com",
+    )
+
+    att = attachment(payload)
+    assert att["color"] == GREEN
+    assert att["text"] == (
+        "Test notifaction from featureflags service\n"
+        "Flag `alerts`: true\n"
+        "Updated: editor@example.com"
     )
 
 
@@ -426,6 +442,60 @@ async def test_dispatch_flag_deleted_sends_message(db_engine):
     assert body["attachments"][0]["text"] == (
         "Flag `GONE_FLAG`: deleted\nUpdated: editor@example.com"
     )
+
+
+@pytest.mark.asyncio
+async def test_send_test_notification_sends_message(db_engine):
+    user = await mk_auth_user(db_engine, username="editor@example.com")
+
+    requests = []
+    service = make_service(requests)
+
+    await service.send_test_notification(
+        db_engine,
+        auth.TestSession(user=user.id),
+        "alerts",
+        "https://hooks.example.com/test",
+    )
+
+    [request] = requests
+    assert str(request.url) == "https://hooks.example.com/test"
+    body = json.loads(request.content)
+    assert body == {
+        "attachments": [
+            {
+                "color": "#36a64f",
+                "text": (
+                    "Test notifaction from featureflags service\n"
+                    "Flag `alerts`: true\n"
+                    "Updated: editor@example.com"
+                ),
+                "mrkdwn_in": ["text"],
+            }
+        ]
+    }
+
+
+@pytest.mark.asyncio
+async def test_send_test_notification_failure_raises_and_counts(db_engine):
+    user = await mk_auth_user(db_engine)
+    channel_name = "broken-test"
+
+    def handler(request):
+        return httpx.Response(500, text="nope")
+
+    service = NotificationsService(transport=httpx.MockTransport(handler))
+    errors_before = sent_error_count(channel_name)
+
+    with pytest.raises(RuntimeError, match="unexpected response status 500"):
+        await service.send_test_notification(
+            db_engine,
+            auth.TestSession(user=user.id),
+            channel_name,
+            "https://hooks.example.com/test",
+        )
+
+    assert sent_error_count(channel_name) == errors_before + 1
 
 
 @pytest.mark.asyncio

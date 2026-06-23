@@ -333,6 +333,64 @@ async def test_save_notification_channel_duplicate_name(
 
 
 @pytest.mark.asyncio
+async def test_test_notification_channel_graph(
+    db_engine, graph_engine, ldap
+):
+    user = await mk_auth_user(db_engine)
+    query = {
+        "query": """
+            mutation TestChannel($name: String!, $webhook_url: String!) {
+                testNotificationChannel(
+                    name: $name, webhook_url: $webhook_url
+                ) { error }
+            }
+        """,
+        "variables": {
+            "name": "alerts",
+            "webhook_url": "https://hooks.slack.com/services/T0/B0/x",
+        },
+    }
+
+    result, fake = await dispatch_with_notifications(
+        graph_engine, query, db_engine, ldap, user
+    )
+
+    assert result["data"]["testNotificationChannel"]["error"] is None
+    assert fake.calls == [
+        (
+            "test_notification",
+            "alerts",
+            "https://hooks.slack.com/services/T0/B0/x",
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_test_notification_channel_invalid_url(
+    db_engine, graph_engine, ldap
+):
+    user = await mk_auth_user(db_engine)
+    query = {
+        "query": """
+            mutation TestChannel($name: String!, $webhook_url: String!) {
+                testNotificationChannel(
+                    name: $name, webhook_url: $webhook_url
+                ) { error }
+            }
+        """,
+        "variables": {"name": "alerts", "webhook_url": "not-a-url"},
+    }
+
+    result = await dispatch_as_user(
+        make_graphql_endpoint(graph_engine), query, db_engine, ldap, user
+    )
+
+    assert result["data"]["testNotificationChannel"]["error"] == (
+        "Webhook URL must be an http(s) URL"
+    )
+
+
+@pytest.mark.asyncio
 async def test_delete_notification_channel_graph(
     db_engine, conn, graph_engine, ldap
 ):
@@ -407,6 +465,9 @@ class FakeNotifications:
 
     def dispatch_value_deleted(self, engine, session, value_name, project_id):
         self.calls.append(("value_deleted", value_name, project_id))
+
+    async def send_test_notification(self, engine, session, name, webhook_url):
+        self.calls.append(("test_notification", name, webhook_url))
 
 
 async def dispatch_with_notifications(

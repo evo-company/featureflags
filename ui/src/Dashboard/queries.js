@@ -248,6 +248,14 @@ export const SAVE_NOTIFICATION_CHANNEL_MUTATION = gql`
   }
 `;
 
+export const TEST_NOTIFICATION_CHANNEL_MUTATION = gql`
+  mutation TestNotificationChannel($name: String!, $webhook_url: String!) {
+    testNotificationChannel(name: $name, webhook_url: $webhook_url) {
+      error
+    }
+  }
+`;
+
 export const DELETE_NOTIFICATION_CHANNEL_MUTATION = gql`
   mutation DeleteNotificationChannel($id: String!) {
     deleteNotificationChannel(id: $id) {

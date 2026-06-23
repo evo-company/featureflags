@@ -222,6 +222,10 @@ class SaveNotificationChannelResult(NamedTuple):
     error: str | None = None
 
 
+class TestNotificationChannelResult(NamedTuple):
+    error: str | None = None
+
+
 class DeleteNotificationChannelResult(NamedTuple):
     error: str | None = None
 

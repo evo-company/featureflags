@@ -64,6 +64,7 @@ from featureflags.graph.types import (
     SaveNotificationChannelResult,
     SaveValueResult,
     SetProjectNotificationChannelsResult,
+    TestNotificationChannelResult,
     ValueAction,
 )
 from featureflags.graph.utils import LinkQuery, is_valid_uuid
@@ -1139,6 +1140,28 @@ SaveNotificationChannelNode = Node(
 )
 
 
+async def test_notification_channel_info(
+    fields: list[Field], results: list[TestNotificationChannelResult]
+) -> list[list]:
+    [result] = results
+
+    def get_field(name: str) -> str | None:
+        if name == "error":
+            return result.error
+
+        raise ValueError(f"Unknown field: {name}")
+
+    return [[get_field(f.name)] for f in fields]
+
+
+TestNotificationChannelNode = Node(
+    "TestNotificationChannel",
+    [
+        Field("error", None, test_notification_channel_info),
+    ],
+)
+
+
 async def delete_notification_channel_info(
     fields: list[Field], results: list[DeleteNotificationChannelResult]
 ) -> list[list]:
@@ -1217,6 +1240,7 @@ GRAPH = Graph(
         DeleteVariableNode,
         DeleteProjectNode,
         SaveNotificationChannelNode,
+        TestNotificationChannelNode,
         DeleteNotificationChannelNode,
         SetProjectNotificationChannelsNode,
     ],
@@ -1616,6 +1640,39 @@ async def save_notification_channel(
 
 
 @pass_context
+async def test_notification_channel(
+    ctx: dict, options: dict
+) -> TestNotificationChannelResult:
+    name = (options["name"] or "").strip()
+    webhook_url = (options["webhook_url"] or "").strip()
+
+    if not name:
+        return TestNotificationChannelResult("Name is required")
+    if not webhook_url.startswith(("http://", "https://")):
+        return TestNotificationChannelResult(
+            "Webhook URL must be an http(s) URL"
+        )
+
+    notifications = ctx[GraphContext.NOTIFICATIONS]
+    if notifications is None:
+        return TestNotificationChannelResult(
+            "Notifications service unavailable"
+        )
+
+    try:
+        await notifications.send_test_notification(
+            ctx[GraphContext.DB_ENGINE],
+            ctx[GraphContext.USER_SESSION],
+            name,
+            webhook_url,
+        )
+    except Exception as e:
+        return TestNotificationChannelResult(str(e))
+
+    return TestNotificationChannelResult(None)
+
+
+@pass_context
 async def delete_notification_channel(
     ctx: dict, options: dict
 ) -> DeleteNotificationChannelResult:
@@ -1735,6 +1792,16 @@ MUTATION_GRAPH = Graph(
                     save_notification_channel,
                     options=[
                         Option("id", Optional[String], default=None),
+                        Option("name", String),
+                        Option("webhook_url", String),
+                    ],
+                    requires=None,
+                ),
+                Link(
+                    "testNotificationChannel",
+                    TypeRef["TestNotificationChannel"],
+                    test_notification_channel,
+                    options=[
                         Option("name", String),
                         Option("webhook_url", String),
                     ],

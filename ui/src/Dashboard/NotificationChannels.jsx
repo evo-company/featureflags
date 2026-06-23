@@ -26,13 +26,27 @@ import {
   DELETE_NOTIFICATION_CHANNEL_MUTATION,
   NOTIFICATION_CHANNELS_QUERY,
   SAVE_NOTIFICATION_CHANNEL_MUTATION,
+  TEST_NOTIFICATION_CHANNEL_MUTATION,
 } from './queries';
+
+
+const validateWebhookUrl = (_, value) => {
+  if (!value) {
+    return Promise.resolve();
+  }
+
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return Promise.resolve();
+  }
+
+  return Promise.reject(new Error('Must be an http(s) URL'));
+};
 
 
 const ChannelFormModal = ({ open, channel, onClose, onSaved }) => {
   const [form] = Form.useForm();
 
-  const [saveChannel, { loading }] = useMutation(
+  const [saveChannel, { loading: saveLoading }] = useMutation(
     SAVE_NOTIFICATION_CHANNEL_MUTATION,
     {
       refetchQueries: [{ query: NOTIFICATION_CHANNELS_QUERY }],
@@ -48,6 +62,20 @@ const ChannelFormModal = ({ open, channel, onClose, onSaved }) => {
     },
   );
 
+  const [testChannel, { loading: testLoading }] = useMutation(
+    TEST_NOTIFICATION_CHANNEL_MUTATION,
+    {
+      onCompleted: (data) => {
+        if (data.testNotificationChannel.error) {
+          message.error(data.testNotificationChannel.error);
+        } else {
+          message.success('Test notification sent');
+        }
+      },
+      onError: (error) => message.error(`Error sending test notification: ${error.message}`),
+    },
+  );
+
   const handleOk = () => {
     form.validateFields().then((values) => {
       saveChannel({
@@ -60,14 +88,49 @@ const ChannelFormModal = ({ open, channel, onClose, onSaved }) => {
     });
   };
 
+  const handleTest = () => {
+    form.validateFields().then((values) => {
+      testChannel({
+        variables: {
+          name: values.name,
+          webhook_url: values.webhook_url,
+        },
+      });
+    });
+  };
+
   return (
     <Modal
       title={channel ? 'Edit notification channel' : 'Add notification channel'}
       open={open}
-      onOk={handleOk}
       onCancel={onClose}
-      confirmLoading={loading}
       destroyOnClose
+      footer={[
+        <Button
+          key="test"
+          onClick={handleTest}
+          loading={testLoading}
+          disabled={saveLoading}
+        >
+          Send test
+        </Button>,
+        <Button
+          key="cancel"
+          onClick={onClose}
+          disabled={saveLoading || testLoading}
+        >
+          Cancel
+        </Button>,
+        <Button
+          key="save"
+          type="primary"
+          onClick={handleOk}
+          loading={saveLoading}
+          disabled={testLoading}
+        >
+          Save
+        </Button>,
+      ]}
     >
       <Form
         form={form}
@@ -90,10 +153,7 @@ const ChannelFormModal = ({ open, channel, onClose, onSaved }) => {
           label="Slack webhook URL"
           rules={[
             { required: true, message: 'Webhook URL is required' },
-            {
-              pattern: /^https?:\/\/.+/,
-              message: 'Must be an http(s) URL',
-            },
+            { validator: validateWebhookUrl },
           ]}
         >
           <Input placeholder="https://hooks.slack.com/services/..." />
@@ -181,7 +241,7 @@ const NotificationChannels = () => {
   return (
     <Base>
       <div style={{ padding: '16px 24px' }}>
-        <Space direction="vertical" size="middle" style={{ width: 800 }}>
+        <Space direction="vertical" size="middle" style={{ width: 1200 }}>
           <Button
             type="link"
             icon={<ArrowLeftOutlined />}
@@ -191,7 +251,7 @@ const NotificationChannels = () => {
             Back to projects
           </Button>
           <Card
-            size="small"
+            size="medium"
             title={<Typography.Text>Notification channels</Typography.Text>}
             extra={
               <Button

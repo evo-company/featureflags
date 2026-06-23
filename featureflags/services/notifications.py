@@ -115,7 +115,7 @@ def _render_text(
     if conditions:
         lines.append("Conditions:")
         lines.extend(_render_condition_line(c) for c in conditions)
-    lines.append(f"Updated: {username}")
+    lines.append(f"Updated by: {username}")
     return "\n".join(lines)
 
 
@@ -140,12 +140,12 @@ def render_flag_message(
 ) -> dict:
     if Action.RESET_FLAG in actions:
         return _payload(
-            GREY, _render_text(f"Flag `{name}`: reset", [], username)
+            GREY, _render_text(f"Flag `{name}`: *reset*", [], username)
         )
     state = "true" if enabled is True else "false"
     color = GREEN if enabled is True else RED
     return _payload(
-        color, _render_text(f"Flag `{name}`: {state}", conditions, username)
+        color, _render_text(f"Flag `{name}`: *{state}*", conditions, username)
     )
 
 
@@ -160,12 +160,12 @@ def render_value_message(
 ) -> dict:
     if ValueAction.RESET_VALUE in actions:
         return _payload(
-            GREY, _render_text(f"Value `{name}`: reset", [], username)
+            GREY, _render_text(f"Value `{name}`: *reset*", [], username)
         )
     state = "enabled" if enabled is True else "disabled"
     color = GREEN if enabled is True else RED
     title = (
-        f"Value `{name}`: {state},"
+        f"Value `{name}`: *{state}*,"
         f' override: "{value_override}" (default: "{value_default}")'
     )
     return _payload(color, _render_text(title, conditions, username))
@@ -173,7 +173,19 @@ def render_value_message(
 
 def render_deleted_message(kind: str, name: str, username: str) -> dict:
     return _payload(
-        GREY, _render_text(f"{kind} `{name}`: deleted", [], username)
+        GREY, _render_text(f"{kind} `{name}`: *deleted*", [], username)
+    )
+
+
+def render_test_message(name: str, username: str) -> dict:
+    return _payload(
+        GREEN,
+        _render_text(
+            "Test notifaction from featureflags service\n"
+            f"Flag `{name}`: *true*",
+            [],
+            username,
+        ),
     )
 
 
@@ -367,6 +379,23 @@ class NotificationsService:
                 )
             )
 
+    async def send_test_notification(
+        self,
+        engine: aiopg.sa.Engine,
+        session: BaseUserSession,
+        name: str,
+        webhook_url: str,
+    ) -> None:
+        username = "unknown"
+        if session.user is not None:
+            async with engine.acquire() as conn:
+                username = await _load_username(conn, session.user)
+        await self._send_strict(
+            name,
+            webhook_url,
+            render_test_message(name, username),
+        )
+
     async def _notify_flags(
         self,
         engine: aiopg.sa.Engine,
@@ -468,15 +497,25 @@ class NotificationsService:
             ]
         )
 
-    async def _send(self, name: str, url: str, payload: dict) -> None:
+    async def _post(self, url: str, payload: dict) -> None:
+        response = await self.client.post(url, json=payload)
+        if response.status_code >= HTTP_ERROR_STATUS:
+            raise RuntimeError(
+                f"unexpected response status {response.status_code}:"
+                f" {response.text}"
+            )
+
+    async def _send_strict(self, name: str, url: str, payload: dict) -> None:
         try:
-            response = await self.client.post(url, json=payload)
-            if response.status_code >= HTTP_ERROR_STATUS:
-                raise RuntimeError(
-                    f"unexpected response status {response.status_code}"
-                )
-        except Exception as e:
+            await self._post(url, payload)
+        except Exception:
             SLACK_NOTIFICATION_ERRORS_COUNTER.labels(channel=name).inc()
-            log.warning("Slack notification to channel %r failed: %s", name, e)
+            raise
         else:
             SLACK_NOTIFICATIONS_COUNTER.labels(channel=name).inc()
+
+    async def _send(self, name: str, url: str, payload: dict) -> None:
+        try:
+            await self._send_strict(name, url, payload)
+        except Exception as e:
+            log.warning("Slack notification to channel %r failed: %s", name, e)
