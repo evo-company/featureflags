@@ -89,7 +89,7 @@ function Base({ children }) {
               </Link>
             </Space>
           </Typography.Title>
-          <Space size="middle" align="center">
+          <Flex gap="middle" align="center">
             {auth.authenticated && tab && (
               <Input
                 ref={inputRef}
@@ -130,7 +130,7 @@ function Base({ children }) {
               type="link"
               onClick={signOut}
             >Sign out</Button>}
-          </Space>
+          </Flex>
         </Flex>
       </Header>
       {loading ? <CenteredSpinner /> : (
