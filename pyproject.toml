@@ -176,6 +176,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
   "S106",
   "PLR2004",
   "PLR0913",
+  "DTZ001",
   "DTZ005",
   "DTZ003",
 ]

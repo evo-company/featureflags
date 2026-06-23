@@ -7,6 +7,7 @@ from uuid import UUID
 
 import aiopg.sa
 import httpx
+from aiopg.sa import SAConnection
 from prometheus_client import Counter
 from sqlalchemy import select
 
@@ -31,6 +32,9 @@ log = logging.getLogger(__name__)
 GREEN = "#36a64f"
 RED = "#d63232"
 GREY = "#aaaaaa"
+
+# Slack returns 2xx on success; treat anything >= this as a delivery failure.
+HTTP_ERROR_STATUS = 300
 
 SLACK_NOTIFICATIONS_COUNTER = Counter(
     "slack_notifications",
@@ -173,7 +177,7 @@ def render_deleted_message(kind: str, name: str, username: str) -> dict:
     )
 
 
-async def _load_username(conn, user_id: UUID) -> str:
+async def _load_username(conn: SAConnection, user_id: UUID) -> str:
     username = await select_scalar(
         conn,
         select([AuthUser.username]).where(AuthUser.id == user_id),
@@ -181,7 +185,7 @@ async def _load_username(conn, user_id: UUID) -> str:
     return username or "unknown"
 
 
-async def _load_channels(conn, project_id: UUID) -> list:
+async def _load_channels(conn: SAConnection, project_id: UUID) -> list:
     result = await conn.execute(
         select([NotificationChannel.name, NotificationChannel.webhook_url])
         .select_from(
@@ -196,7 +200,7 @@ async def _load_channels(conn, project_id: UUID) -> list:
 
 
 async def _build_conditions(
-    conn,
+    conn: SAConnection,
     raw_conditions: list[tuple[tuple[UUID, ...], str | None]],
 ) -> list[ConditionInfo]:
     check_ids = {
@@ -249,7 +253,9 @@ async def _build_conditions(
     return conditions
 
 
-async def _load_flag_conditions(conn, flag_id: UUID) -> list[ConditionInfo]:
+async def _load_flag_conditions(
+    conn: SAConnection, flag_id: UUID
+) -> list[ConditionInfo]:
     result = await conn.execute(
         select([Condition.checks])
         .where(Condition.flag == flag_id)
@@ -261,7 +267,9 @@ async def _load_flag_conditions(conn, flag_id: UUID) -> list[ConditionInfo]:
     )
 
 
-async def _load_value_conditions(conn, value_id: UUID) -> list[ConditionInfo]:
+async def _load_value_conditions(
+    conn: SAConnection, value_id: UUID
+) -> list[ConditionInfo]:
     result = await conn.execute(
         select([ValueCondition.checks, ValueCondition.value_override])
         .where(ValueCondition.value == value_id)
@@ -371,9 +379,9 @@ class NotificationsService:
                 for flag_id, actions in flag_actions:
                     flag = await select_first(
                         conn,
-                        select(
-                            [Flag.name, Flag.enabled, Flag.project]
-                        ).where(Flag.id == flag_id),
+                        select([Flag.name, Flag.enabled, Flag.project]).where(
+                            Flag.id == flag_id
+                        ),
                     )
                     if flag is None:
                         continue
@@ -463,14 +471,12 @@ class NotificationsService:
     async def _send(self, name: str, url: str, payload: dict) -> None:
         try:
             response = await self.client.post(url, json=payload)
-            if response.status_code >= 300:
+            if response.status_code >= HTTP_ERROR_STATUS:
                 raise RuntimeError(
                     f"unexpected response status {response.status_code}"
                 )
         except Exception as e:
             SLACK_NOTIFICATION_ERRORS_COUNTER.labels(channel=name).inc()
-            log.warning(
-                "Slack notification to channel %r failed: %s", name, e
-            )
+            log.warning("Slack notification to channel %r failed: %s", name, e)
         else:
             SLACK_NOTIFICATIONS_COUNTER.labels(channel=name).inc()

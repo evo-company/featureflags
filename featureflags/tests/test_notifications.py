@@ -10,12 +10,12 @@ from featureflags.graph.types import Action, Changes, ValueAction, ValuesChanges
 from featureflags.models import Operator
 from featureflags.services import auth
 from featureflags.services.notifications import (
-    CheckInfo,
-    ConditionInfo,
     GREEN,
     GREY,
-    NotificationsService,
     RED,
+    CheckInfo,
+    ConditionInfo,
+    NotificationsService,
     render_check_value,
     render_deleted_message,
     render_flag_message,
@@ -83,9 +83,7 @@ def test_render_flag_message_disabled_no_conditions():
 
     att = attachment(payload)
     assert att["color"] == RED
-    assert att["text"] == (
-        "Flag `MY_FLAG`: false\nUpdated: editor@example.com"
-    )
+    assert att["text"] == ("Flag `MY_FLAG`: false\nUpdated: editor@example.com")
 
 
 def test_render_flag_message_enabled_none_renders_false():
@@ -113,9 +111,7 @@ def test_render_flag_message_reset():
 
     att = attachment(payload)
     assert att["color"] == GREY
-    assert att["text"] == (
-        "Flag `MY_FLAG`: reset\nUpdated: editor@example.com"
-    )
+    assert att["text"] == ("Flag `MY_FLAG`: reset\nUpdated: editor@example.com")
 
 
 def test_render_deleted_message():
@@ -282,12 +278,8 @@ async def test_dispatch_flag_changes_sends_message(db_engine):
     flag = await mk_flag(
         db_engine, name="MY_FLAG", enabled=True, project=project
     )
-    check = await mk_check(
-        db_engine, variable=variable, value_string="x@y.com"
-    )
-    await mk_condition(
-        db_engine, flag=flag, project=project, checks=[check.id]
-    )
+    check = await mk_check(db_engine, variable=variable, value_string="x@y.com")
+    await mk_condition(db_engine, flag=flag, project=project, checks=[check.id])
 
     requests = []
     service = make_service(requests)

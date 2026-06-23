@@ -451,9 +451,7 @@ async def test_save_flag_dispatches_notifications(
     )
 
     assert result["data"]["saveFlag"]["errors"] is None
-    assert fake.calls == [
-        ("flag_changes", [(flag.id, [Action.ENABLE_FLAG])])
-    ]
+    assert fake.calls == [("flag_changes", [(flag.id, [Action.ENABLE_FLAG])])]
 
 
 @pytest.mark.asyncio
@@ -476,15 +474,11 @@ async def test_reset_flag_dispatches_notifications(
     )
 
     assert result["data"]["resetFlag"]["error"] is None
-    assert fake.calls == [
-        ("flag_changes", [(flag.id, [Action.RESET_FLAG])])
-    ]
+    assert fake.calls == [("flag_changes", [(flag.id, [Action.RESET_FLAG])])]
 
 
 @pytest.mark.asyncio
-async def test_delete_flag_dispatches_deleted(
-    db_engine, graph_engine, ldap
-):
+async def test_delete_flag_dispatches_deleted(db_engine, graph_engine, ldap):
     project = await mk_project(db_engine)
     flag = await mk_flag(db_engine, enabled=True, project=project)
     user = await mk_auth_user(db_engine)
@@ -563,9 +557,7 @@ async def test_reset_value_dispatches_notifications(
 
 
 @pytest.mark.asyncio
-async def test_delete_value_dispatches_deleted(
-    db_engine, graph_engine, ldap
-):
+async def test_delete_value_dispatches_deleted(db_engine, graph_engine, ldap):
     project = await mk_project(db_engine)
     value = await mk_value(db_engine, project=project)
     user = await mk_auth_user(db_engine)

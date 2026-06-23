@@ -16,9 +16,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String(), nullable=False, unique=True),
         sa.Column(
             "type",
-            postgresql.ENUM(
-                "SLACK_WEBHOOK", name="notification_channel_type"
-            ),
+            postgresql.ENUM("SLACK_WEBHOOK", name="notification_channel_type"),
             nullable=False,
         ),
         sa.Column("webhook_url", sa.String(), nullable=False),

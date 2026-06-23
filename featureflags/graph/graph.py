@@ -1270,7 +1270,7 @@ async def sing_out(ctx: dict) -> AuthResult:
 
 
 @pass_context
-async def save_flag(ctx: dict, options: dict) -> SaveFlagResult:
+async def save_flag(ctx: dict, options: dict) -> SaveFlagResult:  # noqa: C901
     operations = options["operations"]
 
     if not operations:
