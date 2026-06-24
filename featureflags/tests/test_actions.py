@@ -14,6 +14,7 @@ from featureflags.graph.actions import (
     add_check,
     add_condition,
     add_value_condition,
+    delete_notification_channel,
     delete_project,
     disable_condition,
     disable_flag,
@@ -25,6 +26,8 @@ from featureflags.graph.actions import (
     postprocess,
     reset_flag,
     reset_value,
+    save_notification_channel,
+    set_project_notification_channels,
     sign_in,
     sign_out,
     update_changelog,
@@ -41,8 +44,11 @@ from featureflags.models import (
     Condition,
     Flag,
     LocalIdMap,
+    NotificationChannel,
+    NotificationChannelType,
     Operator,
     Project,
+    ProjectNotificationChannel,
     Value,
     ValueChangelog,
     ValueCondition,
@@ -62,12 +68,14 @@ from featureflags.tests.state import (
     mk_check,
     mk_condition,
     mk_flag,
+    mk_notification_channel,
     mk_project,
+    mk_project_notification_channel,
     mk_value,
     mk_value_condition,
     mk_variable,
 )
-from featureflags.utils import select_scalar
+from featureflags.utils import select_first, select_scalar
 
 f = faker.Faker()
 
@@ -938,5 +946,122 @@ async def test_delete_project(conn, db_engine):
     assert await check_exists(
         select([Variable.id]).where(Variable.id == variable2.id),
         variable2.id,
+        conn=conn,
+    )
+
+
+async def get_project_channel_ids(project_id, *, conn):
+    result = await conn.execute(
+        select([ProjectNotificationChannel.channel]).where(
+            ProjectNotificationChannel.project == project_id
+        )
+    )
+    return {row.channel for row in await result.fetchall()}
+
+
+@pytest.mark.asyncio
+async def test_save_notification_channel_create(conn, db_engine):
+    await save_notification_channel(
+        None,
+        "infra-alerts",
+        "https://hooks.slack.com/services/T0/B0/xyz",
+        conn=conn,
+    )
+
+    row = await select_first(
+        conn,
+        select([NotificationChannel.__table__]).where(
+            NotificationChannel.name == "infra-alerts"
+        ),
+    )
+    assert row is not None
+    assert row.type == NotificationChannelType.SLACK_WEBHOOK
+    assert row.webhook_url == "https://hooks.slack.com/services/T0/B0/xyz"
+
+
+@pytest.mark.asyncio
+async def test_save_notification_channel_update(conn, db_engine):
+    channel = await mk_notification_channel(db_engine)
+
+    await save_notification_channel(
+        channel.id.hex,
+        "renamed",
+        "https://hooks.slack.com/services/T0/B0/new",
+        conn=conn,
+    )
+
+    row = await select_first(
+        conn,
+        select([NotificationChannel.__table__]).where(
+            NotificationChannel.id == channel.id
+        ),
+    )
+    assert row.name == "renamed"
+    assert row.webhook_url == "https://hooks.slack.com/services/T0/B0/new"
+
+
+@pytest.mark.asyncio
+async def test_delete_notification_channel(conn, db_engine):
+    project = await mk_project(db_engine)
+    channel = await mk_notification_channel(db_engine)
+    await mk_project_notification_channel(
+        db_engine, project=project, channel=channel
+    )
+
+    await delete_notification_channel(channel.id.hex, conn=conn)
+
+    assert await check_not_exists(
+        select([NotificationChannel.id]).where(
+            NotificationChannel.id == channel.id
+        ),
+        conn=conn,
+    )
+    assert await get_project_channel_ids(project.id, conn=conn) == set()
+
+
+@pytest.mark.asyncio
+async def test_set_project_notification_channels_replaces(conn, db_engine):
+    project = await mk_project(db_engine)
+    channel_1 = await mk_notification_channel(db_engine)
+    channel_2 = await mk_notification_channel(db_engine)
+
+    await set_project_notification_channels(
+        project.id.hex, [channel_1.id.hex], conn=conn
+    )
+    assert await get_project_channel_ids(project.id, conn=conn) == {
+        channel_1.id
+    }
+
+    await set_project_notification_channels(
+        project.id.hex,
+        [channel_1.id.hex, channel_2.id.hex],
+        conn=conn,
+    )
+    assert await get_project_channel_ids(project.id, conn=conn) == {
+        channel_1.id,
+        channel_2.id,
+    }
+
+    await set_project_notification_channels(project.id.hex, [], conn=conn)
+    assert await get_project_channel_ids(project.id, conn=conn) == set()
+
+
+@pytest.mark.asyncio
+async def test_delete_project_removes_notification_links(conn, db_engine):
+    project = await mk_project(db_engine)
+    channel = await mk_notification_channel(db_engine)
+    await mk_project_notification_channel(
+        db_engine, project=project, channel=channel
+    )
+
+    await delete_project(project.id, conn=conn)
+
+    assert await get_project_channel_ids(project.id, conn=conn) == set()
+    # the channel itself survives
+    assert await check_exists(
+        select([NotificationChannel.id]).where(
+            NotificationChannel.id == channel.id
+        ),
+        channel.id,
         conn=conn,
     )

@@ -12,6 +12,7 @@ import {
 } from "react-router-dom";
 
 import { Dashboard } from './Dashboard'
+import { NotificationChannels } from './Dashboard/NotificationChannels'
 import { Auth } from './Auth'
 import { GraphiQLRoot } from './graphiql'
 import { AuthProvider } from './context/auth';
@@ -28,6 +29,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/settings" element={<NotificationChannels />} />
             <Route path="/graphiql" element={<GraphiQLRoot />} />
             <Route path="/sign-in" element={<Auth />} />
           </Routes>

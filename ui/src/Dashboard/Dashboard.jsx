@@ -178,6 +178,7 @@ function Dashboard({ projects }) {
               } else if (tab === "settings") {
                 return !!selected || !!searchTerm ? (
                   <SettingsContainer
+                    key={selected}
                     projectName={!!selected ? projectsMap[selected]?.name : null}
                     projectsMap={projectsMap}
                   />

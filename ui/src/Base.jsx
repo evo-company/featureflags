@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Layout, Typography, Space, Button, Flex, Input } from 'antd';
+import { Layout, Typography, Space, Button, Flex, Input, Dropdown } from 'antd';
 const { Header } = Layout;
 const { Link } = Typography;
 
@@ -9,7 +9,7 @@ import { Version } from './components/Version';
 import './Base.less';
 import { useAuth, useSignOut } from './hooks';
 import { CenteredSpinner } from './components/Spinner';
-import { SearchOutlined } from "@ant-design/icons";
+import { SearchOutlined, SettingOutlined } from "@ant-design/icons";
 
 
 function Base({ children }) {
@@ -66,7 +66,12 @@ function Base({ children }) {
       }}
     >
       <Header className='header'>
-        <Flex gap="middle" direction='horizontal' justify='space-between'>
+        <Flex
+          gap="middle"
+          direction='horizontal'
+          justify='space-between'
+          align='center'
+        >
           <Typography.Title
             style={{
               color: "#fff",
@@ -84,7 +89,7 @@ function Base({ children }) {
               </Link>
             </Space>
           </Typography.Title>
-          <Space>
+          <Flex gap="middle" align="center">
             {auth.authenticated && tab && (
               <Input
                 ref={inputRef}
@@ -98,11 +103,35 @@ function Base({ children }) {
                 style={{ width: '400px' }}
               />
             )}
+            {auth.authenticated && (
+              <Dropdown
+                trigger={['hover']}
+                menu={{
+                  items: [
+                    {
+                      key: 'notification-settings',
+                      label: 'Notification settings',
+                      icon: <SettingOutlined />,
+                      onClick: () => navigate('/settings'),
+                    },
+                  ],
+                }}
+              >
+                <Button
+                  type="text"
+                  aria-label="Settings"
+                  icon={
+                    <SettingOutlined style={{ color: '#fff', fontSize: 18 }} />
+                  }
+                />
+              </Dropdown>
+            )}
             {auth.authenticated && <Button
               type="link"
               onClick={signOut}
+              style={{ paddingInline: 0 }}
             >Sign out</Button>}
-          </Space>
+          </Flex>
         </Flex>
       </Header>
       {loading ? <CenteredSpinner /> : (

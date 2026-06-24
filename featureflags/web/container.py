@@ -1,3 +1,5 @@
+from collections.abc import AsyncGenerator
+
 from dependency_injector import containers, providers
 from hiku.endpoint.graphql import AsyncBatchGraphQLEndpoint
 from hiku.engine import Engine
@@ -7,7 +9,16 @@ from featureflags.config import config
 from featureflags.graph import graph
 from featureflags.services.db import init_db_engine
 from featureflags.services.ldap import LDAP, BaseLDAP, DummyLDAP
+from featureflags.services.notifications import NotificationsService
 from featureflags.services.oidc_auth import OidcAuthenticator
+
+
+async def _init_notifications_service() -> (
+    AsyncGenerator[NotificationsService, None]
+):
+    service = NotificationsService()
+    yield service
+    await service.close()
 
 
 def _build_ldap_service() -> BaseLDAP | None:
@@ -55,3 +66,5 @@ class Container(containers.DeclarativeContainer):
     ldap_service = providers.Singleton(_build_ldap_service)
 
     oidc_authenticators = providers.Singleton(_build_oidc_authenticators)
+
+    notifications_service = providers.Resource(_init_notifications_service)

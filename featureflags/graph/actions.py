@@ -1,5 +1,5 @@
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from aiopg.sa import SAConnection
 from sqlalchemy import or_, select, update
@@ -25,8 +25,11 @@ from featureflags.models import (
     Check,
     Condition,
     Flag,
+    NotificationChannel,
+    NotificationChannelType,
     Operator,
     Project,
+    ProjectNotificationChannel,
     Value,
     ValueChangelog,
     ValueCondition,
@@ -542,6 +545,13 @@ async def delete_project(
     """
     assert project_id, "Project id is required"
 
+    # Delete notification channel links
+    await conn.execute(
+        ProjectNotificationChannel.__table__.delete().where(
+            ProjectNotificationChannel.project == project_id
+        )
+    )
+
     # Delete flag conditions
     flags = await conn.execute(
         select([Flag.id]).where(Flag.project == project_id)
@@ -607,3 +617,92 @@ async def delete_project(
     await conn.execute(
         Project.__table__.delete().where(Project.id == project_id)
     )
+
+
+@auth_required
+@track
+async def save_notification_channel(
+    channel_id: str | None,
+    name: str,
+    webhook_url: str,
+    *,
+    conn: SAConnection,
+) -> None:
+    assert name, "Channel name is required"
+    assert webhook_url, "Webhook URL is required"
+
+    if channel_id:
+        await conn.execute(
+            NotificationChannel.__table__.update()
+            .where(NotificationChannel.id == UUID(hex=channel_id))
+            .values(
+                {
+                    NotificationChannel.name: name,
+                    NotificationChannel.webhook_url: webhook_url,
+                }
+            )
+        )
+    else:
+        await conn.execute(
+            insert(NotificationChannel.__table__).values(
+                {
+                    NotificationChannel.id: uuid4(),
+                    NotificationChannel.name: name,
+                    NotificationChannel.type: (
+                        NotificationChannelType.SLACK_WEBHOOK
+                    ),
+                    NotificationChannel.webhook_url: webhook_url,
+                }
+            )
+        )
+
+
+@auth_required
+@track
+async def delete_notification_channel(
+    channel_id: str,
+    *,
+    conn: SAConnection,
+) -> None:
+    assert channel_id, "Channel id is required"
+
+    channel_uuid = UUID(hex=channel_id)
+    await conn.execute(
+        ProjectNotificationChannel.__table__.delete().where(
+            ProjectNotificationChannel.channel == channel_uuid
+        )
+    )
+    await conn.execute(
+        NotificationChannel.__table__.delete().where(
+            NotificationChannel.id == channel_uuid
+        )
+    )
+
+
+@auth_required
+@track
+async def set_project_notification_channels(
+    project_id: str,
+    channel_ids: list[str],
+    *,
+    conn: SAConnection,
+) -> None:
+    assert project_id, "Project id is required"
+
+    project_uuid = UUID(hex=project_id)
+    await conn.execute(
+        ProjectNotificationChannel.__table__.delete().where(
+            ProjectNotificationChannel.project == project_uuid
+        )
+    )
+    for channel_id in channel_ids:
+        await conn.execute(
+            insert(ProjectNotificationChannel.__table__)
+            .values(
+                {
+                    ProjectNotificationChannel.project: project_uuid,
+                    ProjectNotificationChannel.channel: UUID(hex=channel_id),
+                }
+            )
+            .on_conflict_do_nothing()
+        )

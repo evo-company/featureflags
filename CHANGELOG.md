@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Slack notifications**: flag and value changes are posted to Slack via
+  incoming webhooks. Notification channels (name + webhook URL) are managed
+  on a new global settings page (gear icon in the sidebar) and selected
+  per-project in project settings. Delivery is best-effort and async;
+  sends are counted in the `slack_notifications_total` Prometheus metric and
+  failures in `slack_notification_errors_total` (both labelled by `channel`).
 - **Readonly replica mode**: new `readonly` config option. When enabled, the
   `http` server skips all client-triggered DB writes (flag registration,
   report timestamps) so the server can run against a readonly Postgres

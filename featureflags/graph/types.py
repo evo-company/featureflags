@@ -14,6 +14,7 @@ class GraphContext(Enum):
     CHANGES = "CHANGES"
     VALUES_CHANGES = "VALUES_CHANGES"
     CHECK_IDS = "CHECK_IDS"
+    NOTIFICATIONS = "NOTIFICATIONS"
 
 
 class Operation(Enum):
@@ -214,4 +215,20 @@ class DeleteVariableResult(NamedTuple):
 
 
 class DeleteProjectResult(NamedTuple):
+    error: str | None = None
+
+
+class SaveNotificationChannelResult(NamedTuple):
+    error: str | None = None
+
+
+class TestNotificationChannelResult(NamedTuple):
+    error: str | None = None
+
+
+class DeleteNotificationChannelResult(NamedTuple):
+    error: str | None = None
+
+
+class SetProjectNotificationChannelsResult(NamedTuple):
     error: str | None = None

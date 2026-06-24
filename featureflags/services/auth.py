@@ -167,6 +167,10 @@ class BearerTokenState(BaseState):
 
 
 class BaseUserSession(ABC):
+    # Authenticated subjects expose the acting user's id; sessions without a
+    # user (e.g. internal service sessions) leave this None.
+    user: UUID | None = None
+
     @property
     @abstractmethod
     def is_authenticated(self) -> bool:
@@ -200,7 +204,7 @@ class UserSession(BaseUserSession):
         return isinstance(self.state, BearerTokenState) and self.state.read_only
 
     @property
-    def user(self) -> UUID | None:
+    def user(self) -> UUID | None:  # type: ignore[override]
         return self.state.user
 
     def sign_in(self, user: UUID, expiration_time: datetime) -> None:

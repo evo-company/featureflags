@@ -12,8 +12,11 @@ from featureflags.models import (
     Check,
     Condition,
     Flag,
+    NotificationChannel,
+    NotificationChannelType,
     Operator,
     Project,
+    ProjectNotificationChannel,
     Value,
     ValueChangelog,
     ValueCondition,
@@ -262,5 +265,40 @@ async def mk_value_changelog_entry(
             "auth_user": auth_user.id,
             "value": value.id,
             "actions": actions,
+        },
+    )
+
+
+async def mk_notification_channel(
+    db_engine,
+    *,
+    id=uuid4,
+    name=f.pystr,
+    type=NotificationChannelType.SLACK_WEBHOOK,
+    webhook_url=f.url,
+):
+    return await _flush(
+        db_engine,
+        NotificationChannel,
+        {
+            "id": _val(id),
+            "name": _val(name),
+            "type": _val(type),
+            "webhook_url": _val(webhook_url),
+        },
+    )
+
+
+async def mk_project_notification_channel(
+    db_engine, *, project=None, channel=None
+):
+    project = project or await mk_project(db_engine)
+    channel = channel or await mk_notification_channel(db_engine)
+    return await _flush(
+        db_engine,
+        ProjectNotificationChannel,
+        {
+            "project": project.id,
+            "channel": channel.id,
         },
     )
