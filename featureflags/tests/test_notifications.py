@@ -43,6 +43,7 @@ def attachment(payload):
 def test_render_flag_message_enabled_with_conditions():
     payload = render_flag_message(
         name="MY_FLAG",
+        project_name="Project A",
         enabled=True,
         actions=[Action.ENABLE_FLAG],
         conditions=[
@@ -66,6 +67,7 @@ def test_render_flag_message_enabled_with_conditions():
     assert att["mrkdwn_in"] == ["text"]
     assert att["text"] == (
         "Flag `MY_FLAG`: *true*\n"
+        "Project: Project A\n"
         "Conditions:\n"
         "user.email eq x@y.com\n"
         "user.company_id eq 3150894 and user.is_staff eq true\n"
@@ -76,6 +78,7 @@ def test_render_flag_message_enabled_with_conditions():
 def test_render_flag_message_disabled_no_conditions():
     payload = render_flag_message(
         name="MY_FLAG",
+        project_name="Project A",
         enabled=False,
         actions=[Action.DISABLE_FLAG],
         conditions=[],
@@ -85,13 +88,16 @@ def test_render_flag_message_disabled_no_conditions():
     att = attachment(payload)
     assert att["color"] == RED
     assert att["text"] == (
-        "Flag `MY_FLAG`: *false*\nUpdated by: editor@example.com"
+        "Flag `MY_FLAG`: *false*\n"
+        "Project: Project A\n"
+        "Updated by: editor@example.com"
     )
 
 
 def test_render_flag_message_enabled_none_renders_false():
     payload = render_flag_message(
         name="MY_FLAG",
+        project_name="Project A",
         enabled=None,
         actions=[Action.ADD_CONDITION],
         conditions=[],
@@ -106,6 +112,7 @@ def test_render_flag_message_enabled_none_renders_false():
 def test_render_flag_message_reset():
     payload = render_flag_message(
         name="MY_FLAG",
+        project_name="Project A",
         enabled=None,
         actions=[Action.RESET_FLAG],
         conditions=[],
@@ -115,7 +122,9 @@ def test_render_flag_message_reset():
     att = attachment(payload)
     assert att["color"] == GREY
     assert att["text"] == (
-        "Flag `MY_FLAG`: *reset*\nUpdated by: editor@example.com"
+        "Flag `MY_FLAG`: *reset*\n"
+        "Project: Project A\n"
+        "Updated by: editor@example.com"
     )
 
 
@@ -123,13 +132,16 @@ def test_render_deleted_message():
     payload = render_deleted_message(
         kind="Flag",
         name="MY_FLAG",
+        project_name="Project A",
         username="editor@example.com",
     )
 
     att = attachment(payload)
     assert att["color"] == GREY
     assert att["text"] == (
-        "Flag `MY_FLAG`: *deleted*\nUpdated by: editor@example.com"
+        "Flag `MY_FLAG`: *deleted*\n"
+        "Project: Project A\n"
+        "Updated by: editor@example.com"
     )
 
 
@@ -151,6 +163,7 @@ def test_render_test_message():
 def test_render_value_message_enabled_with_condition_override():
     payload = render_value_message(
         name="MY_VALUE",
+        project_name="Project A",
         enabled=True,
         value_default="10",
         value_override="42",
@@ -168,6 +181,7 @@ def test_render_value_message_enabled_with_condition_override():
     assert att["color"] == GREEN
     assert att["text"] == (
         'Value `MY_VALUE`: *enabled*, override: "42" (default: "10")\n'
+        "Project: Project A\n"
         "Conditions:\n"
         'user.email eq x@y.com → "99"\n'
         "Updated by: editor@example.com"
@@ -177,6 +191,7 @@ def test_render_value_message_enabled_with_condition_override():
 def test_render_value_message_disabled():
     payload = render_value_message(
         name="MY_VALUE",
+        project_name="Project A",
         enabled=None,
         value_default="10",
         value_override="42",
@@ -195,6 +210,7 @@ def test_render_value_message_disabled():
 def test_render_value_message_reset():
     payload = render_value_message(
         name="MY_VALUE",
+        project_name="Project A",
         enabled=None,
         value_default="10",
         value_override="10",
@@ -206,7 +222,9 @@ def test_render_value_message_reset():
     att = attachment(payload)
     assert att["color"] == GREY
     assert att["text"] == (
-        "Value `MY_VALUE`: *reset*\nUpdated by: editor@example.com"
+        "Value `MY_VALUE`: *reset*\n"
+        "Project: Project A\n"
+        "Updated by: editor@example.com"
     )
 
 
@@ -254,6 +272,7 @@ def test_render_check_value(kwargs, expected):
 def test_operator_rendering(operator, label):
     payload = render_flag_message(
         name="F",
+        project_name="Project A",
         enabled=True,
         actions=[Action.ENABLE_FLAG],
         conditions=[ConditionInfo(checks=[CheckInfo("var", operator, "v")])],
@@ -286,7 +305,7 @@ def sent_error_count(channel_name):
 
 @pytest.mark.asyncio
 async def test_dispatch_flag_changes_sends_message(db_engine):
-    project = await mk_project(db_engine)
+    project = await mk_project(db_engine, name="Project A")
     channel = await mk_notification_channel(
         db_engine, webhook_url="https://hooks.example.com/abc"
     )
@@ -320,6 +339,7 @@ async def test_dispatch_flag_changes_sends_message(db_engine):
                 "color": "#36a64f",
                 "text": (
                     "Flag `MY_FLAG`: *true*\n"
+                    "Project: Project A\n"
                     "Conditions:\n"
                     "user.email eq x@y.com\n"
                     "Updated by: editor@example.com"
@@ -385,7 +405,7 @@ async def test_dispatch_without_channels_sends_nothing(db_engine):
 
 @pytest.mark.asyncio
 async def test_dispatch_value_changes_sends_message(db_engine):
-    project = await mk_project(db_engine)
+    project = await mk_project(db_engine, name="Project A")
     channel = await mk_notification_channel(
         db_engine, webhook_url="https://hooks.example.com/val"
     )
@@ -416,13 +436,14 @@ async def test_dispatch_value_changes_sends_message(db_engine):
     body = json.loads(request.content)
     assert body["attachments"][0]["text"] == (
         'Value `MY_VALUE`: *enabled*, override: "42" (default: "10")\n'
+        "Project: Project A\n"
         "Updated by: editor@example.com"
     )
 
 
 @pytest.mark.asyncio
 async def test_dispatch_flag_deleted_sends_message(db_engine):
-    project = await mk_project(db_engine)
+    project = await mk_project(db_engine, name="Project A")
     channel = await mk_notification_channel(
         db_engine, webhook_url="https://hooks.example.com/del"
     )
@@ -444,7 +465,9 @@ async def test_dispatch_flag_deleted_sends_message(db_engine):
     body = json.loads(request.content)
     assert body["attachments"][0]["color"] == "#aaaaaa"
     assert body["attachments"][0]["text"] == (
-        "Flag `GONE_FLAG`: *deleted*\nUpdated by: editor@example.com"
+        "Flag `GONE_FLAG`: *deleted*\n"
+        "Project: Project A\n"
+        "Updated by: editor@example.com"
     )
 
 

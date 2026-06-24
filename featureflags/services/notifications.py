@@ -19,6 +19,7 @@ from featureflags.models import (
     Flag,
     NotificationChannel,
     Operator,
+    Project,
     ProjectNotificationChannel,
     Value,
     ValueCondition,
@@ -108,10 +109,13 @@ def _render_condition_line(condition: ConditionInfo) -> str:
 
 def _render_text(
     title: str,
+    project_name: str | None,
     conditions: list[ConditionInfo],
     username: str,
 ) -> str:
     lines = [title]
+    if project_name is not None:
+        lines.append(f"Project: {project_name}")
     if conditions:
         lines.append("Conditions:")
         lines.extend(_render_condition_line(c) for c in conditions)
@@ -133,6 +137,7 @@ def _payload(color: str, text: str) -> dict:
 
 def render_flag_message(
     name: str,
+    project_name: str,
     enabled: bool | None,
     actions: list[Action],
     conditions: list[ConditionInfo],
@@ -140,17 +145,27 @@ def render_flag_message(
 ) -> dict:
     if Action.RESET_FLAG in actions:
         return _payload(
-            GREY, _render_text(f"Flag `{name}`: *reset*", [], username)
+            GREY,
+            _render_text(
+                f"Flag `{name}`: *reset*", project_name, [], username
+            ),
         )
     state = "true" if enabled is True else "false"
     color = GREEN if enabled is True else RED
     return _payload(
-        color, _render_text(f"Flag `{name}`: *{state}*", conditions, username)
+        color,
+        _render_text(
+            f"Flag `{name}`: *{state}*",
+            project_name,
+            conditions,
+            username,
+        ),
     )
 
 
 def render_value_message(
     name: str,
+    project_name: str,
     enabled: bool | None,
     value_default: str,
     value_override: str,
@@ -160,7 +175,10 @@ def render_value_message(
 ) -> dict:
     if ValueAction.RESET_VALUE in actions:
         return _payload(
-            GREY, _render_text(f"Value `{name}`: *reset*", [], username)
+            GREY,
+            _render_text(
+                f"Value `{name}`: *reset*", project_name, [], username
+            ),
         )
     state = "enabled" if enabled is True else "disabled"
     color = GREEN if enabled is True else RED
@@ -168,12 +186,20 @@ def render_value_message(
         f"Value `{name}`: *{state}*,"
         f' override: "{value_override}" (default: "{value_default}")'
     )
-    return _payload(color, _render_text(title, conditions, username))
-
-
-def render_deleted_message(kind: str, name: str, username: str) -> dict:
     return _payload(
-        GREY, _render_text(f"{kind} `{name}`: *deleted*", [], username)
+        color,
+        _render_text(title, project_name, conditions, username),
+    )
+
+
+def render_deleted_message(
+    kind: str, name: str, project_name: str, username: str
+) -> dict:
+    return _payload(
+        GREY,
+        _render_text(
+            f"{kind} `{name}`: *deleted*", project_name, [], username
+        ),
     )
 
 
@@ -183,6 +209,7 @@ def render_test_message(name: str, username: str) -> dict:
         _render_text(
             "Test notifaction from featureflags service\n"
             f"Flag `{name}`: *true*",
+            None,
             [],
             username,
         ),
@@ -209,6 +236,14 @@ async def _load_channels(conn: SAConnection, project_id: UUID) -> list:
         .where(ProjectNotificationChannel.project == project_id)
     )
     return await result.fetchall()
+
+
+async def _load_project_name(conn: SAConnection, project_id: UUID) -> str:
+    project_name = await select_scalar(
+        conn,
+        select([Project.name]).where(Project.id == project_id),
+    )
+    return project_name or "unknown"
 
 
 async def _build_conditions(
@@ -418,8 +453,12 @@ class NotificationsService:
                     if not channels:
                         continue
                     conditions = await _load_flag_conditions(conn, flag_id)
+                    project_name = await _load_project_name(
+                        conn, flag.project
+                    )
                     payload = render_flag_message(
                         flag.name,
+                        project_name,
                         flag.enabled,
                         actions,
                         conditions,
@@ -457,8 +496,12 @@ class NotificationsService:
                     if not channels:
                         continue
                     conditions = await _load_value_conditions(conn, value_id)
+                    project_name = await _load_project_name(
+                        conn, value.project
+                    )
                     payload = render_value_message(
                         value.name,
+                        project_name,
                         value.enabled,
                         value.value_default,
                         value.value_override,
@@ -481,10 +524,13 @@ class NotificationsService:
         try:
             async with engine.acquire() as conn:
                 username = await _load_username(conn, user_id)
+                project_name = await _load_project_name(conn, project_id)
                 channels = await _load_channels(conn, project_id)
             if not channels:
                 return
-            payload = render_deleted_message(kind, name, username)
+            payload = render_deleted_message(
+                kind, name, project_name, username
+            )
             await self._send_all(channels, payload)
         except Exception:
             log.exception("Failed to send delete notification")
