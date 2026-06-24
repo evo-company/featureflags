@@ -84,9 +84,9 @@ common actions such as:
 - deleting a value
 - updating conditions and value overrides
 
-The message includes the changed entity name and the user who made the update.
-When conditions are involved, the rendered condition details are included in
-the Slack message.
+The message includes the changed entity name, the project name, and the user
+who made the update. When conditions are involved, the rendered condition
+details are included in the Slack message.
 
 Slack message example
 ---------------------
