@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Production flag changes**: the UI now asks for confirmation before applying
+  or resetting a flag on `flags.prom.evo-nl.dev`.
 - **Slack notifications**: flag and value changes are posted to Slack via
   incoming webhooks. Notification channels (name + webhook URL) are managed
   on a new global settings page (gear icon in the sidebar) and selected

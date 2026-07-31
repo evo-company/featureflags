@@ -40,11 +40,25 @@ import { useActions } from './actions';
 import { copyToClipboard, formatTimestamp, replaceValueInArray } from './utils';
 import { FLAG_HISTORY_QUERY } from "./queries";
 
+const PRODUCTION_HOSTNAME = 'flags.prom.evo-nl.dev';
+const PRODUCTION_CHANGE_CONFIRMATION = 'Не забувай що ти на проді!';
+
+const confirmProductionChange = () => (
+  window.location.hostname !== PRODUCTION_HOSTNAME
+  || window.confirm(PRODUCTION_CHANGE_CONFIRMATION)
+);
 
 const ResetButton = ({ onClick, disabled }) => {
   const style = disabled ? {} : { background: '#f90', color: '#fff' };
+
+  const confirmReset = () => {
+    if (confirmProductionChange()) {
+      onClick();
+    }
+  }
+
   return (
-    <Button onClick={onClick} disabled={disabled} style={style}>
+    <Button onClick={confirmReset} disabled={disabled} style={style}>
       reset
     </Button>
   );
@@ -80,6 +94,20 @@ const DeleteButton = ({ onClick }) => {
   );
 }
 
+const ApplyButton = ({ onClick, disabled }) => {
+  const confirmSave = () => {
+    if (confirmProductionChange()) {
+      onClick();
+    }
+  }
+
+  return (
+    <Button onClick={confirmSave} type="primary" disabled={disabled}>
+      apply
+    </Button>
+  );
+}
+
 const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle, onHistory }) => {
   const { dirty, overridden, enabled } = useFlagState();
   return (
@@ -105,9 +133,7 @@ const Buttons = ({ onReset, onCancel, onSave, onDelete, onToggle, onHistory }) =
         <ResetButton onClick={onReset} disabled={!overridden}>
           reset
         </ResetButton>
-        <Button onClick={onSave} type="primary" disabled={!dirty}>
-          apply
-        </Button>
+        <ApplyButton onClick={onSave} disabled={!dirty} />
         <CancelButton onClick={onCancel} disabled={!dirty} />
         <DeleteButton onClick={onDelete} />
       </Space>
