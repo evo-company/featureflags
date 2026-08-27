@@ -15,7 +15,7 @@ from sqlalchemy.schema import Column, ForeignKey, MetaData
 from sqlalchemy.types import Boolean, Enum, String
 
 from featureflags.graph.types import Action, ValueAction
-from featureflags.utils import ArrayOfEnum
+from featureflags.utils import ArrayOfEnum, utcnow
 
 metadata = MetaData()
 Base = declarative_base(metadata=metadata)
@@ -112,12 +112,10 @@ class Flag(Base):
     enabled = Column(Boolean)
     created_timestamp = Column(
         TIMESTAMP,
-        default=datetime.utcnow(),
+        default=utcnow,
         nullable=True,
     )
-    reported_timestamp = Column(
-        TIMESTAMP, default=datetime.utcnow(), nullable=True
-    )
+    reported_timestamp = Column(TIMESTAMP, default=utcnow, nullable=True)
 
     project: UUID = Column(ForeignKey("project.id"), nullable=False)
 
@@ -201,12 +199,8 @@ class Value(Base):
     enabled = Column(Boolean)
     value_default = Column(String, nullable=False)
     value_override = Column(String, nullable=False)
-    created_timestamp = Column(
-        TIMESTAMP, default=datetime.utcnow(), nullable=True
-    )
-    reported_timestamp = Column(
-        TIMESTAMP, default=datetime.utcnow(), nullable=True
-    )
+    created_timestamp = Column(TIMESTAMP, default=utcnow, nullable=True)
+    reported_timestamp = Column(TIMESTAMP, default=utcnow, nullable=True)
 
     project: UUID = Column(ForeignKey("project.id"), nullable=False)
 

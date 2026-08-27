@@ -22,7 +22,7 @@ from featureflags.services.oidc_auth import (
     InvalidTokenError,
     OidcAuthenticator,
 )
-from featureflags.utils import select_first
+from featureflags.utils import select_first, utcnow
 from featureflags.web.constants import (
     ACCESS_TOKEN_TTL,
     COOKIE_ACCESS_TOKEN,
@@ -108,9 +108,7 @@ class ExpiredAccessTokenState(BaseState):
         return encode_jwt_token(
             self.secret,
             payload={
-                "exp": min(
-                    self.session_exp, datetime.utcnow() + ACCESS_TOKEN_TTL
-                ),
+                "exp": min(self.session_exp, utcnow() + ACCESS_TOKEN_TTL),
                 "user": self.user.hex,
                 "session": self.ident,
             },
@@ -271,7 +269,7 @@ async def create_user_session(
                     )
                     # FIXME: backward compatibility
                     and auth_session_row.auth_user
-                    and auth_session_row.expiration_time > datetime.utcnow()
+                    and auth_session_row.expiration_time > utcnow()
                 ):
                     state = ExpiredAccessTokenState(
                         user=auth_session_row.auth_user,

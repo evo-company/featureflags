@@ -1,6 +1,6 @@
 import contextvars
 import inspect
-from datetime import datetime, timedelta
+from datetime import timedelta
 from uuid import uuid4
 
 import faker
@@ -24,7 +24,7 @@ from featureflags.models import (
     VariableType,
 )
 from featureflags.services.auth import BaseUserSession
-from featureflags.utils import select_first
+from featureflags.utils import select_first, utcnow
 
 f = faker.Faker()
 
@@ -83,9 +83,9 @@ async def mk_auth_session(
         {
             "session": session or uuid4().hex,
             "auth_user": auth_user.id,
-            "creation_time": creation_time or datetime.utcnow(),
+            "creation_time": creation_time or utcnow(),
             "expiration_time": (
-                expiration_time or datetime.utcnow() + timedelta(minutes=30)
+                expiration_time or utcnow() + timedelta(minutes=30)
             ),
         },
     )
@@ -193,7 +193,7 @@ async def mk_changelog_entry(
         db_engine,
         Changelog,
         {
-            "timestamp": timestamp or datetime.utcnow(),
+            "timestamp": timestamp or utcnow(),
             "auth_user": auth_user.id,
             "flag": flag.id,
             "actions": actions,
@@ -261,7 +261,7 @@ async def mk_value_changelog_entry(
         db_engine,
         ValueChangelog,
         {
-            "timestamp": timestamp or datetime.utcnow(),
+            "timestamp": timestamp or utcnow(),
             "auth_user": auth_user.id,
             "value": value.id,
             "actions": actions,

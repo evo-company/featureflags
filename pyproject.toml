@@ -163,7 +163,7 @@ select = [
   "PL",    # pylint
   "RUF",   # ruff-specific
 ]
-ignore = ["S101", "S104", "S105", "DTZ003", "DTZ006", "A003", "B008", "PLR0913", "PLC0415"]
+ignore = ["S101", "S104", "S105", "DTZ006", "A003", "B008", "PLR0913", "PLC0415"]
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
@@ -178,7 +178,6 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
   "PLR0913",
   "DTZ001",
   "DTZ005",
-  "DTZ003",
 ]
 
 [tool.ruff.lint.mccabe]

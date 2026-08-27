@@ -1,4 +1,3 @@
-from datetime import datetime
 from uuid import UUID, uuid4
 
 from aiopg.sa import SAConnection
@@ -37,7 +36,7 @@ from featureflags.models import (
 )
 from featureflags.services.auth import UserSession, auth_required
 from featureflags.services.ldap import BaseLDAP
-from featureflags.utils import select_scalar
+from featureflags.utils import select_scalar, utcnow
 
 
 async def get_flag_metric_labels(
@@ -72,7 +71,7 @@ async def sign_in(
 
     user_id = await get_auth_user(username, conn=conn)
 
-    now = datetime.utcnow()
+    now = utcnow()
     expiration_time = now + AUTH_SESSION_TTL
     await conn.execute(
         insert(AuthSession.__table__)
@@ -306,7 +305,7 @@ async def update_changelog(
             await conn.execute(
                 insert(Changelog.__table__).values(
                     {
-                        Changelog.timestamp: datetime.utcnow(),
+                        Changelog.timestamp: utcnow(),
                         Changelog.auth_user: session.user,
                         Changelog.flag: flag,
                         Changelog.actions: flag_actions,
@@ -506,7 +505,7 @@ async def update_value_changelog(
             await conn.execute(
                 insert(ValueChangelog.__table__).values(
                     {
-                        ValueChangelog.timestamp: datetime.utcnow(),
+                        ValueChangelog.timestamp: utcnow(),
                         ValueChangelog.auth_user: session.user,
                         ValueChangelog.value: value,
                         ValueChangelog.actions: value_actions,

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import faker
 import pytest
@@ -75,7 +75,7 @@ from featureflags.tests.state import (
     mk_value_condition,
     mk_variable,
 )
-from featureflags.utils import select_first, select_scalar
+from featureflags.utils import select_first, select_scalar, utcnow
 
 f = faker.Faker()
 
@@ -165,7 +165,7 @@ async def test_sign_in_new(conn):
         ),
     )
     assert expiration_time is not None
-    assert expiration_time > datetime.utcnow() + timedelta(minutes=1)
+    assert expiration_time > utcnow() + timedelta(minutes=1)
 
     user_id = await select_scalar(
         conn,

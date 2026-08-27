@@ -1,4 +1,3 @@
-from datetime import datetime
 from uuid import uuid4
 
 import pytest
@@ -30,6 +29,7 @@ from featureflags.tests.state import (
     mk_value_condition,
     mk_variable,
 )
+from featureflags.utils import utcnow
 
 
 @pytest.mark.parametrize(
@@ -225,7 +225,7 @@ async def test_projects(db_engine, graph_engine, test_session):
                 user=uuid4(),
                 secret="secret",
                 ident="session_key",
-                session_exp=datetime.utcnow(),
+                session_exp=utcnow(),
             ),
             True,
         ),

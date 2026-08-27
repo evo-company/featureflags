@@ -1,6 +1,5 @@
 import uuid
 from collections.abc import Iterable
-from datetime import datetime
 from uuid import UUID, uuid4
 
 import sqlalchemy
@@ -19,7 +18,7 @@ from featureflags.models import (
     AuthUser,
     LocalIdMap,
 )
-from featureflags.utils import select_scalar
+from featureflags.utils import select_scalar, utcnow
 
 
 def is_valid_uuid(value: str) -> bool:
@@ -51,7 +50,7 @@ async def gen_id(local_id: LocalId, *, conn: SAConnection) -> UUID:
                     LocalIdMap.scope: local_id.scope,
                     LocalIdMap.value: local_id.value,
                     LocalIdMap.id: uuid4(),
-                    LocalIdMap.timestamp: datetime.utcnow(),
+                    LocalIdMap.timestamp: utcnow(),
                 }
             )
             .on_conflict_do_nothing()

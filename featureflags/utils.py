@@ -1,10 +1,22 @@
 from collections import defaultdict
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 from aiopg.sa import Engine, SAConnection
 from sqlalchemy import cast
 from sqlalchemy.dialects.postgresql import ARRAY
+
+
+def utcnow() -> datetime:
+    """
+    Return the current UTC time as a naive datetime.
+
+    The TIMESTAMP columns hold naive values, so the tzinfo is dropped to keep
+    comparisons against stored values working. Replaces datetime.utcnow(),
+    which is deprecated since Python 3.12.
+    """
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class ArrayOfEnum(ARRAY):

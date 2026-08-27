@@ -18,7 +18,6 @@ import hashlib
 import json
 import logging
 import secrets
-from datetime import datetime
 from urllib.parse import quote
 
 import aiopg.sa
@@ -36,6 +35,7 @@ from featureflags.services.oidc_auth import (
     InvalidTokenError,
     OidcAuthenticator,
 )
+from featureflags.utils import utcnow
 from featureflags.web.container import Container
 
 log = logging.getLogger(__name__)
@@ -227,7 +227,7 @@ async def oidc_callback(
         )
 
     session = user_session.get()
-    now = datetime.utcnow()
+    now = utcnow()
     expiration_time = now + AUTH_SESSION_TTL
     async with db_engine.acquire() as conn:
         await conn.execute(

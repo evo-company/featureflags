@@ -3,7 +3,6 @@
     notify server about new projects/variables/flags
     TODO: refactor.
 """
-from datetime import datetime
 from uuid import UUID, uuid4
 
 from aiopg.sa import SAConnection
@@ -17,7 +16,7 @@ from featureflags.http.types import (
     Variable as RequestVariable,
 )
 from featureflags.models import Flag, Project, Value, Variable
-from featureflags.utils import EntityCache
+from featureflags.utils import EntityCache, utcnow
 
 
 async def _select_project(name: str, *, conn: SAConnection) -> UUID:
@@ -134,7 +133,7 @@ async def _update_flag_report_timestamp(flag_id: UUID, *, conn: SAConnection):
     await conn.execute(
         Flag.__table__.update()
         .where(Flag.id == flag_id)
-        .values({Flag.reported_timestamp: datetime.utcnow()})
+        .values({Flag.reported_timestamp: utcnow()})
     )
 
 
@@ -203,7 +202,7 @@ async def _update_value_report_timestamp(value_id: UUID, *, conn: SAConnection):
     await conn.execute(
         Value.__table__.update()
         .where(Value.id == value_id)
-        .values({Value.reported_timestamp: datetime.utcnow()})
+        .values({Value.reported_timestamp: utcnow()})
     )
 
 
